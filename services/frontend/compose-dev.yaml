@@ -1,0 +1,12 @@
+ services:
+  frontend:
+    volumes:
+      - .:/app
+      - /app/node_modules
+    build: .
+    environment:
+      - NODE_ENV=development
+      - APP_PORT=${APP_PORT}
+    ports: 
+      - "3000:3000"
+    command: npm run dev

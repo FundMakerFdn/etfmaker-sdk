@@ -1,0 +1,29 @@
+ services:
+  backend:
+    volumes:
+      - .:/app
+      - /app/node_modules
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - db
+    environment:
+      - NODE_ENV=development
+      - APP_PORT=${APP_PORT}
+      - APP_HOST=${APP_HOST}
+      - DATABASE_HOST=${DATABASE_HOST}
+      - DATABASE_PORT=${DATABASE_PORT}
+      - DATABASE_NAME=${DATABASE_NAME}
+      - DATABASE_USER=${DATABASE_USER}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - COIN_GECKO_API_KEY=${COIN_GECKO_API_KEY}
+      - COIN_GECKO_API_URL=${COIN_GECKO_API_URL}
+      - BINANCE_API_KEY=${BINANCE_API_KEY}
+      - BINANCE_API_SECRET=${BINANCE_API_SECRET}
+      - BINANCE_API_URL=${BINANCE_API_URL}      
+      - BINANCE_FAPI_URL=${BINANCE_FAPI_URL}
+
+    ports: 
+      - "3001:3001"
+    command: npm run dev
