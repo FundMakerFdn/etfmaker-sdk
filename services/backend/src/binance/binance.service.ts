@@ -1,11 +1,15 @@
 import axios from "axios";
 import moment from "moment";
+import { OpenInterestBinanceDataInterface } from "../interfaces/OpenInteresType";
+import { CandlesType } from "../interfaces/CandlesType";
+import { sleep } from "../helpers/sleep";
 
 export class BinanceService {
   private readonly apiUrl: string;
   private readonly apiKey: string;
   private readonly fapiUrl: string;
   private readonly secretKey: string;
+  private readonly binanceUrl: string;
 
   constructor() {
     this.apiUrl =
@@ -14,19 +18,13 @@ export class BinanceService {
       process.env.BINANCE_FAPI_URL ?? "https://fapi.binance.com/fapi/v1";
     this.apiKey = process.env.BINANCE_API_KEY ?? "";
     this.secretKey = process.env.BINANCE_SECRET_KEY ?? "";
+    this.binanceUrl = process.env.BINANCE_URL ?? "https://binance.com";
   }
 
-  async getFuturesTokens() {
+  async getFuturesSymbols(): Promise<Record<string, any>[]> {
     const response = await axios.get(this.fapiUrl + "/exchangeInfo");
 
-    const futuresTokens = response.data.symbols
-      .filter(
-        (symbol: Record<string, any>) =>
-          symbol.quoteAsset === "USDT" && symbol.contractType === "PERPETUAL"
-      )
-      .map((symbol: Record<string, any>) => symbol.symbol);
-
-    return futuresTokens;
+    return response.data.symbols;
   }
 
   async getHistoricalCandles(
@@ -34,7 +32,7 @@ export class BinanceService {
     startTime: number,
     endTime: number,
     interval: string = "1m"
-  ) {
+  ): Promise<CandlesType[]> {
     const url =
       (symbol.includes("USDT") ? this.fapiUrl : this.apiUrl) + "/klines";
 
@@ -63,13 +61,13 @@ export class BinanceService {
   }
 
   async getAllHistoricalCandles(
-    symbol: string = "BLZUSDT",
+    symbol: string,
     interval: string = "1m"
-  ) {
+  ): Promise<CandlesType[]> {
     const endTime = Date.now();
     const startTime = moment().subtract(60, "months").valueOf(); //60 months ago
 
-    let allCandles: number[][] = [];
+    let allCandles: CandlesType[] = [];
     let currentStartTime = startTime;
 
     while (currentStartTime < endTime) {
@@ -98,11 +96,13 @@ export class BinanceService {
 
     try {
       const response = await axios.get(url, { params });
-      return response.data.map((rate: Record<string, any>) => ({
-        symbol: rate.symbol,
-        timestamp: rate.fundingTime,
-        fundingRate: parseFloat(rate.fundingRate),
-      }));
+      return response.data.map((rate: Record<string, any>) => {
+        return {
+          symbol: rate.symbol,
+          timestamp: rate.fundingTime,
+          fundingRate: parseFloat(rate.fundingRate),
+        };
+      });
     } catch (error: any) {
       console.error(
         `Error fetching funding rates for ${symbol}:`,
@@ -112,7 +112,8 @@ export class BinanceService {
     }
   }
 
-  async getAllFundingRates(symbol: string = "BTCUSDT") {
+  async getAllFundingRates(symbol: string) {
+    //exists only for futures
     const endTime = Date.now();
     const startTime = moment().subtract(60, "months").valueOf(); //60 months ago
 
@@ -139,7 +140,7 @@ export class BinanceService {
     startTime: number,
     endTime: number,
     period: string = "5m"
-  ) {
+  ): Promise<OpenInterestBinanceDataInterface[]> {
     const params = {
       symbol,
       limit: 500,
@@ -150,16 +151,14 @@ export class BinanceService {
         "X-MBX-APIKEY": this.apiKey,
       },
     };
-    const url = `https://binance.com/futures/data/openInterestHist`;
-    // 'https://binance.com/futures/data/openInterestHist?symbol=BTCUSD&period="5m"&limit=30'
+    const url = `${this.binanceUrl}/futures/data/openInterestHist`;
 
     try {
       const response = await axios.get(url, { params });
       return response.data.map((oi: Record<string, any>) => ({
-        symbol: oi.symbol,
         timestamp: oi.timestamp,
-        sumOpenInterest: parseFloat(oi.sumOpenInterest),
-        sumOpenInterestValue: parseFloat(oi.sumOpenInterestValue),
+        sumOpenInterest: oi.sumOpenInterest,
+        sumOpenInterestValue: oi.sumOpenInterestValue,
       }));
     } catch (error: any) {
       console.error(
@@ -170,12 +169,17 @@ export class BinanceService {
     }
   }
 
-  async getAllOpenInterest(symbol: string = "BTCUSDT") {
+  async getAllOpenInterest(
+    symbol: string
+  ): Promise<OpenInterestBinanceDataInterface[]> {
+    //exists only for futures
     const endTime = Date.now();
     const startTime = moment().subtract(30, "days").valueOf(); //30 days ago
 
-    let allOpenInterest: number[][] = [];
+    let allOpenInterest: OpenInterestBinanceDataInterface[] = [];
     let currentStartTime = startTime;
+
+    let requests = 0;
 
     while (currentStartTime < endTime) {
       const openInterest = await this.getOpenInterest(
@@ -184,9 +188,15 @@ export class BinanceService {
         endTime
       );
       if (openInterest.length === 0) break; // No more data
+      requests++;
+
+      console.log("Requests:", requests);
+
+      if (requests > 1000)
+        await sleep(1000 * 60 * 5).then(() => (requests = 0)); // Binance rate limit, 5 minutes
 
       allOpenInterest = allOpenInterest.concat(openInterest);
-      currentStartTime = openInterest[openInterest.length - 1].timestamp + 1; // Next chunk
+      currentStartTime = openInterest[openInterest.length - 1].timestamp + 1;
     }
 
     return allOpenInterest;

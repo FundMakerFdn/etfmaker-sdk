@@ -1,6 +1,5 @@
 import axios from "axios";
-import { DataSource } from "../db/DataSource";
-import { CoinGeckoTopTable } from "../db/tables";
+import moment from "moment";
 
 export class CoinGeckoService {
   private readonly apiKey: string;
@@ -18,32 +17,59 @@ export class CoinGeckoService {
     });
   }
 
-  getCoinList() {
-    return axios
-      .get(
-        `${this.apiUrl}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1`,
-        {
-          headers: {
-            accept: "application/json",
-            "x-cg-pro-api-key": this.apiKey,
-          },
-        }
+  getCoinList(): Promise<Record<string, any>[]> {
+    const fetchQueue = [];
+    for (let page = 1; page <= 40; page++) {
+      // 40 pages * 250 coins = 10000 coins
+      fetchQueue.push(
+        axios.get(
+          `${this.apiUrl}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=${page}`,
+          {
+            headers: {
+              accept: "application/json",
+              "x-cg-pro-api-key": this.apiKey,
+            },
+          }
+        )
+      );
+    }
+
+    return axios.all(fetchQueue).then(
+      axios.spread((...responses) =>
+        responses.reduce(
+          (acc, response) =>
+            acc.concat(
+              response.data.map((coin: any) => ({
+                ...coin,
+                symbol: coin.symbol.toUpperCase(),
+              }))
+            ),
+          []
+        )
       )
-      .then((response) => {
-        return response.data;
-      });
+    );
   }
 
-  async updateCoinGeckoDbList() {
-    const coinList = await this.getCoinList();
-    const coinListData = coinList.map((coin: any) => {
-      return {
-        name: coin.name,
-        symbol: coin.symbol,
-        assetId: coin.id,
-      };
-    });
+  async getCoinMarketCap(
+    coinId: string
+  ): Promise<{ timestamp: number; marketCap: number }[]> {
+    const days = moment().diff(moment().subtract(60, "months"), "days");
 
-    return DataSource.insert(CoinGeckoTopTable).values(coinListData);
+    const response = await axios.get(
+      `${this.apiUrl}/coins/${coinId}/market_chart?vs_currency=usd&days=${days}`,
+      {
+        headers: {
+          accept: "application/json",
+          "x-cg-pro-api-key": this.apiKey,
+        },
+      }
+    );
+
+    return response.data.market_caps.map(
+      ([timestamp, marketCap]: [number, number]) => ({
+        timestamp,
+        marketCap,
+      })
+    );
   }
 }
