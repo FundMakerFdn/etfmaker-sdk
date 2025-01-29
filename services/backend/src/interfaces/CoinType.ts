@@ -6,4 +6,5 @@ export interface CoinInterface {
   symbol: string;
   assetId: string;
   source: CoinSourceEnum;
+  pair?: string;
 }

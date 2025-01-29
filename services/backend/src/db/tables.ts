@@ -10,7 +10,8 @@ import {
 
 export const CoinSourceTableEnum = pgEnum("coin_source_enum", [
   "SPOT",
-  "FUTURES",
+  "USDMFUTURES",
+  "COINMFUTURES",
 ]);
 
 export const Coins = pgTable("coins", {
@@ -19,6 +20,7 @@ export const Coins = pgTable("coins", {
   symbol: text("symbol").notNull(),
   assetId: text("asset_id").notNull(),
   source: CoinSourceTableEnum("source").notNull(),
+  pair: text("pair"),
 });
 
 export const CoinsRelations = relations(Coins, ({ many }) => ({

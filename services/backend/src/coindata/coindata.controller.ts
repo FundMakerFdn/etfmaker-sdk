@@ -10,3 +10,8 @@ export const calculateCoinData = async (
   const data = await coinDataService.calculateCoinData();
   res.send({ data });
 };
+
+export const updateCandles = async (req: FastifyRequest, res: FastifyReply) => {
+  const data = await coinDataService.updateCandles();
+  res.send({ data });
+};

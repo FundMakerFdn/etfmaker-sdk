@@ -1,5 +1,6 @@
 import axios from "axios";
 import moment from "moment";
+import { GetMarketCapLimiter } from "./limiters";
 
 export class CoinGeckoService {
   private readonly apiKey: string;
@@ -53,16 +54,19 @@ export class CoinGeckoService {
   async getCoinMarketCap(
     coinId: string
   ): Promise<{ timestamp: number; marketCap: number }[]> {
-    const days = moment().diff(moment().subtract(60, "months"), "days");
+    const from = moment().subtract(60, "months").unix();
+    const to = moment().unix();
 
-    const response = await axios.get(
-      `${this.apiUrl}/coins/${coinId}/market_chart?vs_currency=usd&days=${days}`,
-      {
-        headers: {
-          accept: "application/json",
-          "x-cg-pro-api-key": this.apiKey,
-        },
-      }
+    const response = await GetMarketCapLimiter.schedule(() =>
+      axios.get(
+        `${this.apiUrl}/coins/${coinId}/market_chart?vs_currency=usd&from=${from}&to=${to}&interval=5m`,
+        {
+          headers: {
+            accept: "application/json",
+            "x-cg-pro-api-key": this.apiKey,
+          },
+        }
+      )
     );
 
     return response.data.market_caps.map(

@@ -4,8 +4,8 @@ import { CoinGeckoService } from "../coingecko/coingecko.service";
 import { DataSource } from "../db/DataSource";
 import { Candles, Coins, MarketCap, OpenInterest } from "../db/tables";
 import { CoinSourceEnum } from "../enums/CoinData.enum";
-import pLimit from "p-limit";
-import { sleep } from "../helpers/sleep";
+import { BinanceCoinsDataDto } from "../binance/dto/BinanceCoinsData.dto";
+import { CoinInterface } from "../interfaces/CoinType";
 
 const coingeckoService = new CoinGeckoService();
 const binanceService = new BinanceService();
@@ -13,81 +13,88 @@ const binanceService = new BinanceService();
 export class CoinDataService {
   async calculateCoinData() {
     const topCoinList = await coingeckoService.getCoinList();
-    const futuresCoinSymbols = await binanceService.getFuturesSymbols();
+    const binanceCoinSymbols = await binanceService.getBinanceCoinsData();
 
-    const classifiedCoins = this.classifyCoins(topCoinList, futuresCoinSymbols);
-
-    const coinsData = classifiedCoins
-      .filter((coin) => coin.source !== CoinSourceEnum.UNKNOWN)
-      .map((coin) => ({
-        name: coin.name,
-        symbol: coin.symbol,
-        source: coin.source,
-        assetId: coin.id,
-      }));
+    const classifiedCoins = this.classifyCoins(topCoinList, binanceCoinSymbols);
 
     await this.resetCoinsTable();
-    const coins = await DataSource.insert(Coins).values(coinsData).returning({
-      id: Coins.id,
-      assetId: Coins.assetId,
-      symbol: Coins.symbol,
-    });
-    await this.setOpenInterest(coins);
+    const coins = await DataSource.insert(Coins)
+      .values(classifiedCoins)
+      .returning({
+        id: Coins.id,
+        assetId: Coins.assetId,
+        symbol: Coins.symbol,
+        source: Coins.source,
+        pair: Coins.pair,
+      });
     //market cap and open interest are set in parallel, they are using different APIs, can't reach rate limit
-    // await Promise.all([this.setMarketCap(coins), this.setOpenInterest(coins)]);
-    // await this.setCandles(coins);
+    await Promise.all([this.setMarketCap(coins), this.setOpenInterest(coins)]);
+    await this.setCandles(coins);
+  }
+
+  async updateCandles() {
+    const coins = await DataSource.select().from(Coins);
+
+    return await this.setCandles(coins);
   }
 
   private classifyCoins(
     coinList: Record<string, any>[],
-    binanceFuturesCoinSymbols: Record<string, any>[]
-  ): Record<string, any>[] {
-    const futuresTokens = binanceFuturesCoinSymbols
-      .filter(
-        (symbol) =>
-          symbol.contractType === "PERPETUAL" && symbol.status === "TRADING"
-      )
-      .map((symbol) => symbol.baseAsset.toUpperCase());
+    binanceCoinSymbols: BinanceCoinsDataDto
+  ): Omit<CoinInterface, "id">[] {
+    const { usdMFutures, coinMFutures, spots } = binanceCoinSymbols;
 
-    const spotTokens = binanceFuturesCoinSymbols
-      .filter((symbol) => !symbol.contractType && symbol.status === "TRADING")
-      .map((symbol) => symbol.baseAsset.toUpperCase());
+    const classifiedCoins = coinList.reduce((acc, coin) => {
+      const usdMFuturesBinanceData = usdMFutures.get(coin.symbol);
+      const coinMFuturesBinanceData = coinMFutures.get(coin.symbol);
+      const spotBinanceData = spots.get(coin.symbol);
 
-    const classifiedCoins = coinList.map((coin) => {
-      let source = CoinSourceEnum.UNKNOWN;
-
-      if (futuresTokens.includes(coin.symbol)) {
-        source = CoinSourceEnum.FUTURES;
-      } else if (spotTokens.includes(coin.symbol)) {
-        source = CoinSourceEnum.SPOT;
+      if (usdMFuturesBinanceData) {
+        acc.push({
+          name: coin.name,
+          assetId: coin.id,
+          source: CoinSourceEnum.USDMFUTURES,
+          symbol: usdMFuturesBinanceData.symbol,
+          pair: usdMFuturesBinanceData.pair,
+        });
       }
 
-      return {
-        ...coin,
-        source,
-      };
-    });
+      if (coinMFuturesBinanceData) {
+        acc.push({
+          name: coin.name,
+          assetId: coin.id,
+          source: CoinSourceEnum.COINMFUTURES,
+          symbol: coinMFuturesBinanceData.symbol,
+          pair: coinMFuturesBinanceData.pair,
+        });
+      }
+
+      if (spotBinanceData) {
+        acc.push({
+          name: coin.name,
+          assetId: coin.id,
+          source: CoinSourceEnum.SPOT,
+          symbol: spotBinanceData.symbol,
+        });
+      }
+
+      return acc;
+    }, []) as Omit<CoinInterface, "id">[];
 
     return classifiedCoins;
   }
 
   private async setMarketCap(coins: Record<string, any>[]): Promise<void> {
-    const limit = pLimit(10);
     const tasks: Promise<void>[] = [];
 
     await this.resetMarketCapTable();
 
-    for (let i = 0; i < coins.length; i++) {
-      const { assetId, id: coinId } = coins[i];
-      if (!coinId || !assetId) continue;
+    for (const { assetId, id: coinId, source } of coins) {
+      if (!coinId || !assetId || source !== CoinSourceEnum.SPOT) continue;
 
       tasks.push(
-        limit(async () => {
+        (async () => {
           try {
-            await sleep(i % 10 === 0 ? 1000 : 100);
-
-            console.log(`Processing market cap for coinId ${coinId}...`);
-
             const marketCap = await coingeckoService.getCoinMarketCap(assetId);
 
             if (marketCap.length === 0) return;
@@ -102,7 +109,7 @@ export class CoinDataService {
           } catch (error) {
             console.error(`Error processing coinId ${coinId}:`, error);
           }
-        })
+        })()
       );
     }
 
@@ -110,27 +117,21 @@ export class CoinDataService {
   }
 
   private async setOpenInterest(coins: Record<string, any>[]): Promise<void> {
-    const limit = pLimit(10);
     const tasks: Promise<void>[] = [];
 
     await this.resetOpenInterestTable();
 
-    for (let i = 0; i < coins.length; i++) {
-      const { symbol, id: coinId } = coins[i];
-      if (!symbol || !coinId) continue;
+    for (const { symbol, id: coinId, source, pair } of coins) {
+      if (!symbol || !coinId || source === CoinSourceEnum.SPOT) continue;
 
       tasks.push(
-        limit(async () => {
+        (async () => {
           try {
-            await sleep(i % 10 === 0 ? 1000 : 100);
-
-            console.log(`Processing open interest for coinId ${coinId}...`);
-
             const openInterest = await binanceService.getAllOpenInterest(
-              symbol
+              symbol,
+              source,
+              pair
             );
-
-            console.log(symbol, openInterest);
 
             if (openInterest.length === 0) return;
 
@@ -145,7 +146,7 @@ export class CoinDataService {
           } catch (error) {
             console.error(`Error processing symbol ${symbol}:`, error);
           }
-        })
+        })()
       );
     }
 
@@ -153,43 +154,33 @@ export class CoinDataService {
   }
 
   private async setCandles(coins: Record<string, any>[]): Promise<void> {
-    const limit = pLimit(10);
     const tasks: Promise<void>[] = [];
 
     await this.resetCandlesTable();
 
-    for (let i = 0; i < coins.length; i++) {
-      const { symbol, id: coinId } = coins[i];
+    for (const { symbol, id: coinId, source } of coins) {
       if (!symbol || !coinId) continue;
 
       tasks.push(
-        limit(async () => {
+        (async () => {
           try {
-            await sleep(i % 10 === 0 ? 1000 : 100);
-
-            console.log(`Processing candles for coinId ${coinId}...`);
-
             const candles = await binanceService.getAllHistoricalCandles(
-              symbol
+              source,
+              symbol,
+              coinId
             );
 
             if (candles.length === 0) return;
 
-            const insertData = candles.map((candle) => ({
-              coinId,
-              timestamp: new Date(candle.timestamp),
-              open: candle.open.toString(),
-              high: candle.high.toString(),
-              low: candle.low.toString(),
-              close: candle.close.toString(),
-              volume: candle.volume.toString(),
-            }));
-
-            await DataSource.insert(Candles).values(insertData);
+            const batchSize = 1000;
+            for (let i = 0; i < candles.length; i += batchSize) {
+              const batch = candles.slice(i, i + batchSize);
+              await DataSource.insert(Candles).values(batch);
+            }
           } catch (error) {
             console.error(`Error processing symbol ${symbol}:`, error);
           }
-        })
+        })()
       );
     }
 
