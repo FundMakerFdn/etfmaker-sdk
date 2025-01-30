@@ -2,5 +2,10 @@ import Bottleneck from "bottleneck";
 
 export const GetMarketCapLimiter = new Bottleneck({
   maxConcurrent: 10,
-  minTime: (1000 * 60) / 500, // 500 requests per minute
+  minTime: (1000 * 60) / 1000, // 1000 requests per minute
+});
+
+// Listener for when a job starts executing
+GetMarketCapLimiter.on("executing", (info) => {
+  // console.log(`Job executing with ID: ${info.options.id}`);
 });

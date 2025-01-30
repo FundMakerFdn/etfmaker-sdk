@@ -1,11 +1,14 @@
-import { sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
+import { desc } from "drizzle-orm/expressions";
 import { BinanceService } from "../binance/binance.service";
 import { CoinGeckoService } from "../coingecko/coingecko.service";
 import { DataSource } from "../db/DataSource";
-import { Candles, Coins, MarketCap, OpenInterest } from "../db/tables";
-import { CoinSourceEnum } from "../enums/CoinData.enum";
+import { Candles, Coins, Funding, MarketCap, OpenInterest } from "../db/tables";
+import { CoinSourceEnum } from "../enums/CoinSource.enum";
 import { BinanceCoinsDataDto } from "../binance/dto/BinanceCoinsData.dto";
 import { CoinInterface } from "../interfaces/CoinType";
+import moment from "moment";
+import { CoinStatusEnum } from "../enums/CoinStatus.enum";
 
 const coingeckoService = new CoinGeckoService();
 const binanceService = new BinanceService();
@@ -17,25 +20,54 @@ export class CoinDataService {
 
     const classifiedCoins = this.classifyCoins(topCoinList, binanceCoinSymbols);
 
-    await this.resetCoinsTable();
-    const coins = await DataSource.insert(Coins)
-      .values(classifiedCoins)
-      .returning({
-        id: Coins.id,
-        assetId: Coins.assetId,
-        symbol: Coins.symbol,
-        source: Coins.source,
-        pair: Coins.pair,
-      });
+    const coins = await this.updateCoinsTable(classifiedCoins);
+
     //market cap and open interest are set in parallel, they are using different APIs, can't reach rate limit
     await Promise.all([this.setMarketCap(coins), this.setOpenInterest(coins)]);
     await this.setCandles(coins);
+    await this.setFundings(coins);
   }
 
-  async updateCandles() {
-    const coins = await DataSource.select().from(Coins);
+  private async updateCoinsTable(
+    newCoinsData: Omit<CoinInterface, "id">[]
+  ): Promise<CoinInterface[]> {
+    const coins = (await DataSource.select().from(Coins)) as CoinInterface[];
 
-    return await this.setCandles(coins);
+    //add new coins to list
+    for (const newCoin of newCoinsData) {
+      const coin = coins.find(
+        (c) =>
+          c.assetId === newCoin.assetId &&
+          c.source === newCoin.source &&
+          c.symbol === newCoin.symbol
+      );
+
+      if (!coin) {
+        await DataSource.insert(Coins).values(newCoin);
+      }
+    }
+
+    //mark delisted coins
+    for (const coin of coins) {
+      const isStillListed = !!newCoinsData.find(
+        (c) =>
+          c.assetId === coin.assetId &&
+          c.source === coin.source &&
+          c.symbol === coin.symbol
+      );
+      if (coin.status === CoinStatusEnum.ACTIVE && !isStillListed) {
+        await DataSource.update(Coins)
+          .set({ status: CoinStatusEnum.DELISTED })
+          .where(eq(Coins.id, coin.id));
+      }
+      if (coin.status === CoinStatusEnum.DELISTED && isStillListed) {
+        await DataSource.update(Coins)
+          .set({ status: CoinStatusEnum.ACTIVE })
+          .where(eq(Coins.id, coin.id));
+      }
+    }
+
+    return DataSource.select().from(Coins) as Promise<CoinInterface[]>;
   }
 
   private classifyCoins(
@@ -55,6 +87,7 @@ export class CoinDataService {
           assetId: coin.id,
           source: CoinSourceEnum.USDMFUTURES,
           symbol: usdMFuturesBinanceData.symbol,
+          status: CoinStatusEnum.ACTIVE,
           pair: usdMFuturesBinanceData.pair,
         });
       }
@@ -65,6 +98,7 @@ export class CoinDataService {
           assetId: coin.id,
           source: CoinSourceEnum.COINMFUTURES,
           symbol: coinMFuturesBinanceData.symbol,
+          status: CoinStatusEnum.ACTIVE,
           pair: coinMFuturesBinanceData.pair,
         });
       }
@@ -75,6 +109,7 @@ export class CoinDataService {
           assetId: coin.id,
           source: CoinSourceEnum.SPOT,
           symbol: spotBinanceData.symbol,
+          status: CoinStatusEnum.ACTIVE,
         });
       }
 
@@ -84,130 +119,161 @@ export class CoinDataService {
     return classifiedCoins;
   }
 
-  private async setMarketCap(coins: Record<string, any>[]): Promise<void> {
-    const tasks: Promise<void>[] = [];
-
-    await this.resetMarketCapTable();
+  private async setMarketCap(coins: CoinInterface[]): Promise<void> {
+    console.log("Setting market cap data...");
 
     for (const { assetId, id: coinId, source } of coins) {
       if (!coinId || !assetId || source !== CoinSourceEnum.SPOT) continue;
 
-      tasks.push(
-        (async () => {
-          try {
-            const marketCap = await coingeckoService.getCoinMarketCap(assetId);
+      const lastMarketCap = (
+        await DataSource.select()
+          .from(MarketCap)
+          .where(eq(MarketCap.coinId, coinId))
+          .orderBy(desc(MarketCap.timestamp))
+          .limit(1)
+      )?.[0];
 
-            if (marketCap.length === 0) return;
+      let days;
 
-            const insertData = marketCap.map((cap) => ({
-              coinId,
-              timestamp: new Date(cap.timestamp),
-              marketCap: cap.marketCap.toString(),
-            }));
+      if (lastMarketCap) {
+        const lastMarketCapDate = moment(lastMarketCap.timestamp);
+        days = moment().diff(lastMarketCapDate, "days");
+      } else {
+        days = moment().diff(moment().subtract(60, "months"), "days");
+      }
 
-            await DataSource.insert(MarketCap).values(insertData);
-          } catch (error) {
-            console.error(`Error processing coinId ${coinId}:`, error);
-          }
-        })()
-      );
+      if (days <= 0) continue;
+
+      try {
+        const marketCap = await coingeckoService.getCoinMarketCap(
+          assetId,
+          days
+        );
+
+        if (marketCap.length === 0) continue;
+
+        const insertData = marketCap.map((cap) => ({
+          coinId,
+          timestamp: new Date(cap.timestamp),
+          marketCap: cap.marketCap.toString(),
+        }));
+
+        await DataSource.insert(MarketCap).values(insertData);
+      } catch (error) {
+        console.error(`Error processing coinId ${coinId}:`, error);
+      }
     }
-
-    await Promise.all(tasks);
   }
 
-  private async setOpenInterest(coins: Record<string, any>[]): Promise<void> {
-    const tasks: Promise<void>[] = [];
-
-    await this.resetOpenInterestTable();
-
+  private async setOpenInterest(coins: CoinInterface[]): Promise<void> {
     for (const { symbol, id: coinId, source, pair } of coins) {
       if (!symbol || !coinId || source === CoinSourceEnum.SPOT) continue;
 
-      tasks.push(
-        (async () => {
-          try {
-            const openInterest = await binanceService.getAllOpenInterest(
-              symbol,
-              source,
-              pair
-            );
+      const lastOpenInterest = (
+        await DataSource.select()
+          .from(OpenInterest)
+          .where(eq(OpenInterest.coinId, coinId))
+          .orderBy(desc(OpenInterest.timestamp))
+          .limit(1)
+      )?.[0];
 
-            if (openInterest.length === 0) return;
+      let startTime;
+      if (lastOpenInterest) {
+        const lastOpenInterestDate = moment(lastOpenInterest.timestamp).add(
+          moment(1000 * 60 * 60 * 24).valueOf()
+        );
+        startTime = lastOpenInterestDate.valueOf();
+      } else {
+        startTime = moment().subtract(30, "days").valueOf();
+      }
 
-            const insertData = openInterest.map((oi) => ({
-              coinId,
-              timestamp: new Date(oi.timestamp),
-              sumOpenInterest: oi.sumOpenInterest.toString(),
-              sumOpenInterestValue: oi.sumOpenInterestValue.toString(),
-            }));
+      if (moment(startTime).get("days") <= 0) continue;
 
-            await DataSource.insert(OpenInterest).values(insertData);
-          } catch (error) {
-            console.error(`Error processing symbol ${symbol}:`, error);
-          }
-        })()
-      );
+      try {
+        const openInterest = await binanceService.getAllOpenInterest(
+          symbol,
+          source,
+          startTime,
+          pair
+        );
+        if (openInterest.length === 0) continue;
+
+        const insertData = openInterest.map((oi) => ({
+          coinId,
+          timestamp: new Date(oi.timestamp),
+          sumOpenInterest: oi.sumOpenInterest.toString(),
+          sumOpenInterestValue: oi.sumOpenInterestValue.toString(),
+        }));
+
+        await DataSource.insert(OpenInterest).values(insertData);
+      } catch (error) {
+        console.error(`Error processing symbol ${symbol}:`, error);
+      }
     }
-
-    await Promise.all(tasks);
   }
 
-  private async setCandles(coins: Record<string, any>[]): Promise<void> {
-    const tasks: Promise<void>[] = [];
-
-    await this.resetCandlesTable();
-
+  private async setCandles(coins: CoinInterface[]): Promise<void> {
     for (const { symbol, id: coinId, source } of coins) {
       if (!symbol || !coinId) continue;
 
-      tasks.push(
-        (async () => {
-          try {
-            const candles = await binanceService.getAllHistoricalCandles(
-              source,
-              symbol,
-              coinId
-            );
+      const lastCandle = (
+        await DataSource.select()
+          .from(Candles)
+          .where(eq(Candles.coinId, coinId))
+          .orderBy(desc(Candles.timestamp))
+          .limit(1)
+      )?.[0];
 
-            if (candles.length === 0) return;
+      let startTime;
+      if (lastCandle) {
+        const lastCandleDate = moment(lastCandle.timestamp);
+        startTime = lastCandleDate.valueOf();
+      } else {
+        startTime = moment().subtract(60, "months").valueOf(); //60 months ago
+      }
 
-            const batchSize = 1000;
-            for (let i = 0; i < candles.length; i += batchSize) {
-              const batch = candles.slice(i, i + batchSize);
-              await DataSource.insert(Candles).values(batch);
-            }
-          } catch (error) {
-            console.error(`Error processing symbol ${symbol}:`, error);
-          }
-        })()
-      );
+      try {
+        const candles = await binanceService.getAllHistoricalCandles(
+          source,
+          symbol,
+          coinId,
+          startTime
+        );
+
+        if (candles.length === 0) continue;
+
+        const batchSize = 1000;
+        for (let i = 0; i < candles.length; i += batchSize) {
+          const batch = candles.slice(i, i + batchSize);
+          await DataSource.insert(Candles).values(batch);
+        }
+      } catch (error) {
+        console.error(`Error processing symbol ${symbol}:`, error);
+      }
     }
-
-    await Promise.all(tasks);
   }
 
-  private async resetCoinsTable() {
-    await DataSource.execute(
-      sql`TRUNCATE TABLE coins RESTART IDENTITY CASCADE;`
-    );
-  }
+  private async setFundings(coins: CoinInterface[]): Promise<void> {
+    console.log("Setting fundings data...");
 
-  private async resetMarketCapTable() {
-    await DataSource.execute(
-      sql`TRUNCATE TABLE market_cap RESTART IDENTITY CASCADE;`
-    );
-  }
+    for (const { symbol, id: coinId, source } of coins) {
+      if (!symbol || !coinId || source === CoinSourceEnum.SPOT) continue;
 
-  private async resetOpenInterestTable() {
-    await DataSource.execute(
-      sql`TRUNCATE TABLE open_interest RESTART IDENTITY CASCADE;`
-    );
-  }
+      try {
+        const fundingData = await binanceService.getAllFunding(symbol, source);
 
-  private async resetCandlesTable() {
-    await DataSource.execute(
-      sql`TRUNCATE TABLE candles RESTART IDENTITY CASCADE;`
-    );
+        if (fundingData.length === 0) continue;
+
+        const insertData = fundingData.map((f) => ({
+          coinId,
+          timestamp: new Date(f.timestamp),
+          fundingRate: f.fundingRate.toString(),
+        }));
+
+        await DataSource.insert(Funding).values(insertData);
+      } catch (error) {
+        console.error(`Error processing symbol ${symbol}:`, error);
+      }
+    }
   }
 }

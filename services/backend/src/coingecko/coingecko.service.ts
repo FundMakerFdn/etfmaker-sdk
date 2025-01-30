@@ -52,14 +52,12 @@ export class CoinGeckoService {
   }
 
   async getCoinMarketCap(
-    coinId: string
+    coinId: string,
+    days: number
   ): Promise<{ timestamp: number; marketCap: number }[]> {
-    const from = moment().subtract(60, "months").unix();
-    const to = moment().unix();
-
     const response = await GetMarketCapLimiter.schedule(() =>
       axios.get(
-        `${this.apiUrl}/coins/${coinId}/market_chart?vs_currency=usd&from=${from}&to=${to}&interval=5m`,
+        `${this.apiUrl}/coins/${coinId}/market_chart?vs_currency=usd&days=${days}&interval=daily`,
         {
           headers: {
             accept: "application/json",

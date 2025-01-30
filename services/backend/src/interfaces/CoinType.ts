@@ -1,4 +1,5 @@
-import { CoinSourceEnum } from "../enums/CoinData.enum";
+import { CoinSourceEnum } from "../enums/CoinSource.enum";
+import { CoinStatusEnum } from "../enums/CoinStatus.enum";
 
 export interface CoinInterface {
   id: number;
@@ -6,5 +7,6 @@ export interface CoinInterface {
   symbol: string;
   assetId: string;
   source: CoinSourceEnum;
+  status: CoinStatusEnum;
   pair?: string;
 }

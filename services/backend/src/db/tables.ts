@@ -14,6 +14,11 @@ export const CoinSourceTableEnum = pgEnum("coin_source_enum", [
   "COINMFUTURES",
 ]);
 
+export const CoinStatusTableEnum = pgEnum("coin_status_enum", [
+  "ACTIVE",
+  "DELISTED",
+]);
+
 export const Coins = pgTable("coins", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -21,12 +26,14 @@ export const Coins = pgTable("coins", {
   assetId: text("asset_id").notNull(),
   source: CoinSourceTableEnum("source").notNull(),
   pair: text("pair"),
+  status: CoinStatusTableEnum("status").notNull(),
 });
 
 export const CoinsRelations = relations(Coins, ({ many }) => ({
   candles: many(Candles),
   openInterest: many(OpenInterest),
   marketCap: many(MarketCap),
+  funding: many(Funding),
 }));
 
 export const Candles = pgTable("candles", {
@@ -78,6 +85,22 @@ export const MarketCap = pgTable("market_cap", {
 export const MarketCapRelations = relations(MarketCap, ({ one }) => ({
   coin: one(Coins, {
     fields: [MarketCap.coinId],
+    references: [Coins.id],
+  }),
+}));
+
+export const Funding = pgTable("funding", {
+  id: serial("id").primaryKey(),
+  coinId: integer("coin_id")
+    .notNull()
+    .references(() => Coins.id),
+  timestamp: timestamp("timestamp").notNull(),
+  fundingRate: text("funding_rate").notNull(),
+});
+
+export const FundingRelations = relations(Funding, ({ one }) => ({
+  coin: one(Coins, {
+    fields: [Funding.coinId],
     references: [Coins.id],
   }),
 }));

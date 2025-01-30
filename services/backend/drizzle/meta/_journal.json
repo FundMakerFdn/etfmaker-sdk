@@ -8,6 +8,20 @@
       "when": 1738153110616,
       "tag": "0000_outstanding_lady_bullseye",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1738230694513,
+      "tag": "0001_cultured_doctor_faustus",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1738260801380,
+      "tag": "0002_flawless_snowbird",
+      "breakpoints": true
     }
   ]
 }

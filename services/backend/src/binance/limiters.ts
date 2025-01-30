@@ -26,6 +26,31 @@ export const FundingRateLimiter = new Bottleneck({
 });
 
 export const OpenInterestLimiter = new Bottleneck({
-  maxConcurrent: 10,
+  maxConcurrent: 1,
   minTime: (1000 * 60 * 5) / 1000, // 1000 requests per 5 minutes
+});
+
+// Listener for when a job starts executing
+UsdMFuturesSymbolsLimiter.on("executing", (info) => {
+  // console.log(`Job executing with ID: ${info.options.id}`);
+});
+
+CoinMFuturesSymbolsLimiter.on("executing", (info) => {
+  // console.log(`Job executing with ID: ${info.options.id}`);
+});
+
+SpotsSymbolsLimiter.on("executing", (info) => {
+  // console.log(`Job executing with ID: ${info.options.id}`);
+});
+
+HistoricalCandlesLimiter.on("executing", (info) => {
+  // console.log(`Job executing with ID: ${info.options.id}`);
+});
+
+FundingRateLimiter.on("executing", (info) => {
+  // console.log(`Job executing with ID: ${info.options.id}`);
+});
+
+OpenInterestLimiter.on("executing", (info) => {
+  // console.log(`Job executing with ID: ${info.options.id}`);
 });
