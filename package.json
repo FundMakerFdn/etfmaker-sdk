@@ -1,6 +1,6 @@
 {
   "name": "fund-maker",
-  "workspaces": ["backend", "frontend"],
+  "workspaces": ["services/backend", "services/frontend"],
   "version": "1.0.0",
   "description": "",
   "main": "index.js",

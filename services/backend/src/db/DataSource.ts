@@ -1,8 +1,7 @@
-import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 
-// Create a new PostgreSQL client instance
-const client = new pg.Client({
+const pool = new Pool({
   host: process.env.DATABASE_HOST,
   port: Number(process.env.DATABASE_PORT),
   user: process.env.DATABASE_USER,
@@ -11,7 +10,4 @@ const client = new pg.Client({
   // ssl: true, // Uncomment if SSL is required
 });
 
-// Connect to the database
-await client.connect();
-
-export const DataSource = drizzle(client);
+export const DataSource = drizzle(pool);
