@@ -1,4 +1,4 @@
-export interface CandlesType {
+export interface CandleInterface {
   coinId: number;
   timestamp: Date;
   open: string;

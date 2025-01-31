@@ -3,18 +3,19 @@ import { desc } from "drizzle-orm/expressions";
 import { BinanceService } from "../binance/binance.service";
 import { CoinGeckoService } from "../coingecko/coingecko.service";
 import { DataSource } from "../db/DataSource";
-import { Candles, Coins, Funding, MarketCap, OpenInterest } from "../db/tables";
+import { Candles, Coins, Funding, MarketCap, OpenInterest } from "../db/schema";
 import { CoinSourceEnum } from "../enums/CoinSource.enum";
 import { BinanceCoinsDataDto } from "../binance/dto/BinanceCoinsData.dto";
-import { CoinInterface } from "../interfaces/CoinType";
+import { CoinInterface } from "../interfaces/Coin.interface";
 import moment from "moment";
 import { CoinStatusEnum } from "../enums/CoinStatus.enum";
+import { FuturesType } from "../enums/FuturesType.enum";
 
 const coingeckoService = new CoinGeckoService();
 const binanceService = new BinanceService();
 
-export class CoinDataService {
-  async calculateCoinData() {
+export class DataActualizationService {
+  async actualizeData() {
     const topCoinList = await coingeckoService.getCoinList();
     const binanceCoinSymbols = await binanceService.getBinanceCoinsData();
 
@@ -48,21 +49,45 @@ export class CoinDataService {
     }
 
     //mark delisted coins
+    // actualize data
     for (const coin of coins) {
-      const isStillListed = !!newCoinsData.find(
+      const newCoinData = newCoinsData.find(
         (c) =>
           c.assetId === coin.assetId &&
           c.source === coin.source &&
           c.symbol === coin.symbol
       );
-      if (coin.status === CoinStatusEnum.ACTIVE && !isStillListed) {
+      const updatedData: Partial<Omit<CoinInterface, "id">> = {};
+
+      if (coin.status === CoinStatusEnum.ACTIVE && !newCoinData) {
         await DataSource.update(Coins)
           .set({ status: CoinStatusEnum.DELISTED })
           .where(eq(Coins.id, coin.id));
+        updatedData.status = CoinStatusEnum.DELISTED;
       }
-      if (coin.status === CoinStatusEnum.DELISTED && isStillListed) {
+
+      if (coin.status === CoinStatusEnum.DELISTED && !!newCoinData) {
+        updatedData.status = CoinStatusEnum.DELISTED;
+      }
+
+      if (newCoinData) {
+        const updatableKeys: Array<keyof Omit<CoinInterface, "id" | "status">> =
+          ["name", "assetId", "source", "symbol", "pair", "futuresType"];
+
+        for (const key of updatableKeys) {
+          if (
+            newCoinData[key] !== undefined &&
+            newCoinData[key] !== null &&
+            newCoinData[key] !== coin[key]
+          ) {
+            updatedData[key] = newCoinData[key] as any;
+          }
+        }
+      }
+
+      if (Object.keys(updatedData).length > 0) {
         await DataSource.update(Coins)
-          .set({ status: CoinStatusEnum.ACTIVE })
+          .set(updatedData)
           .where(eq(Coins.id, coin.id));
       }
     }
@@ -89,6 +114,7 @@ export class CoinDataService {
           symbol: usdMFuturesBinanceData.symbol,
           status: CoinStatusEnum.ACTIVE,
           pair: usdMFuturesBinanceData.pair,
+          futuresType: usdMFuturesBinanceData.futuresType,
         });
       }
 
@@ -100,6 +126,7 @@ export class CoinDataService {
           symbol: coinMFuturesBinanceData.symbol,
           status: CoinStatusEnum.ACTIVE,
           pair: coinMFuturesBinanceData.pair,
+          futuresType: coinMFuturesBinanceData.futuresType,
         });
       }
 
@@ -232,6 +259,8 @@ export class CoinDataService {
         startTime = moment().subtract(60, "months").valueOf(); //60 months ago
       }
 
+      if (moment().diff(moment(startTime), "minutes") < 1) continue;
+
       try {
         const candles = await binanceService.getAllHistoricalCandles(
           source,
@@ -256,11 +285,39 @@ export class CoinDataService {
   private async setFundings(coins: CoinInterface[]): Promise<void> {
     console.log("Setting fundings data...");
 
-    for (const { symbol, id: coinId, source } of coins) {
-      if (!symbol || !coinId || source === CoinSourceEnum.SPOT) continue;
+    for (const { symbol, id: coinId, source, futuresType, status } of coins) {
+      if (
+        !symbol ||
+        !coinId ||
+        source === CoinSourceEnum.SPOT ||
+        futuresType !== FuturesType.PERPETUAL ||
+        status === CoinStatusEnum.DELISTED
+      )
+        continue;
+
+      const lastFunding = (
+        await DataSource.select()
+          .from(Funding)
+          .where(eq(Funding.coinId, coinId))
+          .orderBy(desc(Funding.timestamp))
+          .limit(1)
+      )?.[0];
+
+      let startTime;
+      if (lastFunding) {
+        startTime = moment(lastFunding.timestamp).valueOf() + 1;
+      } else {
+        startTime = moment().subtract(60, "months").valueOf(); //60 months ago
+      }
+
+      if (moment().diff(moment(startTime), "hours") < 8) continue;
 
       try {
-        const fundingData = await binanceService.getAllFunding(symbol, source);
+        const fundingData = await binanceService.getAllFunding(
+          symbol,
+          source,
+          startTime
+        );
 
         if (fundingData.length === 0) continue;
 

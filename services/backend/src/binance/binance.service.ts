@@ -1,7 +1,6 @@
 import axios from "axios";
-import moment from "moment";
-import { OpenInterestBinanceDataInterface } from "../interfaces/OpenInteresType";
-import { CandlesType } from "../interfaces/CandlesType";
+import { OpenInterestInterface } from "../interfaces/OpenInterest.interface";
+import { CandleInterface } from "../interfaces/Candle.interface";
 import { CoinSourceEnum } from "../enums/CoinSource.enum";
 import { BinanceCoinsDataDto } from "./dto/BinanceCoinsData.dto";
 import {
@@ -13,6 +12,8 @@ import {
   UsdMFuturesSymbolsLimiter,
 } from "./limiters";
 import { BinanceFundingDto } from "./dto/BinanceFunding.dto";
+import { FuturesType } from "../enums/FuturesType.enum";
+import moment from "moment";
 
 export class BinanceService {
   private readonly apiUrl: string;
@@ -36,16 +37,35 @@ export class BinanceService {
 
   async getBinanceCoinsData(): Promise<BinanceCoinsDataDto> {
     const data = {
-      usdMFutures: new Map<string, { symbol: string; pair: string }>(),
-      coinMFutures: new Map<string, { symbol: string; pair: string }>(),
+      usdMFutures: new Map<
+        string,
+        { symbol: string; pair: string; futuresType: FuturesType }
+      >(),
+      coinMFutures: new Map<
+        string,
+        { symbol: string; pair: string; futuresType: FuturesType }
+      >(),
       spots: new Map<string, { symbol: string }>(),
     } as BinanceCoinsDataDto;
+
+    const futuresContractTypes = {
+      PERPETUAL: FuturesType.PERPETUAL,
+      CURRENT_QUARTER: FuturesType.CURRENT_QUARTER,
+      NEXT_QUARTER: FuturesType.NEXT_QUARTER,
+      CURRENT_QUARTER_DELIVERING: FuturesType.DELIVERING,
+      NEXT_QUARTER_DELIVERING: FuturesType.DELIVERING,
+      "PERPETUAL DELIVERING": FuturesType.DELIVERING,
+    };
 
     const coinMFutures = await this.getCoinMFuturesSymbols();
     coinMFutures.forEach((symbol) =>
       data.coinMFutures.set(symbol.baseAsset, {
         pair: symbol.pair,
         symbol: symbol.symbol,
+        futuresType:
+          futuresContractTypes[
+            symbol.contractType as keyof typeof futuresContractTypes
+          ],
       })
     );
 
@@ -54,6 +74,10 @@ export class BinanceService {
       data.usdMFutures.set(symbol.baseAsset, {
         pair: symbol.pair,
         symbol: symbol.symbol,
+        futuresType:
+          futuresContractTypes[
+            symbol.contractType as keyof typeof futuresContractTypes
+          ],
       })
     );
 
@@ -95,7 +119,7 @@ export class BinanceService {
     coinId: number,
     startTime: number,
     endTime: number
-  ): Promise<CandlesType[]> {
+  ): Promise<CandleInterface[]> {
     let url = `${this.apiUrl}/klines`;
 
     if (source === CoinSourceEnum.USDMFUTURES) {
@@ -110,6 +134,9 @@ export class BinanceService {
       startTime,
       endTime,
       limit: 1500, // Max candles per request
+      headers: {
+        "X-MBX-APIKEY": this.apiKey,
+      },
     };
 
     try {
@@ -137,25 +164,27 @@ export class BinanceService {
     symbol: string,
     coinId: number,
     startTime: number
-  ): Promise<CandlesType[]> {
-    const endTime = Date.now();
-
+  ): Promise<CandleInterface[]> {
     const diapason = 1000 * 60 * 60 * 24 * 200; // 200 days
 
-    let allCandles: CandlesType[] = [];
+    let allCandles: CandleInterface[] = [];
     let currentStartTime = startTime;
 
-    while (currentStartTime < endTime) {
+    while (currentStartTime < Date.now()) {
+      let endTime = currentStartTime + diapason;
+      if (moment(endTime).isAfter(moment())) {
+        endTime = Date.now();
+      }
       const candles = await this.getHistoricalCandles(
         source,
         symbol,
         coinId,
         currentStartTime,
-        currentStartTime + diapason
+        endTime
       );
 
       if (candles.length === 0) {
-        currentStartTime += diapason;
+        currentStartTime = endTime + 1; // Next day
         continue;
       }
 
@@ -176,12 +205,21 @@ export class BinanceService {
     const url = `${
       source === CoinSourceEnum.USDMFUTURES ? this.fapiUrl : this.dapiUrl
     }/fundingRate`;
-    const params = { symbol, startTime, endTime, limit: 1000 };
+    const params = {
+      symbol,
+      startTime,
+      endTime,
+      limit: 1000,
+      headers: {
+        "X-MBX-APIKEY": this.apiKey,
+      },
+    };
 
     try {
       const response = await FundingRateLimiter.schedule(() =>
         axios.get(url, { params })
       );
+      console.dir({ response: response.data }, { depth: null });
       return response.data.map((rate: Record<string, any>) => ({
         timestamp: rate.fundingTime,
         fundingRate: rate.fundingRate,
@@ -197,11 +235,11 @@ export class BinanceService {
 
   async getAllFunding(
     symbol: string,
-    source: CoinSourceEnum.COINMFUTURES | CoinSourceEnum.USDMFUTURES
+    source: CoinSourceEnum.COINMFUTURES | CoinSourceEnum.USDMFUTURES,
+    startTime: number
   ): Promise<BinanceFundingDto[]> {
     //exists only for futures
     const endTime = Date.now();
-    const startTime = moment().subtract(60, "months").valueOf(); //60 months ago
 
     let allRates: BinanceFundingDto[] = [];
     let currentStartTime = startTime;
@@ -231,7 +269,7 @@ export class BinanceService {
     startTime: number,
     endTime: number,
     pair?: string
-  ): Promise<OpenInterestBinanceDataInterface[]> {
+  ): Promise<OpenInterestInterface[]> {
     return OpenInterestLimiter.schedule(async () => {
       const params = {
         limit: 500,
@@ -271,10 +309,10 @@ export class BinanceService {
     source: CoinSourceEnum.COINMFUTURES | CoinSourceEnum.USDMFUTURES,
     startTime: number,
     pair?: string
-  ): Promise<OpenInterestBinanceDataInterface[]> {
+  ): Promise<OpenInterestInterface[]> {
     let currentStartTime = startTime;
     const endTime = Date.now();
-    const openInterestData: OpenInterestBinanceDataInterface[] = [];
+    const openInterestData: OpenInterestInterface[] = [];
 
     while (currentStartTime < endTime) {
       const openInterest = await this.getOpenInterest(
@@ -296,5 +334,32 @@ export class BinanceService {
     }
 
     return openInterestData;
+  }
+
+  async getCurrentPrice(
+    symbol: string,
+    source: CoinSourceEnum
+  ): Promise<string> {
+    let baseUrl = this.apiUrl;
+    if (source === CoinSourceEnum.USDMFUTURES) {
+      baseUrl = this.fapiUrl;
+    } else if (source === CoinSourceEnum.COINMFUTURES) {
+      baseUrl = this.dapiUrl;
+    }
+    const url = `${baseUrl}/ticker/price`;
+    const params = {
+      symbol,
+    };
+
+    try {
+      const response = await axios.get(url, { params });
+      return response.data.price;
+    } catch (error: any) {
+      console.error(
+        `Error fetching current price for ${symbol}:`,
+        error.message
+      );
+      throw error;
+    }
   }
 }

@@ -11,6 +11,7 @@
   "dependencies": {
     "axios": "^1.7.9",
     "bottleneck": "^2.19.5",
+    "decimal.js": "^10.4.3",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.38.4",
     "fastify": "^5.2.1",

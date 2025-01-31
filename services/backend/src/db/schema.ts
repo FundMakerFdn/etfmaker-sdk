@@ -1,23 +1,21 @@
 import { relations } from "drizzle-orm";
-import {
-  integer,
-  pgEnum,
-  pgTable,
-  serial,
-  text,
-  timestamp,
-} from "drizzle-orm/pg-core";
+import { integer, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { enumToPgEnum } from "../helpers/EnumToPg";
+import { FuturesType } from "../enums/FuturesType.enum";
+import { CoinStatusEnum } from "../enums/CoinStatus.enum";
+import { CoinSourceEnum } from "../enums/CoinSource.enum";
 
-export const CoinSourceTableEnum = pgEnum("coin_source_enum", [
-  "SPOT",
-  "USDMFUTURES",
-  "COINMFUTURES",
-]);
+export const CoinSourceTableEnum = enumToPgEnum(
+  "coin_source_enum",
+  CoinSourceEnum
+);
 
-export const CoinStatusTableEnum = pgEnum("coin_status_enum", [
-  "ACTIVE",
-  "DELISTED",
-]);
+export const CoinStatusTableEnum = enumToPgEnum(
+  "coin_status_enum",
+  CoinStatusEnum
+);
+
+export const FuturesTypeEnum = enumToPgEnum("futures_type_enum", FuturesType);
 
 export const Coins = pgTable("coins", {
   id: serial("id").primaryKey(),
@@ -27,6 +25,7 @@ export const Coins = pgTable("coins", {
   source: CoinSourceTableEnum("source").notNull(),
   pair: text("pair"),
   status: CoinStatusTableEnum("status").notNull(),
+  futuresType: FuturesTypeEnum("futures_type"),
 });
 
 export const CoinsRelations = relations(Coins, ({ many }) => ({

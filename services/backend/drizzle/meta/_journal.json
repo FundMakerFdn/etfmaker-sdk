@@ -22,6 +22,20 @@
       "when": 1738260801380,
       "tag": "0002_flawless_snowbird",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1738315578705,
+      "tag": "0003_nasty_wasp",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1738321914274,
+      "tag": "0004_breezy_forge",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,6 @@
 import { CoinSourceEnum } from "../enums/CoinSource.enum";
 import { CoinStatusEnum } from "../enums/CoinStatus.enum";
+import { FuturesType } from "../enums/FuturesType.enum";
 
 export interface CoinInterface {
   id: number;
@@ -9,4 +10,5 @@ export interface CoinInterface {
   source: CoinSourceEnum;
   status: CoinStatusEnum;
   pair?: string;
+  futuresType?: FuturesType;
 }
