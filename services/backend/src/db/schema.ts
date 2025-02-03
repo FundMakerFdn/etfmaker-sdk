@@ -1,5 +1,12 @@
 import { relations } from "drizzle-orm";
-import { integer, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  integer,
+  jsonb,
+  pgTable,
+  serial,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 import { enumToPgEnum } from "../helpers/EnumToPg";
 import { FuturesType } from "../enums/FuturesType.enum";
 import { CoinStatusEnum } from "../enums/CoinStatus.enum";
@@ -103,3 +110,28 @@ export const FundingRelations = relations(Funding, ({ one }) => ({
     references: [Coins.id],
   }),
 }));
+
+export const Rebalance = pgTable("rebalance", {
+  id: serial("id").primaryKey(),
+  etfId: text("etf_id").notNull(),
+  timestamp: timestamp("timestamp").notNull(),
+  price: text("price").notNull(),
+  data: jsonb("data").notNull(),
+});
+
+export const EtfPrice = pgTable("etf_price", {
+  id: serial("id").primaryKey(),
+  etfId: integer("etf_id").notNull(),
+  timestamp: timestamp("timestamp").notNull(),
+  open: text("open").notNull(),
+  high: text("high").notNull(),
+  low: text("low").notNull(),
+  close: text("close").notNull(),
+});
+
+export const EtfFundingReward = pgTable("etf_funding_reward", {
+  id: serial("id").primaryKey(),
+  etfId: integer("etf_id").notNull(),
+  timestamp: timestamp("timestamp").notNull(),
+  reward: text("reward").notNull(),
+});

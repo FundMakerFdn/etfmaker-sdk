@@ -55,23 +55,40 @@ export class CoinGeckoService {
     coinId: string,
     days: number
   ): Promise<{ timestamp: number; marketCap: number }[]> {
-    const response = await GetMarketCapLimiter.schedule(() =>
-      axios.get(
-        `${this.apiUrl}/coins/${coinId}/market_chart?vs_currency=usd&days=${days}&interval=daily`,
-        {
-          headers: {
-            accept: "application/json",
-            "x-cg-pro-api-key": this.apiKey,
-          },
-        }
-      )
-    );
+    let data = [] as { timestamp: number; marketCap: number }[];
+    const endTime = moment().valueOf();
+    let startTime = moment().subtract(days, "days").valueOf();
+    const day = 1000 * 60 * 60 * 24;
 
-    return response.data.market_caps.map(
-      ([timestamp, marketCap]: [number, number]) => ({
-        timestamp,
-        marketCap,
-      })
-    );
+    while (startTime < endTime - day) {
+      const response = await GetMarketCapLimiter.schedule(() =>
+        axios.get(
+          `${this.apiUrl}/coins/${coinId}/market_chart?vs_currency=usd&days=${days}&interval=daily`,
+          {
+            headers: {
+              accept: "application/json",
+              "x-cg-pro-api-key": this.apiKey,
+            },
+          }
+        )
+      );
+
+      if (response.data.market_caps.length === 0) {
+        break;
+      }
+
+      data = data.concat(
+        response.data.market_caps.map(
+          ([timestamp, marketCap]: [number, number]) => ({
+            timestamp,
+            marketCap,
+          })
+        )
+      );
+
+      startTime = data[data.length - 1].timestamp + 1;
+    }
+
+    return data;
   }
 }

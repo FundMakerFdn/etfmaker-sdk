@@ -3,7 +3,7 @@ import { CoinGeckoRoutes } from "./routes/coingecko";
 import { CoinDataRoutes } from "./routes/coindata";
 
 const APP_HOST = process.env.APP_HOST ?? "0.0.0.0";
-const APP_PORT = process.env.APP_PORT ? Number(process.env.APP_PORT) : 5351;
+const APP_PORT = process.env.APP_PORT ? Number(process.env.APP_PORT) : 3001;
 const IS_PRODUCTION = process.env.ENV === "production";
 
 const bootstrap = async () => {

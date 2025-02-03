@@ -23,8 +23,8 @@ export class DataActualizationService {
 
     const coins = await this.updateCoinsTable(classifiedCoins);
 
-    //market cap and open interest are set in parallel, they are using different APIs, can't reach rate limit
-    await Promise.all([this.setMarketCap(coins), this.setOpenInterest(coins)]);
+    await this.setMarketCap(coins);
+    await this.setOpenInterest(coins);
     await this.setCandles(coins);
     await this.setFundings(coins);
   }
@@ -240,8 +240,10 @@ export class DataActualizationService {
   }
 
   private async setCandles(coins: CoinInterface[]): Promise<void> {
-    for (const { symbol, id: coinId, source } of coins) {
-      if (!symbol || !coinId) continue;
+    const dataPeriod = 6; //months
+
+    for (const { symbol, id: coinId, source, status } of coins) {
+      if (!symbol || !coinId || status === CoinStatusEnum.DELISTED) continue;
 
       const lastCandle = (
         await DataSource.select()
@@ -256,7 +258,7 @@ export class DataActualizationService {
         const lastCandleDate = moment(lastCandle.timestamp);
         startTime = lastCandleDate.valueOf();
       } else {
-        startTime = moment().subtract(60, "months").valueOf(); //60 months ago
+        startTime = moment().subtract(dataPeriod, "months").valueOf();
       }
 
       if (moment().diff(moment(startTime), "minutes") < 1) continue;

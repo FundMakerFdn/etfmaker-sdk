@@ -134,9 +134,6 @@ export class BinanceService {
       startTime,
       endTime,
       limit: 1500, // Max candles per request
-      headers: {
-        "X-MBX-APIKEY": this.apiKey,
-      },
     };
 
     try {
