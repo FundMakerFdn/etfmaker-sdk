@@ -121,7 +121,7 @@ export const Rebalance = pgTable("rebalance", {
 
 export const EtfPrice = pgTable("etf_price", {
   id: serial("id").primaryKey(),
-  etfId: integer("etf_id").notNull(),
+  etfId: text("etf_id").notNull(),
   timestamp: timestamp("timestamp").notNull(),
   open: text("open").notNull(),
   high: text("high").notNull(),
@@ -131,7 +131,7 @@ export const EtfPrice = pgTable("etf_price", {
 
 export const EtfFundingReward = pgTable("etf_funding_reward", {
   id: serial("id").primaryKey(),
-  etfId: integer("etf_id").notNull(),
+  etfId: text("etf_id").notNull(),
   timestamp: timestamp("timestamp").notNull(),
   reward: text("reward").notNull(),
 });

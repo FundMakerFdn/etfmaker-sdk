@@ -2,15 +2,20 @@ import { eq, sql } from "drizzle-orm";
 import { and, asc, desc, gte, isNotNull, lte } from "drizzle-orm/expressions";
 import { BinanceService } from "../binance/binance.service";
 import { DataSource } from "../db/DataSource";
-import { Candles, Coins, MarketCap, Rebalance } from "../db/schema";
+import {
+  Candles,
+  Coins,
+  EtfFundingReward,
+  EtfPrice,
+  Funding,
+  MarketCap,
+  Rebalance,
+} from "../db/schema";
 import { CoinInfoDto } from "./dto/CoinInfo.dto";
 import { CoinMarketCapInfoDto } from "./dto/CoinMarketCapInfo.dto";
 import Decimal from "decimal.js";
 import { CloseETFPrices } from "./dto/CloseETFPricesFutures.dto";
-import {
-  RebalanceConfig,
-  rebalancePeriod,
-} from "../interfaces/RebalanceConfig.interface";
+import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
 import moment from "moment";
 import {
   AmountPerContracts,
@@ -21,22 +26,53 @@ import {
 const binanceService = new BinanceService();
 
 export class DataProcessingService {
+  async getETFPrices(): Promise<CloseETFPrices[]> {
+    return DataSource.select().from(EtfPrice);
+  }
+
+  async APY(): Promise<{ timestamp: number; cumulativeApy: number }[]> {
+    const fundingRewards = await DataSource.select()
+      .from(EtfFundingReward)
+      .orderBy(asc(EtfFundingReward.timestamp));
+
+    if (fundingRewards.length === 0) return [];
+
+    const etfId = fundingRewards[0].etfId;
+    const updatePeriodMs = this.getPeriodMs(etfId as RebalanceConfig["etfId"]);
+
+    const amountOfUpdates = new Decimal(1000 * 60 * 60 * 24 * 365).div(
+      updatePeriodMs
+    );
+
+    const apyTimeSeries = [];
+
+    for (const event of fundingRewards) {
+      const reward = new Decimal(event.reward);
+      const APY = reward.plus(1).pow(amountOfUpdates).sub(1);
+      apyTimeSeries.push({
+        timestamp: event.timestamp.getTime(),
+        cumulativeApy: APY.toNumber(),
+      });
+    }
+    return apyTimeSeries;
+  }
+
   async generateRebalanceData(config: RebalanceConfig): Promise<void> {
     const amountOfCoins = Number(RegExp(/\d+/).exec(config.etfId)?.[0] ?? 0);
 
     const coins = await DataSource.select().from(Coins).limit(amountOfCoins);
 
-    const rebalancePeriodMs = this.getRepalancePeriodMs(config.rebalancePeriod);
+    const rebalancePeriodMs = this.getPeriodMs(config.etfId);
 
-    const newestBalanceData = await DataSource.select()
+    const latestBalanceData = await DataSource.select()
       .from(Rebalance)
       .where(eq(Rebalance.etfId, config.etfId))
       .orderBy(desc(Rebalance.timestamp))
       .limit(1);
 
     let startTime =
-      newestBalanceData.length > 0
-        ? moment(newestBalanceData[0]?.timestamp)
+      latestBalanceData.length > 0
+        ? moment(latestBalanceData[0]?.timestamp)
             .add(rebalancePeriodMs)
             .valueOf()
         : moment(config.startDate).valueOf();
@@ -45,34 +81,120 @@ export class DataProcessingService {
     const today = moment().valueOf();
     if (moment(endTime).isAfter(today)) endTime = today.valueOf();
 
+    let price = config.initialPrice;
+
     while (startTime < endTime) {
-      const prices = await this.getCoinsPrices(
-        coins.map((coin) => coin.id),
+      const coinsWithPrices = await this.getCoinsPrices(
+        // coins.map((coin) => coin.id),
+        [43, 4, 7, 54],
         startTime,
         endTime
       );
-      console.log({ prices });
 
-      const assetsWithWeights = await this.setAssetWeights(prices);
-      const amountPerContracts = await this.setAmountPerContracts(
+      if (coinsWithPrices.length === 0) {
+        throw new Error(
+          `No coins with prices found for period ${moment(
+            startTime
+          ).toISOString()} - ${moment(endTime).toISOString()}`
+        );
+      }
+
+      const assetsWithWeights = this.setAssetWeights(coinsWithPrices);
+      const amountPerContracts = this.setAmountPerContracts(
         assetsWithWeights,
         config.initialPrice
       );
 
+      const etfCandle = this.getCloseETFPrice(amountPerContracts);
+
+      price = Number(etfCandle?.close ?? price);
+
       await DataSource.insert(Rebalance).values({
         etfId: config.etfId,
         timestamp: new Date(startTime),
-        price: config.initialPrice.toString(),
+        price: price.toString(),
         data: amountPerContracts,
       });
 
       startTime = endTime;
       endTime = moment(endTime).add(rebalancePeriodMs).valueOf();
-      if (moment(endTime).isAfter(today)) endTime = today.valueOf();
+      if (moment(endTime).isAfter(today)) break;
     }
   }
 
-  async getRecentCoinsData(coinIds: number[]): Promise<CoinInfoDto[]> {
+  async generateETFPrice(etfId: RebalanceConfig["etfId"]): Promise<void> {
+    const rebalanceData = await DataSource.select()
+      .from(Rebalance)
+      .where(eq(Rebalance.etfId, etfId))
+      .orderBy(asc(Rebalance.timestamp));
+
+    if (rebalanceData.length === 0) {
+      throw new Error("Rebalance data not found");
+    }
+
+    for (const data of rebalanceData) {
+      let startTime = moment(data.timestamp).valueOf();
+
+      const closeETFPrice = this.getCloseETFPrice(
+        data.data as AmountPerContracts[]
+      );
+
+      await DataSource.insert(EtfPrice).values({
+        etfId,
+        timestamp: new Date(startTime),
+        open: closeETFPrice.open,
+        high: closeETFPrice.high,
+        low: closeETFPrice.low,
+        close: closeETFPrice.close,
+      });
+    }
+  }
+
+  async setYieldETFFundingReward(
+    etfId: RebalanceConfig["etfId"]
+  ): Promise<void> {
+    const rebalanceData = await DataSource.select()
+      .from(Rebalance)
+      .where(eq(Rebalance.etfId, etfId));
+
+    if (rebalanceData.length === 0) {
+      throw new Error("Rebalance data not found");
+    }
+
+    for (const rebalance of rebalanceData) {
+      let fundingReward = new Decimal(0);
+
+      for (const asset of rebalance.data as AmountPerContracts[]) {
+        const fundingRate = await DataSource.select()
+          .from(Funding)
+          .where(
+            and(
+              eq(Funding.coinId, asset.coinId),
+              gte(Funding.timestamp, new Date(rebalance.timestamp))
+            )
+          )
+          .orderBy(desc(Funding.timestamp))
+          .limit(1);
+
+        if (fundingRate.length === 0) {
+          continue;
+        }
+        fundingReward = fundingReward.add(
+          new Decimal(fundingRate[0]?.fundingRate ?? "0")
+            .mul(new Decimal(asset.amountPerContracts))
+            .div(100)
+        );
+      }
+
+      await DataSource.insert(EtfFundingReward).values({
+        etfId: rebalance.etfId,
+        timestamp: rebalance.timestamp,
+        reward: fundingReward.toString(),
+      });
+    }
+  }
+
+  private async getRecentCoinsData(coinIds: number[]): Promise<CoinInfoDto[]> {
     const allCoinData = (await DataSource.query.Coins.findMany({
       where: (coins, { inArray }) => inArray(coins.id, coinIds),
       with: {
@@ -112,7 +234,7 @@ export class DataProcessingService {
     return data;
   }
 
-  async getTopCoinsByMarketCap(
+  private async getTopCoinsByMarketCap(
     amount: number
   ): Promise<CoinMarketCapInfoDto[]> {
     const topCoins = (await DataSource.select({
@@ -143,7 +265,7 @@ export class DataProcessingService {
     return topCoins as CoinMarketCapInfoDto[];
   }
 
-  async getCoinsPrices(
+  private async getCoinsPrices(
     coinIds: number[],
     startTime: number,
     endTime: number
@@ -187,7 +309,7 @@ export class DataProcessingService {
     return result;
   }
 
-  async setAssetWeights(assetsList: PricesDto[]): Promise<AssetWeights[]> {
+  private setAssetWeights(assetsList: PricesDto[]): AssetWeights[] {
     const amount = assetsList.length;
     return assetsList.map((asset) => ({
       ...asset,
@@ -195,10 +317,10 @@ export class DataProcessingService {
     }));
   }
 
-  async setAmountPerContracts(
+  private setAmountPerContracts(
     assetsListWithWeights: AssetWeights[],
     etfPrice: number
-  ): Promise<AmountPerContracts[]> {
+  ): AmountPerContracts[] {
     return assetsListWithWeights.map((asset) => ({
       ...asset,
       amountPerContracts: Decimal(etfPrice)
@@ -208,11 +330,9 @@ export class DataProcessingService {
     }));
   }
 
-  async getCloseETFPrice(
-    assetsAmountPerContracts: AmountPerContracts[],
-    startTime: number,
-    endTime: number
-  ): Promise<CloseETFPrices> {
+  private getCloseETFPrice(
+    assetsAmountPerContracts: AmountPerContracts[]
+  ): CloseETFPrices {
     const response = {
       open: new Decimal(0),
       high: new Decimal(0),
@@ -250,13 +370,22 @@ export class DataProcessingService {
     };
   }
 
-  private getRepalancePeriodMs(rebalancePeriod: rebalancePeriod): number {
-    return {
-      "1h": 60 * 60 * 1000,
-      "1d": 24 * 60 * 60 * 1000,
-      "1w": 7 * 24 * 60 * 60 * 1000,
-      "1m": 30 * 24 * 60 * 60 * 1000,
-      "1y": 365 * 24 * 60 * 60 * 1000,
+  private getPeriodMs(etfId: RebalanceConfig["etfId"]): number {
+    const rebalancePeriod = RegExp(/(Yearly|Monthly|Weekly|Daily|Hourly)/).exec(
+      etfId
+    )?.[0];
+    if (!rebalancePeriod) throw new Error("Invalid etfId");
+
+    const periodMs = {
+      Hourly: 60 * 60 * 1000,
+      Daily: 24 * 60 * 60 * 1000,
+      Weekly: 7 * 24 * 60 * 60 * 1000,
+      Monthly: 30 * 24 * 60 * 60 * 1000,
+      Yearly: 365 * 24 * 60 * 60 * 1000,
     }[rebalancePeriod];
+
+    if (!periodMs) throw new Error("Invalid etfId");
+
+    return periodMs;
   }
 }

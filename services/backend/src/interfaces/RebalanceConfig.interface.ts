@@ -1,8 +1,10 @@
 export interface RebalanceConfig {
-  etfId: `top${number}IndexWeekly`;
-  rebalancePeriod: rebalancePeriod;
+  etfId: `top${number}Index${
+    | "Yearly"
+    | "Monthly"
+    | "Weekly"
+    | "Daily"
+    | "Hourly"}`;
   startDate: Date;
   initialPrice: number;
 }
-
-export type rebalancePeriod = "1h" | "1d" | "1w" | "1m" | "1y";

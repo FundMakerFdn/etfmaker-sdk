@@ -1,12 +1,10 @@
 import {
   calculateCoinData,
+  generateEtfFundingRewardData,
+  generateETFPriceData,
   generateRebalanceData,
-  getCloseETFPrice,
-  getCoinsPrices,
-  getRecentCoinData,
-  getTopCoinsByMarketCap,
-  setAmountPerContracts,
-  setAssetWeights,
+  getAPYFundingRate,
+  getETFPrices,
 } from "../coindata/data.controller";
 import { RoutesType } from "../interfaces/RoutesType";
 
@@ -17,38 +15,28 @@ export const CoinDataRoutes = [
     handler: calculateCoinData,
   },
   {
-    method: "GET",
-    url: "/get-recent-coindata",
-    handler: getRecentCoinData,
-  },
-  {
-    method: "GET",
-    url: "/get-top-coins-by-marketcap",
-    handler: getTopCoinsByMarketCap,
-  },
-  {
-    method: "POST",
-    url: "/get-coins-prices",
-    handler: getCoinsPrices,
-  },
-  {
-    method: "POST",
-    url: "/set-asset-weights",
-    handler: setAssetWeights,
-  },
-  {
-    method: "POST",
-    url: "/set-amount-per-contracts",
-    handler: setAmountPerContracts,
-  },
-  {
-    method: "POST",
-    url: "/get-close-etf-prices",
-    handler: getCloseETFPrice,
-  },
-  {
     method: "POST",
     url: "/generate-rebalance-data",
     handler: generateRebalanceData,
+  },
+  {
+    method: "POST",
+    url: "/generate-etf-price-data",
+    handler: generateETFPriceData,
+  },
+  {
+    method: "POST",
+    url: "/generate-etf-funding-reward-data",
+    handler: generateEtfFundingRewardData,
+  },
+  {
+    method: "GET",
+    url: "/get-etf-prices",
+    handler: getETFPrices,
+  },
+  {
+    method: "GET",
+    url: "/get-apy-funding-rate",
+    handler: getAPYFundingRate,
   },
 ] satisfies RoutesType[];
