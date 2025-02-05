@@ -216,7 +216,6 @@ export class BinanceService {
       const response = await FundingRateLimiter.schedule(() =>
         axios.get(url, { params })
       );
-      console.dir({ response: response.data }, { depth: null });
       return response.data.map((rate: Record<string, any>) => ({
         timestamp: rate.fundingTime,
         fundingRate: rate.fundingRate,

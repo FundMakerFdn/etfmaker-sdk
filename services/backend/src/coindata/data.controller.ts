@@ -50,6 +50,49 @@ export const getAPYFundingRate = async (
   req: FastifyRequest,
   res: FastifyReply
 ) => {
-  const data = await dataProcessingService.APY();
+  const data = await dataProcessingService.fundingRewardAPY();
+  res.send({ data });
+};
+
+export const getSUSDeApy = async (req: FastifyRequest, res: FastifyReply) => {
+  const data = await dataProcessingService.sUSDeApy();
+  res.send({ data });
+};
+
+export const getBackingSystem = async (
+  req: FastifyRequest,
+  res: FastifyReply
+) => {
+  const data = await dataProcessingService.getBackingSystem();
+  res.send({ data });
+};
+
+export const getRebalanceDataCsv = async (
+  req: FastifyRequest,
+  res: FastifyReply
+) => {
+  const data = await dataProcessingService.getRebalanceDataCsv();
+  res.header("Content-Type", "text/csv");
+  res.header(
+    "Content-Disposition",
+    'attachment; filename="rebalance-data.csv"'
+  );
+  res.send(data);
+};
+
+export const getAverageFundingChartData = async (
+  req: FastifyRequest,
+  res: FastifyReply
+) => {
+  const data = await dataProcessingService.getAverageFundingChartData();
+  res.send({ data });
+};
+
+export const getAverageYieldQuartalFundingRewardData = async (
+  req: FastifyRequest,
+  res: FastifyReply
+) => {
+  const data =
+    await dataProcessingService.getAverageYieldQuartalFundingRewardData();
   res.send({ data });
 };

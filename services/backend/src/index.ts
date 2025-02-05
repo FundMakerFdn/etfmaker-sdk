@@ -1,10 +1,11 @@
 import Fastify from "fastify";
+import fastifyCors from "@fastify/cors";
 import { CoinGeckoRoutes } from "./routes/coingecko";
 import { CoinDataRoutes } from "./routes/coindata";
 
 const APP_HOST = process.env.APP_HOST ?? "0.0.0.0";
 const APP_PORT = process.env.APP_PORT ? Number(process.env.APP_PORT) : 3001;
-const IS_PRODUCTION = process.env.ENV === "production";
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 const bootstrap = async () => {
   const logger = IS_PRODUCTION
@@ -23,6 +24,15 @@ const bootstrap = async () => {
   const fastify = Fastify({
     logger,
   });
+
+  //Temporary fix for CORS issue
+  if (!IS_PRODUCTION) {
+    fastify.register(fastifyCors, {
+      origin: "*",
+      methods: ["GET"],
+      allowedHeaders: ["Content-Type"],
+    });
+  }
 
   try {
     CoinGeckoRoutes.forEach((route) => fastify.route(route));

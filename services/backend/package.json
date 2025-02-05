@@ -9,8 +9,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@fastify/cors": "^10.0.2",
     "axios": "^1.7.9",
     "bottleneck": "^2.19.5",
+    "csv-stringify": "^6.5.2",
     "decimal.js": "^10.4.3",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.38.4",
