@@ -8,8 +8,11 @@ import {
   getAverageYieldQuartalFundingRewardData,
   getBackingSystem,
   getETFPrices,
+  getFundingDaysDistribution,
   getRebalanceDataCsv,
+  getSimulatedRebalanceDataCsv,
   getSUSDeApy,
+  getSUSDeSpreadVs3mTreasury,
 } from "../coindata/data.controller";
 import { RoutesType } from "../interfaces/RoutesType";
 
@@ -61,6 +64,11 @@ export const CoinDataRoutes = [
   },
   {
     method: "GET",
+    url: "/get-simulated-rebalance-data-csv",
+    handler: getSimulatedRebalanceDataCsv,
+  },
+  {
+    method: "GET",
     url: "/get-average-funding-chart-data",
     handler: getAverageFundingChartData,
   },
@@ -68,5 +76,15 @@ export const CoinDataRoutes = [
     method: "GET",
     url: "/get-average-yield-quartal-funding-reward-data",
     handler: getAverageYieldQuartalFundingRewardData,
+  },
+  {
+    method: "GET",
+    url: "/get-funding-days-distribution",
+    handler: getFundingDaysDistribution,
+  },
+  {
+    method: "GET",
+    url: "/get-susd-spread-vs-3m-treasury",
+    handler: getSUSDeSpreadVs3mTreasury,
   },
 ] satisfies RoutesType[];

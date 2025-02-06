@@ -1,4 +1,5 @@
 export interface CandleInterface {
+  id?: number;
   coinId: number;
   timestamp: Date;
   open: string;

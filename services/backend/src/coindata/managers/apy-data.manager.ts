@@ -2,8 +2,7 @@ import Decimal from "decimal.js";
 import { asc } from "drizzle-orm";
 import { DataSource } from "../../db/DataSource";
 import { EtfFundingReward, EtfPrice } from "../../db/schema";
-import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
-import { getRebalanceIntervalMs } from "../../helpers/GetRebalanceIntervalMs";
+import moment from "moment";
 
 export class ApyDataManager {
   public static async fundingRewardAPY(): Promise<
@@ -15,10 +14,9 @@ export class ApyDataManager {
 
     if (fundingRewards.length === 0) return [];
 
-    const etfId = fundingRewards[0].etfId;
-    const updatePeriodMs = getRebalanceIntervalMs(
-      etfId as RebalanceConfig["etfId"]
-    );
+    const updatePeriodMs = moment(fundingRewards[1].timestamp)
+      .diff(moment(fundingRewards[0].timestamp))
+      .valueOf();
 
     const amountOfUpdates = new Decimal(1000 * 60 * 60 * 24 * 365).div(
       updatePeriodMs
@@ -28,7 +26,7 @@ export class ApyDataManager {
 
     for (const event of fundingRewards) {
       const reward = new Decimal(event.reward);
-      const APY = reward.plus(1).pow(amountOfUpdates).sub(1);
+      const APY = reward.div(100).plus(1).pow(amountOfUpdates).sub(1);
       apyTimeSeries.push({
         time: event.timestamp.getTime(),
         value: APY.toNumber(),

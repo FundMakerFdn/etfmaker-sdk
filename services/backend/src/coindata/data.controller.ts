@@ -63,7 +63,7 @@ export const getBackingSystem = async (
   req: FastifyRequest,
   res: FastifyReply
 ) => {
-  const data = await dataProcessingService.getBackingSystem();
+  const data = await dataProcessingService.getBackingSystemData();
   res.send({ data });
 };
 
@@ -72,6 +72,23 @@ export const getRebalanceDataCsv = async (
   res: FastifyReply
 ) => {
   const data = await dataProcessingService.getRebalanceDataCsv();
+  res.header("Content-Type", "text/csv");
+  res.header(
+    "Content-Disposition",
+    'attachment; filename="rebalance-data.csv"'
+  );
+  res.send(data);
+};
+
+export const getSimulatedRebalanceDataCsv = async (
+  req: FastifyRequest,
+  res: FastifyReply
+) => {
+  const data = await dataProcessingService.simulateRebalanceDataCSV({
+    etfId: "top20IndexHourly",
+    startDate: new Date(1737801726000),
+    initialPrice: 100,
+  });
   res.header("Content-Type", "text/csv");
   res.header(
     "Content-Disposition",
@@ -94,5 +111,22 @@ export const getAverageYieldQuartalFundingRewardData = async (
 ) => {
   const data =
     await dataProcessingService.getAverageYieldQuartalFundingRewardData();
+  res.send({ data });
+};
+
+export const getFundingDaysDistribution = async (
+  req: FastifyRequest,
+  res: FastifyReply
+) => {
+  const data =
+    await dataProcessingService.getFundingDaysDistributionChartData();
+  res.send({ data });
+};
+
+export const getSUSDeSpreadVs3mTreasury = async (
+  req: FastifyRequest,
+  res: FastifyReply
+) => {
+  const data = await dataProcessingService.getSUSDeSpreadVs3mTreasury();
   res.send({ data });
 };

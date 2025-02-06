@@ -214,7 +214,7 @@ export class DataActualizationService {
         startTime = moment().subtract(30, "days").valueOf();
       }
 
-      if (moment(startTime).get("days") <= 0) continue;
+      if (moment().diff(startTime, "days") < 1) continue;
 
       try {
         const openInterest = await binanceService.getAllOpenInterest(

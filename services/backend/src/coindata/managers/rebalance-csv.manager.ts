@@ -3,6 +3,8 @@ import { DataSource } from "../../db/DataSource";
 import { Coins, Rebalance } from "../../db/schema";
 import { RebalanceDto } from "../../interfaces/Rebalance.interface";
 import { desc, eq } from "drizzle-orm";
+import { RebalanceDataManager } from "./rebalance-data.manager";
+import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
 
 interface CsvDataRaw {
   id: number;
@@ -18,11 +20,26 @@ export class RebalanceCsvManager {
   public static async getRebalanceDataCsv(): Promise<string> {
     const rebalanceData = await DataSource.select()
       .from(Rebalance)
-      .orderBy(desc(Rebalance.timestamp))
-      .limit(1);
+      .orderBy(desc(Rebalance.timestamp));
 
     if (rebalanceData.length === 0) return "";
 
+    return this.generateCsvFromRebalanceData(rebalanceData as RebalanceDto[]);
+  }
+
+  public static async simulateRebalanceDataCSV(
+    config: RebalanceConfig
+  ): Promise<string> {
+    const rebalanceData = await RebalanceDataManager.generateRebalanceData(
+      config
+    );
+
+    return this.generateCsvFromRebalanceData(rebalanceData);
+  }
+
+  private static async generateCsvFromRebalanceData(
+    rebalanceData: Omit<RebalanceDto, "id">[]
+  ): Promise<string> {
     const header = [
       "id",
       "etfId",
@@ -33,13 +50,16 @@ export class RebalanceCsvManager {
       "amount per contracts",
     ];
 
-    const transformedDataset = await this.transformDataset(
-      rebalanceData[0] as RebalanceDto
-    );
+    const dataSet = [] as CsvDataRaw[];
+
+    for (const data of rebalanceData) {
+      const transformedData = await this.transformDataset(data);
+      dataSet.push(...transformedData);
+    }
 
     return new Promise((resolve, reject) => {
       stringify(
-        transformedDataset,
+        dataSet,
         { header: true, columns: header },
         (err: any, output: string | PromiseLike<string>) => {
           if (err) {
@@ -52,7 +72,7 @@ export class RebalanceCsvManager {
   }
 
   private static async transformDataset(
-    data: RebalanceDto
+    data: Omit<RebalanceDto, "id">
   ): Promise<CsvDataRaw[]> {
     const transformedData = [] as CsvDataRaw[];
     let id = 1;

@@ -1,17 +1,22 @@
 "use client";
 
-export const DownloadRebalanceDataCsv = () => {
+import { FC } from "react";
+
+export const DownloadRebalanceDataCsv: FC<{ type: "saved" | "simulation" }> = ({
+  type,
+}) => {
   const downloadCsv = async () => {
+    const endPoint =
+      type === "saved"
+        ? "get-rebalance-data-csv"
+        : "get-simulated-rebalance-data-csv";
     try {
-      const response = await fetch(
-        "http://localhost:3001/get-rebalance-data-csv",
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "text/csv",
-          },
-        }
-      );
+      const response = await fetch(`http://localhost:3001/${endPoint}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "text/csv",
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
@@ -46,7 +51,7 @@ export const DownloadRebalanceDataCsv = () => {
       }}
       onClick={downloadCsv}
     >
-      Download rebalance data CSV
+      Download {type === "simulation" ? "simulated " : ""}rebalance data CSV
     </button>
   );
 };
