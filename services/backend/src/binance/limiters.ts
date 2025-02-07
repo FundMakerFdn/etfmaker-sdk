@@ -20,6 +20,10 @@ export const HistoricalCandlesLimiter = new Bottleneck({
   minTime: 1000 / 90,
 });
 
+export const HistoricalCandlesLimiterBinanceVision = new Bottleneck({
+  minTime: 10, // 6000 requests per minute
+});
+
 export const FundingRateLimiter = new Bottleneck({
   maxConcurrent: 10,
   minTime: 1000 / 90,

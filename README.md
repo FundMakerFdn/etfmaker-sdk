@@ -13,3 +13,8 @@
 ### Generate migrations
 
 1. `npx drizzle-kit generate` from root directory.
+
+
+### Blacklisting assets
+    To blacklist an asset, add its symbol as a string to the /services/backend.json file. 
+    During the next rebalancing, all coins with blacklisted symbols will be skipped.

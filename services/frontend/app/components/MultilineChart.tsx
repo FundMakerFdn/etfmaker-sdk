@@ -40,7 +40,7 @@ export const MultilineChart: FC<{
     return () => {
       chart.remove();
     };
-  }, [data]);
+  }, [data, chartRef.current]);
 
   return (
     <>

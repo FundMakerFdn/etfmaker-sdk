@@ -1,4 +1,14 @@
-import { eq, desc, and, lte, gte, isNotNull, sql } from "drizzle-orm";
+import {
+  eq,
+  desc,
+  and,
+  lte,
+  gte,
+  isNotNull,
+  sql,
+  notInArray,
+  inArray,
+} from "drizzle-orm";
 import moment from "moment";
 import { DataSource } from "../../db/DataSource";
 import { Coins, Rebalance, MarketCap } from "../../db/schema";
@@ -6,9 +16,33 @@ import { getRebalanceIntervalMs } from "../../helpers/GetRebalanceIntervalMs";
 import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
 import { ETFDataManager } from "./etf-data.manager";
 import { CoinInterface } from "../../interfaces/Coin.interface";
-import { RebalanceDto } from "../../interfaces/Rebalance.interface";
+import {
+  AmountPerContracts,
+  RebalanceDto,
+} from "../../interfaces/Rebalance.interface";
+import blacklistCoins from "../../../blacklist.json" assert { type: "json" };
 
 export class RebalanceDataManager {
+  public static async getRebalanceAssets(): Promise<CoinInterface[]> {
+    const assets = await DataSource.select()
+      .from(Rebalance)
+      .orderBy(desc(Rebalance.timestamp))
+      .limit(1)
+      .then((data) => {
+        if (data.length === 0) return [];
+        return data[0].data as AmountPerContracts[];
+      });
+
+    return DataSource.select()
+      .from(Coins)
+      .where(
+        inArray(
+          Coins.id,
+          assets.map((asset) => asset.coinId)
+        )
+      ) as Promise<CoinInterface[]>;
+  }
+
   public static async generateRebalanceData(
     config: RebalanceConfig
   ): Promise<Omit<RebalanceDto, "id">[]> {
@@ -100,7 +134,8 @@ export class RebalanceDataManager {
         and(
           isNotNull(MarketCap.marketCap),
           gte(MarketCap.timestamp, new Date(startTimestamp)),
-          lte(MarketCap.timestamp, new Date(endTimestamp))
+          lte(MarketCap.timestamp, new Date(endTimestamp)),
+          notInArray(Coins.symbol, blacklistCoins as string[])
         )
       )
       .orderBy(sql`CAST(${MarketCap.marketCap} AS DOUBLE PRECISION) DESC`)

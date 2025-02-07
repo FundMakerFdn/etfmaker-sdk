@@ -5,11 +5,19 @@ import { DataProcessingService } from "./data-processing.service";
 const dataActualizationService = new DataActualizationService();
 const dataProcessingService = new DataProcessingService();
 
-export const calculateCoinData = async (
+export const actualizeCoinData = async (
   req: FastifyRequest,
   res: FastifyReply
 ) => {
   const data = await dataActualizationService.actualizeData();
+  res.send({ data });
+};
+
+export const getRebalanceAssets = async (
+  req: FastifyRequest,
+  res: FastifyReply
+) => {
+  const data = await dataProcessingService.getRebalanceAssets();
   res.send({ data });
 };
 
@@ -42,16 +50,46 @@ export const generateEtfFundingRewardData = async (
 };
 
 export const getETFPrices = async (req: FastifyRequest, res: FastifyReply) => {
-  const data = await dataProcessingService.getETFPrices();
-  res.send({ data });
+  try {
+    const data = await dataProcessingService.getETFPrices();
+    res.send({ data });
+  } catch (error) {
+    res.send({ error: "Can't get ETF Prices data" });
+  }
+};
+
+export const getCoinOHCL = async (req: FastifyRequest, res: FastifyReply) => {
+  const queryParams = req.query as { coinId: string };
+  const coinId = parseInt(queryParams.coinId);
+  try {
+    if (!coinId || isNaN(coinId)) {
+      res.send({ error: "Invalid coinId" });
+      return;
+    }
+    const data = await dataProcessingService.getCoinOhclData(coinId);
+    res.send({ data });
+  } catch (error) {
+    res.send({ error: "Can't get OHCL data" });
+  }
 };
 
 export const getAPYFundingRate = async (
   req: FastifyRequest,
   res: FastifyReply
 ) => {
-  const data = await dataProcessingService.fundingRewardAPY();
-  res.send({ data });
+  const queryParams = req.query as { coinId: string };
+  const coinId = parseInt(queryParams.coinId);
+  try {
+    if (coinId && typeof coinId === "number" && !isNaN(coinId)) {
+      const data = await dataProcessingService.getCoinFundingAPY(coinId);
+      res.send({ data });
+    } else {
+      const data = await dataProcessingService.fundingRewardAPY();
+      res.send({ data });
+    }
+  } catch (error) {
+    res.send({ error: "Can't get APY Funding Rate data" });
+  }
 };
 
 export const getSUSDeApy = async (req: FastifyRequest, res: FastifyReply) => {
@@ -63,8 +101,19 @@ export const getBackingSystem = async (
   req: FastifyRequest,
   res: FastifyReply
 ) => {
-  const data = await dataProcessingService.getBackingSystemData();
-  res.send({ data });
+  const queryParams = req.query as { coinId: string };
+  const coinId = parseInt(queryParams.coinId);
+  try {
+    if (coinId && typeof coinId === "number" && !isNaN(coinId)) {
+      const data = await dataProcessingService.getBackingSystemData(coinId);
+      res.send({ data });
+    } else {
+      const data = await dataProcessingService.getBackingSystemData();
+      res.send({ data });
+    }
+  } catch (error) {
+    res.send({ error: "Can't get BackingSystem data" });
+  }
 };
 
 export const getRebalanceDataCsv = async (
@@ -101,32 +150,82 @@ export const getAverageFundingChartData = async (
   req: FastifyRequest,
   res: FastifyReply
 ) => {
-  const data = await dataProcessingService.getAverageFundingChartData();
-  res.send({ data });
+  const queryParams = req.query as { coinId: string };
+  const coinId = parseInt(queryParams.coinId);
+  try {
+    if (coinId && typeof coinId === "number" && !isNaN(coinId)) {
+      const data = await dataProcessingService.getAssetFundingChartData(coinId);
+      res.send({ data });
+    } else {
+      const data = await dataProcessingService.getAverageFundingChartData();
+      res.send({ data });
+    }
+  } catch (error) {
+    res.send({ error: "Can't get Average Funding Chart data" });
+  }
 };
 
-export const getAverageYieldQuartalFundingRewardData = async (
+export const getAverageYieldQuartalFundingData = async (
   req: FastifyRequest,
   res: FastifyReply
 ) => {
-  const data =
-    await dataProcessingService.getAverageYieldQuartalFundingRewardData();
-  res.send({ data });
+  const queryParams = req.query as { coinId: string };
+  const coinId = parseInt(queryParams.coinId);
+  try {
+    if (coinId && typeof coinId === "number" && !isNaN(coinId)) {
+      const data =
+        await dataProcessingService.getAverageYieldQuartalFundingAssetData(
+          coinId
+        );
+      res.send({ data });
+    } else {
+      const data =
+        await dataProcessingService.getAverageYieldQuartalFundingRewardData();
+      res.send({ data });
+    }
+  } catch (error) {
+    res.send({ error: "Can't get Average Yield Quartal Funding data" });
+  }
 };
 
 export const getFundingDaysDistribution = async (
   req: FastifyRequest,
   res: FastifyReply
 ) => {
-  const data =
-    await dataProcessingService.getFundingDaysDistributionChartData();
-  res.send({ data });
+  const queryParams = req.query as { coinId: string };
+  const coinId = parseInt(queryParams.coinId);
+  try {
+    if (coinId && typeof coinId === "number" && !isNaN(coinId)) {
+      const data =
+        await dataProcessingService.getFundingDaysDistributionChartData(coinId);
+      res.send({ data });
+    } else {
+      const data =
+        await dataProcessingService.getFundingDaysDistributionChartData();
+      res.send({ data });
+    }
+  } catch (error) {
+    res.send({ error: "Can't get Funding Days Distribution data" });
+  }
 };
 
 export const getSUSDeSpreadVs3mTreasury = async (
   req: FastifyRequest,
   res: FastifyReply
 ) => {
-  const data = await dataProcessingService.getSUSDeSpreadVs3mTreasury();
-  res.send({ data });
+  const queryParams = req.query as { coinId: string };
+  const coinId = parseInt(queryParams.coinId);
+  try {
+    if (coinId && typeof coinId === "number" && !isNaN(coinId)) {
+      const data = await dataProcessingService.getSUSDeSpreadVs3mTreasury(
+        coinId
+      );
+      res.send({ data });
+    } else {
+      const data = await dataProcessingService.getSUSDeSpreadVs3mTreasury();
+      res.send({ data });
+    }
+  } catch (error) {
+    res.send({ error: "Can't get sUSDe Spread Vs 3m Treasury data" });
+  }
 };

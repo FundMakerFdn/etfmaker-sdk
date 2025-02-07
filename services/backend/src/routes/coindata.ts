@@ -1,14 +1,16 @@
 import {
-  calculateCoinData,
+  actualizeCoinData,
   generateEtfFundingRewardData,
   generateETFPriceData,
   generateRebalanceData,
   getAPYFundingRate,
   getAverageFundingChartData,
-  getAverageYieldQuartalFundingRewardData,
+  getAverageYieldQuartalFundingData,
   getBackingSystem,
+  getCoinOHCL,
   getETFPrices,
   getFundingDaysDistribution,
+  getRebalanceAssets,
   getRebalanceDataCsv,
   getSimulatedRebalanceDataCsv,
   getSUSDeApy,
@@ -19,8 +21,13 @@ import { RoutesType } from "../interfaces/RoutesType";
 export const CoinDataRoutes = [
   {
     method: "POST",
-    url: "/calculate-coindata",
-    handler: calculateCoinData,
+    url: "/actualize-coindata",
+    handler: actualizeCoinData,
+  },
+  {
+    method: "GET",
+    url: "/get-rebalance-assets",
+    handler: getRebalanceAssets,
   },
   {
     method: "POST",
@@ -41,6 +48,11 @@ export const CoinDataRoutes = [
     method: "GET",
     url: "/get-etf-prices",
     handler: getETFPrices,
+  },
+  {
+    method: "GET",
+    url: "/get-coin-ohcl",
+    handler: getCoinOHCL,
   },
   {
     method: "GET",
@@ -75,7 +87,7 @@ export const CoinDataRoutes = [
   {
     method: "GET",
     url: "/get-average-yield-quartal-funding-reward-data",
-    handler: getAverageYieldQuartalFundingRewardData,
+    handler: getAverageYieldQuartalFundingData,
   },
   {
     method: "GET",

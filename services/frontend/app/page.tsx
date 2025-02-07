@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useReducer } from "react";
 import { IndexOhclChart } from "./components/IndexOhclChart";
 import { DownloadRebalanceDataCsv } from "./components/DownloadRebalanceCsv";
 import { MultilineChart } from "./components/MultilineChart";
@@ -6,80 +8,176 @@ import { SingleLineChart } from "./components/SindleLineChart";
 import { CurrentAPY } from "./components/CurrentAPY";
 import { FundingDaysDistributionChart } from "./components/FundingDaysDistributionChart";
 import { SUSDeAPYWeeklyDistributionChart } from "./components/sUSDeAPYWeeklyDistributionChart";
+import { FiltersByAssets } from "./components/Filters";
+import { processAPYDataToWeekly } from "./helpers/processAPYDataToWeekly";
 
-export default async function Page() {
-  const ohclData = await fetch("http://backend:3001/get-etf-prices", {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  }).then((res) => res.json());
+const initialState = {
+  ohclData: [],
+  APYFundingRewardData: [],
+  backingSystem: [],
+  SUSD_APY: [],
+  averageFundingChartData: [],
+  averageYieldQuartalFundingRewardData: [],
+  fundingDaysDistribution: [],
+  sUSDeSpreadVs3mTreasuryData: [],
+  sUSDeAPYWeeklyDistribution: [],
+  availableAssetsToFilter: [],
+};
 
-  const APYFundingRewardData = await fetch(
-    "http://backend:3001/get-apy-funding-rate",
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    }
-  ).then((res) => res.json());
+const reducer = (state, action) => {
+  switch (action.type) {
+    case "updateData":
+      return {
+        ...state,
+        ohclData: action.payload.ohclData,
+        APYFundingRewardData: action.payload.APYFundingRewardData,
+        backingSystem: action.payload.backingSystem,
+        SUSD_APY: action.payload.SUSD_APY,
+        averageFundingChartData: action.payload.averageFundingChartData,
+        averageYieldQuartalFundingRewardData:
+          action.payload.averageYieldQuartalFundingRewardData,
+        fundingDaysDistribution: action.payload.fundingDaysDistribution,
+        sUSDeSpreadVs3mTreasuryData: action.payload.sUSDeSpreadVs3mTreasuryData,
+        sUSDeAPYWeeklyDistribution: action.payload.sUSDeAPYWeeklyDistribution,
+        availableAssetsToFilter: action.payload.availableAssetsToFilter,
+      };
+    default:
+      return state;
+  }
+};
 
-  const backingSystem = await fetch("http://backend:3001/get-backing-system", {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  }).then((res) => res.json());
+const SERVER_URL = process.env.SERVER_URL;
 
-  const SUSD_APY = await fetch("http://backend:3001/get-susd-apy", {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  }).then((res) => res.json());
+export default function Page() {
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isInitialLoaded, setIsInitialLoaded] = React.useState(false);
+  const [error, setError] = React.useState(null);
+  const [coinIdFilter, setCoinIdFilter] = React.useState<
+    typeof state.availableAssetsToFilter | "All"
+  >("All");
 
-  const averageFundingChartData = await fetch(
-    "http://backend:3001/get-average-funding-chart-data",
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    }
-  ).then((res) => res.json());
+  useEffect(() => {
+    const updateData = async () => {
+      const filter = coinIdFilter === "All" ? "" : `?coinId=${coinIdFilter}`;
 
-  const averageYieldQuartalFundingRewardData = await fetch(
-    "http://backend:3001/get-average-yield-quartal-funding-reward-data",
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    }
-  ).then((res) => res.json());
+      const ohclData = await fetch(
+        `${SERVER_URL}/${
+          filter === "" ? "get-etf-prices" : `get-coin-ohcl${filter}`
+        }`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      ).then((res) => res.json());
 
-  const fundingDaysDistribution = await fetch(
-    "http://backend:3001/get-funding-days-distribution",
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    }
-  ).then((res) => res.json());
+      const APYFundingRewardData = await fetch(
+        `${SERVER_URL}/get-apy-funding-rate${filter}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      ).then((res) => res.json());
 
-  const sUSDeSpreadVs3mTreasuryData = await fetch(
-    "http://backend:3001/get-susd-spread-vs-3m-treasury",
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    }
-  ).then((res) => res.json());
+      const backingSystem = await fetch(
+        `${SERVER_URL}/get-backing-system${filter}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      ).then((res) => res.json());
 
-  const sUSDeAPYWeeklyDistribution = processAPYData(APYFundingRewardData.data);
+      const SUSD_APY = await fetch(`${SERVER_URL}/get-susd-apy${filter}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }).then((res) => res.json());
+
+      const averageFundingChartData = await fetch(
+        `${SERVER_URL}/get-average-funding-chart-data${filter}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      ).then((res) => res.json());
+
+      const averageYieldQuartalFundingRewardData = await fetch(
+        `${SERVER_URL}/get-average-yield-quartal-funding-reward-data${filter}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      ).then((res) => res.json());
+
+      const fundingDaysDistribution = await fetch(
+        `${SERVER_URL}/get-funding-days-distribution${filter}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      ).then((res) => res.json());
+
+      const sUSDeSpreadVs3mTreasuryData = await fetch(
+        `${SERVER_URL}/get-susd-spread-vs-3m-treasury${filter}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      ).then((res) => res.json());
+
+      const sUSDeAPYWeeklyDistribution = processAPYDataToWeekly(
+        APYFundingRewardData.data
+      );
+
+      const availableAssetsToFilter = await fetch(
+        `${SERVER_URL}/get-rebalance-assets`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      ).then((res) => res.json());
+
+      dispatch({
+        type: "updateData",
+        payload: {
+          ohclData: ohclData.data,
+          APYFundingRewardData: APYFundingRewardData.data,
+          backingSystem: backingSystem.data,
+          SUSD_APY: SUSD_APY.data,
+          averageFundingChartData: averageFundingChartData.data,
+          averageYieldQuartalFundingRewardData:
+            averageYieldQuartalFundingRewardData.data,
+          fundingDaysDistribution: fundingDaysDistribution.data,
+          sUSDeSpreadVs3mTreasuryData: sUSDeSpreadVs3mTreasuryData.data,
+          sUSDeAPYWeeklyDistribution,
+          availableAssetsToFilter: availableAssetsToFilter.data,
+        },
+      });
+      setIsInitialLoaded(true);
+      setIsLoading(false);
+    };
+
+    updateData();
+  }, [coinIdFilter]);
+
+  if (!isInitialLoaded) return <div>Loading...</div>;
 
   return (
     <div
@@ -93,7 +191,17 @@ export default async function Page() {
       <DownloadRebalanceDataCsv type="saved" />
       <DownloadRebalanceDataCsv type="simulation" />
 
-      <IndexOhclChart data={ohclData.data} />
+      <FiltersByAssets
+        availableAssets={state.availableAssetsToFilter}
+        setFilterToProcess={(filter) => {
+          setCoinIdFilter(filter);
+          setIsLoading(true);
+        }}
+      />
+
+      {isLoading && <div>Updating charts...</div>}
+
+      <IndexOhclChart data={state.ohclData} />
       <div
         style={{
           display: "grid",
@@ -103,29 +211,31 @@ export default async function Page() {
       >
         <div>
           <h1>APY funding reward chart</h1>
-          <SingleLineChart data={APYFundingRewardData.data} />
-          <CurrentAPY data={APYFundingRewardData.data} amountOfEntries={7} />
+          <SingleLineChart data={state.APYFundingRewardData} />
+          <CurrentAPY data={state.APYFundingRewardData} amountOfEntries={7} />
         </div>
 
         <div>
           <h1>Backing system chart</h1>
-          <MultilineChart data={backingSystem.data} />
+          <MultilineChart data={state.backingSystem} />
         </div>
 
         <div>
           <h1>Average funding chart</h1>
-          <MultilineChart data={averageFundingChartData.data} />
+          <MultilineChart data={state.averageFundingChartData} />
         </div>
 
-        <div>
-          <h1>sUSD APY chart</h1>
-          <SingleLineChart data={SUSD_APY.data} />
-        </div>
+        {coinIdFilter === "All" && (
+          <div>
+            <h1>sUSD APY chart</h1>
+            <SingleLineChart data={state.SUSD_APY} />
+          </div>
+        )}
 
         <div>
           <h1>Avg Perp Yield by Quarter chart</h1>
           <SingleLineChart
-            data={averageYieldQuartalFundingRewardData.data.map((entry) => ({
+            data={state.averageYieldQuartalFundingRewardData.map((entry) => ({
               time: entry.quarter,
               value: entry.avgYield,
             }))}
@@ -134,53 +244,22 @@ export default async function Page() {
 
         <div>
           <h1>Funding Days Distribution</h1>
-          <FundingDaysDistributionChart data={fundingDaysDistribution.data} />
+          <FundingDaysDistributionChart data={state.fundingDaysDistribution} />
         </div>
 
         <div>
           <h1>sUSD Spread vs 3m Treasury chart</h1>
-          <SingleLineChart data={sUSDeSpreadVs3mTreasuryData.data} />
+          <SingleLineChart data={state.sUSDeSpreadVs3mTreasuryData} />
         </div>
 
         <div>
           <h1>sUSDe APY Weekly Distribution</h1>
           <SUSDeAPYWeeklyDistributionChart
-            data={sUSDeAPYWeeklyDistribution.data}
-            labels={sUSDeAPYWeeklyDistribution.labels}
+            data={state.sUSDeAPYWeeklyDistribution.data}
+            labels={state.sUSDeAPYWeeklyDistribution.labels}
           />
         </div>
       </div>
     </div>
   );
-}
-
-function processAPYData(data) {
-  // Create buckets for each range
-  const ranges = {
-    "0-5": 0,
-    "5-10": 0,
-    "10-15": 0,
-    "15+": 0,
-  };
-
-  // Count weeks in each range
-  data.forEach((item) => {
-    const value = item.value;
-    if (value <= 5) ranges["0-5"]++;
-    else if (value <= 10) ranges["5-10"]++;
-    else if (value <= 15) ranges["10-15"]++;
-    else ranges["15+"]++;
-  });
-
-  // Calculate percentages
-  const totalWeeks = Object.values(ranges).reduce((a, b) => a + b, 0);
-  const percentages = {};
-  for (let range in ranges) {
-    percentages[range] = ((ranges[range] / totalWeeks) * 100).toFixed(1);
-  }
-
-  return {
-    data: Object.values(ranges),
-    labels: Object.keys(ranges),
-  };
 }

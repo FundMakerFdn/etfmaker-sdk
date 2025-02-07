@@ -7,6 +7,7 @@ import {
   CoinMFuturesSymbolsLimiter,
   FundingRateLimiter,
   HistoricalCandlesLimiter,
+  HistoricalCandlesLimiterBinanceVision,
   OpenInterestLimiter,
   SpotsSymbolsLimiter,
   UsdMFuturesSymbolsLimiter,
@@ -14,9 +15,12 @@ import {
 import { BinanceFundingDto } from "./dto/BinanceFunding.dto";
 import { FuturesType } from "../enums/FuturesType.enum";
 import moment from "moment";
+import { DataSource } from "../db/DataSource";
+import { Candles } from "../db/schema";
 
 export class BinanceService {
   private readonly apiUrl: string;
+  private readonly visionApiUrl: string;
   private readonly apiKey: string;
   private readonly fapiUrl: string;
   private readonly dapiUrl: string;
@@ -26,6 +30,9 @@ export class BinanceService {
   constructor() {
     this.apiUrl =
       process.env.BINANCE_API_URL ?? "https://api.binance.com/api/v3";
+    this.visionApiUrl =
+      process.env.BINANCE_VISION_API_URL ??
+      "https://data-api.binance.vision/api/v3";
     this.fapiUrl =
       process.env.BINANCE_FAPI_URL ?? "https://fapi.binance.com/fapi/v1";
     this.dapiUrl =
@@ -113,20 +120,14 @@ export class BinanceService {
     return spots.data.symbols;
   }
 
-  async getHistoricalCandles(
+  private async getHistoricalCandles(
     source: CoinSourceEnum,
     symbol: string,
     coinId: number,
     startTime: number,
     endTime: number
   ): Promise<CandleInterface[]> {
-    let url = `${this.apiUrl}/klines`;
-
-    if (source === CoinSourceEnum.USDMFUTURES) {
-      url = `${this.fapiUrl}/klines`;
-    } else if (source === CoinSourceEnum.COINMFUTURES) {
-      url = `${this.dapiUrl}/klines`;
-    }
+    let url = `${this.visionApiUrl}/klines`;
 
     const params = {
       symbol,
@@ -137,8 +138,8 @@ export class BinanceService {
     };
 
     try {
-      const response = await HistoricalCandlesLimiter.schedule(() =>
-        axios.get(url, { params })
+      const response = await HistoricalCandlesLimiterBinanceVision.schedule(
+        () => axios.get(url, { params })
       );
 
       return response.data.map((candle: string[]) => ({
@@ -151,8 +152,42 @@ export class BinanceService {
         volume: candle[5].toString(),
       }));
     } catch (error: any) {
-      console.error(`Error fetching candles for ${symbol}:`, error.message);
-      throw error;
+      try {
+        let url = `${this.apiUrl}/klines`;
+
+        if (source === CoinSourceEnum.USDMFUTURES) {
+          url = `${this.fapiUrl}/klines`;
+        } else if (source === CoinSourceEnum.COINMFUTURES) {
+          url = `${this.dapiUrl}/klines`;
+        }
+
+        const params = {
+          symbol,
+          interval: "1m",
+          startTime,
+          endTime,
+          limit: 1500, // Max candles per request
+          headers: {
+            "X-MBX-APIKEY": this.apiKey,
+          },
+        };
+        const response = await HistoricalCandlesLimiter.schedule(() =>
+          axios.get(url, { params })
+        );
+
+        return response.data.map((candle: string[]) => ({
+          coinId,
+          timestamp: new Date(candle[0]), // Open time
+          open: candle[1].toString(),
+          high: candle[2].toString(),
+          low: candle[3].toString(),
+          close: candle[4].toString(),
+          volume: candle[5].toString(),
+        }));
+      } catch (error: any) {
+        console.error(`Error fetching candles for ${symbol}:`, error.message);
+        throw error;
+      }
     }
   }
 
@@ -161,10 +196,9 @@ export class BinanceService {
     symbol: string,
     coinId: number,
     startTime: number
-  ): Promise<CandleInterface[]> {
+  ): Promise<void> {
     const diapason = 1000 * 60 * 60 * 24 * 200; // 200 days
 
-    let allCandles: CandleInterface[] = [];
     let currentStartTime = startTime;
 
     while (currentStartTime < Date.now()) {
@@ -185,12 +219,10 @@ export class BinanceService {
         continue;
       }
 
-      allCandles = allCandles.concat(candles);
+      await DataSource.insert(Candles).values(candles);
       const lastTimeStamp = candles[candles.length - 1].timestamp;
       currentStartTime = Number(lastTimeStamp) + 1; // Next chunk
     }
-
-    return allCandles;
   }
 
   private async getFunding(

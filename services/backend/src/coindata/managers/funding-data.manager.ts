@@ -34,39 +34,54 @@ export class FundingDataManager {
     const data = {} as {
       [assetName: string]: { time: number; value: number }[];
     };
-
-    for (const asset of latestRebalanceData[0].data as RebalanceDto["data"]) {
-      const coinName = await DataSource.select({
-        name: Coins.name,
-      })
-        .from(Coins)
-        .where(eq(Coins.id, asset.coinId))
-        .limit(1);
-
-      data[coinName[0].name] = (
-        await DataSource.selectDistinct({
-          time: Funding.timestamp,
-          value: Funding.fundingRate,
-        })
-          .from(Funding)
-          .where(
-            and(
-              eq(Funding.coinId, asset.coinId),
-              gte(Funding.timestamp, oldestRebalanceData[0].timestamp)
-            )
+    const coins = await DataSource.select({
+      name: Coins.name,
+      id: Coins.id,
+    })
+      .from(Coins)
+      .where(
+        inArray(
+          Coins.id,
+          (latestRebalanceData[0].data as RebalanceDto["data"]).map(
+            (asset) => asset.coinId
           )
-          .orderBy(asc(Funding.timestamp))
-      ).map((funding) => ({
-        time: funding.time.getTime(),
-        value: +funding.value,
-      }));
+        )
+      );
+
+    for (const coin of coins) {
+      const fundingRates = await DataSource.select({
+        time: sql`date_trunc('hour', ${Funding.timestamp})`,
+        value: sql`AVG(${Funding.fundingRate}::numeric)`,
+      })
+        .from(Funding)
+        .where(
+          and(
+            eq(Funding.coinId, coin.id),
+            gte(Funding.timestamp, oldestRebalanceData[0].timestamp)
+          )
+        )
+        .groupBy(sql`date_trunc('hour', ${Funding.timestamp})`)
+        .orderBy(asc(sql`date_trunc('hour', ${Funding.timestamp})`));
+
+      const windowSize = 8; // 8 hours moving average
+      const movingAverage = fundingRates.map((rate, index, array) => {
+        const start = Math.max(0, index - windowSize + 1);
+        const window = array.slice(start, index + 1);
+        const sum = window.reduce((acc, curr) => acc + Number(curr.value), 0);
+        return {
+          time: new Date(rate.time as string).getTime() / 1000,
+          value: sum / window.length,
+        };
+      });
+
+      data[coin.name] = movingAverage;
     }
 
     return data;
   }
 
   public static async getAverageYieldQuartalFundingRewardData(): Promise<
-    { quarter: string; avgYield: number }[]
+    { quarter: number; avgYield: number }[]
   > {
     return (
       await DataSource.selectDistinct({
@@ -77,12 +92,31 @@ export class FundingDataManager {
         .groupBy(sql`DATE_TRUNC('quarter', ${EtfFundingReward.timestamp})`)
         .orderBy(sql`DATE_TRUNC('quarter', ${EtfFundingReward.timestamp})`)
     ).map((funding) => ({
-      quarter: moment(funding.quarter as string).format("YYYY-MM-DD"),
+      quarter: new Date(funding.quarter as string).getTime() / 1000,
+      avgYield: Number(funding.avgYield),
+    }));
+  }
+
+  public static async getAverageYieldQuartalFundingAssetData(
+    coinId: number
+  ): Promise<{ quarter: number; avgYield: number }[]> {
+    return (
+      await DataSource.selectDistinct({
+        quarter: sql`DATE_TRUNC('quarter', ${Funding.timestamp})`, // Group by quarter
+        avgYield: sql`AVG(${Funding.fundingRate}::NUMERIC)`, // Compute avg yield
+      })
+        .from(Funding)
+        .where(eq(Funding.coinId, coinId))
+        .groupBy(sql`DATE_TRUNC('quarter', ${Funding.timestamp})`)
+        .orderBy(sql`DATE_TRUNC('quarter', ${Funding.timestamp})`)
+    ).map((funding) => ({
+      quarter: new Date(funding.quarter as string).getTime() / 1000,
       avgYield: Number(funding.avgYield),
     }));
   }
 
   public static async getFundingDaysDistributionChartData(
+    coinId?: number,
     etfId?: RebalanceConfig["etfId"],
     period: "day" | "week" | "month" | "year" = "year"
   ): Promise<{ positive: number; negative: number }> {
@@ -116,7 +150,16 @@ export class FundingDataManager {
           eq(Coins.futuresType, FuturesType.PERPETUAL)
         )
       );
-    const coinIds = perpetualCoins.map((coin) => coin.id);
+
+    let coinIds;
+    if (coinId) {
+      if (!perpetualCoins.find((coin) => coin.id === coinId)) {
+        return { positive: 0, negative: 0 };
+      }
+      coinIds = [coinId];
+    } else {
+      coinIds = perpetualCoins.map((coin) => coin.id);
+    }
 
     const weightMap = new Map<number, Decimal>();
     for (const asset of allAssets) {
@@ -209,5 +252,41 @@ export class FundingDataManager {
       positive: calculateDistributionPercent(positiveDays),
       negative: calculateDistributionPercent(negativeDays),
     };
+  }
+
+  public static async getAssetFundingChartData(
+    coinId: number
+  ): Promise<{ [assetName: string]: { time: number; value: number }[] }> {
+    const coinName =
+      (
+        await DataSource.select({ coinName: Coins.name })
+          .from(Coins)
+          .where(eq(Coins.id, coinId))
+          .limit(1)
+      )?.[0]?.coinName ?? "";
+
+    const fundingRates = await DataSource.selectDistinctOn(
+      [Funding.timestamp],
+      {
+        time: Funding.timestamp,
+        value: Funding.fundingRate,
+      }
+    )
+      .from(Funding)
+      .where(eq(Funding.coinId, coinId))
+      .orderBy(asc(Funding.timestamp));
+
+    const windowSize = 8; // 8 hours moving average
+    const movingAverage = fundingRates.map((rate, index, array) => {
+      const start = Math.max(0, index - windowSize + 1);
+      const window = array.slice(start, index + 1);
+      const sum = window.reduce((acc, curr) => acc + Number(curr.value), 0);
+      return {
+        time: rate.time.getTime() / 1000,
+        value: sum / window.length,
+      };
+    });
+
+    return { [coinName]: movingAverage };
   }
 }

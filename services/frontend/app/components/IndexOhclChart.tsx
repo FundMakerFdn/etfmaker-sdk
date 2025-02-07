@@ -28,6 +28,15 @@ export const IndexOhclChart: FC<{ data: OhclChartDataType[] }> = (props) => {
       },
       timeScale: {
         borderColor: "#ccc",
+        timeVisible: true,
+        secondsVisible: false,
+        tickMarkFormatter: (time: number) => {
+          const date = new Date(time * 1000);
+          return date.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          });
+        },
       },
     });
 

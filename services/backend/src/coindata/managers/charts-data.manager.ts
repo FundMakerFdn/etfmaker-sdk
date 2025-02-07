@@ -15,6 +15,7 @@ import moment from "moment";
 
 export class ChartDataManager {
   public static async getSUSDeSpreadVs3mTreasury(
+    coinId?: number,
     etfId?: RebalanceConfig["etfId"],
     period: "day" | "week" | "month" | "year" = "year"
   ): Promise<
@@ -55,7 +56,15 @@ export class ChartDataManager {
         )
       );
 
-    const perpetualCoinIds = perpetualCoins.map((coin) => coin.id);
+    let perpetualCoinIds;
+    if (coinId) {
+      if (!perpetualCoins.find((coin) => coin.id === coinId)) {
+        return [];
+      }
+      perpetualCoinIds = [coinId];
+    } else {
+      perpetualCoinIds = perpetualCoins.map((coin) => coin.id);
+    }
 
     let startDate: number = 0;
 
@@ -104,7 +113,7 @@ export class ChartDataManager {
         const treasuryYield = new Decimal(matchingRate.avgRate as string);
 
         spreads.push({
-          time: moment(etfPrice.timestamp).valueOf(),
+          time: moment(etfPrice.timestamp).valueOf() / 1000,
           value: etfYield.sub(treasuryYield).toNumber(),
         });
       }
@@ -113,35 +122,40 @@ export class ChartDataManager {
     return spreads;
   }
 
-  public static async getBackingSystemData(): Promise<{
+  public static async getBackingSystemData(coinId?: number): Promise<{
     [assetName: string]: { time: number; value: number }[];
   }> {
-    const rebalanceData = await DataSource.select()
-      .from(Rebalance)
-      .orderBy(desc(Rebalance.timestamp))
-      .limit(1);
+    let coinIds = [];
 
-    if (rebalanceData.length === 0) return {};
+    if (coinId) {
+      coinIds = [coinId];
+    } else {
+      const rebalanceData = await DataSource.select()
+        .from(Rebalance)
+        .orderBy(desc(Rebalance.timestamp))
+        .limit(1);
 
+      if (rebalanceData.length === 0) return {};
+      coinIds = (rebalanceData[0].data as AmountPerContracts[]).map(
+        (asset) => asset.coinId
+      );
+    }
     const backingSystem = {} as {
       [assetName: string]: { time: number; value: number }[];
     };
 
-    for (const asset of rebalanceData[0].data as AmountPerContracts[]) {
-      const coin = await DataSource.select()
-        .from(Coins)
-        .where(eq(Coins.id, asset.coinId))
-        .limit(1);
+    const coins = await DataSource.select()
+      .from(Coins)
+      .where(inArray(Coins.id, coinIds));
 
-      if (coin.length === 0) continue;
-
-      backingSystem[coin[0].name] = (
-        await DataSource.select()
+    for (const coin of coins) {
+      backingSystem[coin.name] = (
+        await DataSource.selectDistinctOn([MarketCap.timestamp])
           .from(MarketCap)
-          .where(eq(MarketCap.coinId, asset.coinId))
+          .where(eq(MarketCap.coinId, coin.id))
           .orderBy(asc(MarketCap.timestamp))
       ).map((marketCap) => ({
-        time: marketCap.timestamp.getTime(),
+        time: marketCap.timestamp.getTime() / 1000,
         value: Number(marketCap.marketCap),
       }));
     }

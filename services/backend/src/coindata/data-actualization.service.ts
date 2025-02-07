@@ -242,6 +242,8 @@ export class DataActualizationService {
   private async setCandles(coins: CoinInterface[]): Promise<void> {
     const dataPeriod = 6; //months
 
+    const tasks = [];
+
     for (const { symbol, id: coinId, source, status } of coins) {
       if (!symbol || !coinId || status === CoinStatusEnum.DELISTED) continue;
 
@@ -255,7 +257,7 @@ export class DataActualizationService {
 
       let startTime;
       if (lastCandle) {
-        const lastCandleDate = moment(lastCandle.timestamp);
+        const lastCandleDate = moment(lastCandle.timestamp).add(1, "minute");
         startTime = lastCandleDate.valueOf();
       } else {
         startTime = moment().subtract(dataPeriod, "months").valueOf();
@@ -263,25 +265,23 @@ export class DataActualizationService {
 
       if (moment().diff(moment(startTime), "minutes") < 1) continue;
 
-      try {
-        const candles = await binanceService.getAllHistoricalCandles(
-          source,
-          symbol,
-          coinId,
-          startTime
-        );
-
-        if (candles.length === 0) continue;
-
-        const batchSize = 1000;
-        for (let i = 0; i < candles.length; i += batchSize) {
-          const batch = candles.slice(i, i + batchSize);
-          await DataSource.insert(Candles).values(batch);
-        }
-      } catch (error) {
-        console.error(`Error processing symbol ${symbol}:`, error);
-      }
+      tasks.push(
+        (async () => {
+          try {
+            await binanceService.getAllHistoricalCandles(
+              source,
+              symbol,
+              coinId,
+              startTime
+            );
+          } catch (error) {
+            console.error(`Error processing symbol ${symbol}:`, error);
+          }
+        })()
+      );
     }
+
+    await Promise.all(tasks);
   }
 
   private async setFundings(coins: CoinInterface[]): Promise<void> {

@@ -1,6 +1,6 @@
 import { BinanceService } from "../binance/binance.service";
 import { DataSource } from "../db/DataSource";
-import { EtfPrice, Rebalance } from "../db/schema";
+import { Candles, EtfPrice, Rebalance } from "../db/schema";
 import { CoinInfoDto } from "./dto/CoinInfo.dto";
 import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
 import { RebalanceCsvManager } from "./managers/rebalance-csv.manager";
@@ -9,6 +9,8 @@ import { FundingDataManager } from "./managers/funding-data.manager";
 import { RebalanceDataManager } from "./managers/rebalance-data.manager";
 import { ChartDataManager } from "./managers/charts-data.manager";
 import { ETFDataManager } from "./managers/etf-data.manager";
+import { CoinInterface } from "../interfaces/Coin.interface";
+import { asc, eq, and, gte } from "drizzle-orm";
 
 const binanceService = new BinanceService();
 
@@ -16,8 +18,12 @@ export class DataProcessingService {
   async getETFPrices(): Promise<
     { time: number; open: string; high: string; low: string; close: string }[]
   > {
-    return (await DataSource.select().from(EtfPrice)).map((etfPrice) => ({
-      time: etfPrice.timestamp.getTime(),
+    return (
+      await DataSource.selectDistinctOn([EtfPrice.timestamp])
+        .from(EtfPrice)
+        .orderBy(asc(EtfPrice.timestamp))
+    ).map((etfPrice) => ({
+      time: etfPrice.timestamp.getTime() / 1000,
       open: etfPrice.open,
       high: etfPrice.high,
       low: etfPrice.low,
@@ -25,10 +31,41 @@ export class DataProcessingService {
     }));
   }
 
-  getBackingSystemData(): Promise<{
+  async getCoinOhclData(
+    coinId: number
+  ): Promise<
+    { time: number; open: string; high: string; low: string; close: string }[]
+  > {
+    return (
+      await DataSource.selectDistinctOn([Candles.timestamp])
+        .from(Candles)
+        .where(
+          and(
+            eq(Candles.coinId, coinId),
+            gte(
+              Candles.timestamp,
+              new Date(Date.now() - 1000 * 60 * 60 * 24 * 30)
+            )
+          )
+        )
+        .orderBy(asc(Candles.timestamp))
+    ).map((candle) => ({
+      time: candle.timestamp.getTime() / 1000,
+      open: candle.open,
+      high: candle.high,
+      low: candle.low,
+      close: candle.close,
+    }));
+  }
+
+  getBackingSystemData(coinId?: number): Promise<{
     [assetName: string]: { time: number; value: number }[];
   }> {
-    return ChartDataManager.getBackingSystemData();
+    return ChartDataManager.getBackingSystemData(coinId);
+  }
+
+  getRebalanceAssets(): Promise<CoinInterface[]> {
+    return RebalanceDataManager.getRebalanceAssets();
   }
 
   getRebalanceDataCsv(): Promise<string> {
@@ -43,20 +80,38 @@ export class DataProcessingService {
     return ApyDataManager.fundingRewardAPY();
   }
 
+  getCoinFundingAPY(
+    coinId: number
+  ): Promise<{ time: number; value: number }[]> {
+    return ApyDataManager.coinFundingAPY(coinId);
+  }
+
   sUSDeApy(): Promise<{ time: number; value: number }[]> {
     return ApyDataManager.sUSDeApy();
   }
 
   getAverageYieldQuartalFundingRewardData(): Promise<
-    { quarter: string; avgYield: number }[]
+    { quarter: number; avgYield: number }[]
   > {
     return FundingDataManager.getAverageYieldQuartalFundingRewardData();
+  }
+
+  getAverageYieldQuartalFundingAssetData(
+    coinId: number
+  ): Promise<{ quarter: number; avgYield: number }[]> {
+    return FundingDataManager.getAverageYieldQuartalFundingAssetData(coinId);
   }
 
   getAverageFundingChartData(): Promise<{
     [assetName: string]: { time: number; value: number }[];
   }> {
     return FundingDataManager.getAverageFundingChartData();
+  }
+
+  getAssetFundingChartData(
+    coinId: number
+  ): Promise<{ [assetName: string]: { time: number; value: number }[] }> {
+    return FundingDataManager.getAssetFundingChartData(coinId);
   }
 
   async generateRebalanceData(config: RebalanceConfig): Promise<void> {
@@ -66,11 +121,11 @@ export class DataProcessingService {
     await DataSource.insert(Rebalance).values(rebalanceData);
   }
 
-  getFundingDaysDistributionChartData(): Promise<{
+  getFundingDaysDistributionChartData(coinId?: number): Promise<{
     positive: number;
     negative: number;
   }> {
-    return FundingDataManager.getFundingDaysDistributionChartData();
+    return FundingDataManager.getFundingDaysDistributionChartData(coinId);
   }
 
   generateETFPrice(etfId: RebalanceConfig["etfId"]): Promise<void> {
@@ -81,8 +136,10 @@ export class DataProcessingService {
     return ETFDataManager.setYieldETFFundingReward(etfId);
   }
 
-  getSUSDeSpreadVs3mTreasury(): Promise<{ time: number; value: number }[]> {
-    return ChartDataManager.getSUSDeSpreadVs3mTreasury();
+  getSUSDeSpreadVs3mTreasury(
+    coinId?: number
+  ): Promise<{ time: number; value: number }[]> {
+    return ChartDataManager.getSUSDeSpreadVs3mTreasury(coinId);
   }
 
   private async getRecentCoinsData(coinIds: number[]): Promise<CoinInfoDto[]> {

@@ -18,6 +18,17 @@ export const SingleLineChart: FC<{
         textColor: "black",
         background: { type: ColorType.Solid, color: "white" },
       },
+      timeScale: {
+        timeVisible: true,
+        secondsVisible: false,
+        tickMarkFormatter: (time: number) => {
+          const date = new Date(time * 1000);
+          return date.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          });
+        },
+      },
     };
     const apyChart = createChart(apyChartRef.current, chartOptions);
     const lineSeries = apyChart.addSeries(LineSeries, { color: "#2962FF" });
@@ -31,7 +42,7 @@ export const SingleLineChart: FC<{
     return () => {
       apyChart.remove();
     };
-  }, []);
+  }, [apyData, apyChartRef.current]);
 
   return (
     <div ref={apyChartRef} style={{ position: "relative", height: "400px" }} />
