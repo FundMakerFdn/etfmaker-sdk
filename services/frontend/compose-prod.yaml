@@ -1,0 +1,13 @@
+ services:
+  frontend:
+    volumes:
+      - .:/app
+      - /app/node_modules
+    build: .
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - APP_PORT=${APP_PORT}
+      - SERVER_URL=${SERVER_URL}
+    ports: 
+      - "3000:3000"
+    command: npm run start

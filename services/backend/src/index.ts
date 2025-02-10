@@ -8,6 +8,8 @@ const APP_HOST = process.env.APP_HOST ?? "0.0.0.0";
 const APP_PORT = process.env.APP_PORT ? Number(process.env.APP_PORT) : 3001;
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
+const FRONTEND_URL = process.env.FRONTEND_URL ?? "http://localhost:3000";
+
 const bootstrap = async () => {
   const logger = IS_PRODUCTION
     ? true
@@ -27,7 +29,13 @@ const bootstrap = async () => {
   });
 
   //Temporary fix for CORS issue
-  if (!IS_PRODUCTION) {
+  if (IS_PRODUCTION) {
+    fastify.register(fastifyCors, {
+      origin: FRONTEND_URL,
+      methods: ["GET"],
+      allowedHeaders: ["Content-Type"],
+    });
+  } else {
     fastify.register(fastifyCors, {
       origin: "*",
       methods: ["GET"],

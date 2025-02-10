@@ -5,7 +5,9 @@ FROM node:18-alpine
 WORKDIR /app
 
 # Copy package.json and install dependencies
-COPY package.json package-lock.json ./
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
 RUN npm install
 
 # Copy the rest of the code
@@ -13,6 +15,3 @@ COPY . .
 
 # Expose the backend port
 EXPOSE 3000
-
-# Command to run the app
-CMD ["npm", "run", "dev"]

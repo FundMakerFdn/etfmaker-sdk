@@ -5,7 +5,7 @@
       - /app/node_modules
     build: .
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=${NODE_ENV}
       - APP_PORT=${APP_PORT}
       - SERVER_URL=${SERVER_URL}
     ports: 

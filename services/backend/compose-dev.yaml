@@ -9,7 +9,7 @@
     depends_on:
       - db
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=${NODE_ENV}
       - APP_PORT=${APP_PORT}
       - APP_HOST=${APP_HOST}
       - DATABASE_HOST=${DATABASE_HOST}
@@ -27,6 +27,7 @@
       - BINANCE_DAPI_URL=${BINANCE_DAPI_URL}
       - BINANCE_URL=${BINANCE_URL}
       - CHOKIDAR_USEPOLLING=true
+      - FRONTEND_URL=${FRONTEND_URL}
 
     ports: 
       - "3001:3001"

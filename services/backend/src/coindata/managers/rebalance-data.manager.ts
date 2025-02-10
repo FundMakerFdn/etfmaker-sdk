@@ -4,7 +4,6 @@ import {
   and,
   lte,
   gte,
-  isNotNull,
   sql,
   notInArray,
   inArray,
@@ -21,7 +20,7 @@ import {
   AmountPerContracts,
   RebalanceDto,
 } from "../../interfaces/Rebalance.interface";
-import blacklistCoins from "../../../blacklist.json" assert { type: "json" };
+import blacklistCoins from "../../../blacklist.json";
 import Decimal from "decimal.js";
 
 export class RebalanceDataManager {

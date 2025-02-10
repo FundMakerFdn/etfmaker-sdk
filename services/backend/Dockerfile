@@ -13,6 +13,3 @@ COPY . .
 
 # Expose the backend port
 EXPOSE 3001
-
-# Command to run the app
-CMD ["npm", "run", "dev"]

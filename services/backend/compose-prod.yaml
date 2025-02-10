@@ -1,0 +1,35 @@
+ services:
+  backend:
+    volumes:
+      - .:/app
+      - /app/node_modules
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - db
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - APP_PORT=${APP_PORT}
+      - APP_HOST=${APP_HOST}
+      - DATABASE_HOST=${DATABASE_HOST}
+      - DATABASE_PORT=${DATABASE_PORT}
+      - DATABASE_NAME=${DATABASE_NAME}
+      - DATABASE_USER=${DATABASE_USER}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - COIN_GECKO_API_KEY=${COIN_GECKO_API_KEY}
+      - COIN_GECKO_API_URL=${COIN_GECKO_API_URL}
+      - BINANCE_API_KEY=${BINANCE_API_KEY}
+      - BINANCE_API_SECRET=${BINANCE_API_SECRET}
+      - BINANCE_API_URL=${BINANCE_API_URL}
+      - BINANCE_VISION_API_URL=${BINANCE_VISION_API_URL}    
+      - BINANCE_FAPI_URL=${BINANCE_FAPI_URL}
+      - BINANCE_DAPI_URL=${BINANCE_DAPI_URL}
+      - BINANCE_URL=${BINANCE_URL}
+      - CHOKIDAR_USEPOLLING=true
+      - FRONTEND_URL=${FRONTEND_URL}
+
+    ports: 
+      - "3001:3001"
+    command: >
+      sh -c "npm run build && node dist/src/index.js"
