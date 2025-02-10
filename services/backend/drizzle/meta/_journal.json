@@ -57,6 +57,13 @@
       "when": 1738675891792,
       "tag": "0007_noisy_chronomancer",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1739208550578,
+      "tag": "0008_cute_kinsey_walden",
+      "breakpoints": true
     }
   ]
 }

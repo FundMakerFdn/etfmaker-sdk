@@ -45,9 +45,17 @@ export const MultilineChart: FC<{
   return (
     <>
       <div ref={chartRef} style={{ position: "relative", height: "400px" }} />
-      <div style={{ display: "flex" }}>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+        }}
+      >
         {colors.map((color, idx) => (
-          <Fragment key={color}>
+          <div
+            key={color}
+            style={{ display: "flex", flex: "1 1 400px", maxWidth: "100%" }}
+          >
             <span>{Object.keys(data)[idx]}</span>
             <div
               style={{
@@ -58,7 +66,7 @@ export const MultilineChart: FC<{
                 marginLeft: 5,
               }}
             />
-          </Fragment>
+          </div>
         ))}
       </div>
     </>

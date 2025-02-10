@@ -1,4 +1,5 @@
 import {
+  CoinCategoryList,
   CoinGeckoCoinList,
   CoinGeckoPing,
 } from "../coingecko/coingecko.controller";
@@ -14,5 +15,10 @@ export const CoinGeckoRoutes = [
     method: "GET",
     url: "/coin-list",
     handler: CoinGeckoCoinList,
+  },
+  {
+    method: "GET",
+    url: "/coin-categories",
+    handler: CoinCategoryList,
   },
 ] satisfies RoutesType[];

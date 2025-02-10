@@ -1,7 +1,7 @@
 import Bottleneck from "bottleneck";
 
 export const GetMarketCapLimiter = new Bottleneck({
-  maxConcurrent: 10,
+  maxConcurrent: 1,
   minTime: (1000 * 60) / 1000, // 1000 requests per minute
 });
 

@@ -10,23 +10,43 @@ import { CoinInterface } from "../interfaces/Coin.interface";
 import moment from "moment";
 import { CoinStatusEnum } from "../enums/CoinStatus.enum";
 import { FuturesType } from "../enums/FuturesType.enum";
+import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
+import { ProcessingStatusService } from "../processing-status/processing-status.service";
+import { ProcessingKeysEnum } from "../enums/Processing.enum";
 
 const coingeckoService = new CoinGeckoService();
 const binanceService = new BinanceService();
 
 export class DataActualizationService {
-  async actualizeData() {
-    const topCoinList = await coingeckoService.getCoinList();
-    const binanceCoinSymbols = await binanceService.getBinanceCoinsData();
+  async actualizeData(config: RebalanceConfig): Promise<void> {
+    if (
+      await ProcessingStatusService.isProcessing(ProcessingKeysEnum.actualizing)
+    )
+      return;
+    try {
+      await ProcessingStatusService.setProcessing(
+        ProcessingKeysEnum.actualizing
+      );
 
-    const classifiedCoins = this.classifyCoins(topCoinList, binanceCoinSymbols);
+      const topCoinList = await coingeckoService.getCoinList(config.category);
+      const binanceCoinSymbols = await binanceService.getBinanceCoinsData();
 
-    const coins = await this.updateCoinsTable(classifiedCoins);
+      const classifiedCoins = this.classifyCoins(
+        topCoinList,
+        binanceCoinSymbols
+      );
 
-    await this.setMarketCap(coins);
-    await this.setOpenInterest(coins);
-    await this.setCandles(coins);
-    await this.setFundings(coins);
+      const coins = await this.updateCoinsTable(classifiedCoins);
+
+      await this.setMarketCap(coins);
+      await this.setOpenInterest(coins);
+      await this.setCandles(coins);
+      await this.setFundings(coins);
+      await ProcessingStatusService.setSuccess(ProcessingKeysEnum.actualizing);
+    } catch (error) {
+      await ProcessingStatusService.setError(ProcessingKeysEnum.actualizing);
+      throw error;
+    }
   }
 
   private async updateCoinsTable(
@@ -148,6 +168,7 @@ export class DataActualizationService {
 
   private async setMarketCap(coins: CoinInterface[]): Promise<void> {
     console.log("Setting market cap data...");
+    const tasks = [];
 
     for (const { assetId, id: coinId, source } of coins) {
       if (!coinId || !assetId || source !== CoinSourceEnum.SPOT) continue;
@@ -171,25 +192,31 @@ export class DataActualizationService {
 
       if (days <= 0) continue;
 
-      try {
-        const marketCap = await coingeckoService.getCoinMarketCap(
-          assetId,
-          days
-        );
+      tasks.push(
+        (async () => {
+          try {
+            const marketCap = await coingeckoService.getCoinMarketCap(
+              assetId,
+              days
+            );
 
-        if (marketCap.length === 0) continue;
+            if (marketCap.length === 0) return;
 
-        const insertData = marketCap.map((cap) => ({
-          coinId,
-          timestamp: new Date(cap.timestamp),
-          marketCap: cap.marketCap.toString(),
-        }));
+            const insertData = marketCap.map((cap) => ({
+              coinId,
+              timestamp: new Date(cap.timestamp),
+              marketCap: cap.marketCap.toString(),
+            }));
 
-        await DataSource.insert(MarketCap).values(insertData);
-      } catch (error) {
-        console.error(`Error processing coinId ${coinId}:`, error);
-      }
+            await DataSource.insert(MarketCap).values(insertData);
+          } catch (error) {
+            console.error(`Error processing coinId ${coinId}:`, error);
+          }
+        })()
+      );
     }
+
+    await Promise.all(tasks);
   }
 
   private async setOpenInterest(coins: CoinInterface[]): Promise<void> {

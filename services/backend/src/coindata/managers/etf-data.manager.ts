@@ -8,6 +8,7 @@ import {
   Funding,
   EtfFundingReward,
   Candles,
+  MarketCap,
 } from "../../db/schema";
 import {
   AmountPerContracts,
@@ -80,7 +81,7 @@ export class ETFDataManager {
         );
       }
 
-      const assetsWithWeights = this.setAssetWeights(coinsWithPrices);
+      const assetsWithWeights = await this.setAssetWeights(coinsWithPrices);
       const amountPerContracts = this.setAmountPerContracts(
         assetsWithWeights,
         +rebalanceData[0].price
@@ -257,12 +258,71 @@ export class ETFDataManager {
     return result;
   }
 
-  public static setAssetWeights(assetsList: PricesDto[]): AssetWeights[] {
-    const amount = assetsList.length;
-    return assetsList.map((asset) => ({
-      ...asset,
-      weight: Decimal(1).div(amount).toNumber(),
-    }));
+  public static async setAssetWeights(
+    assetsList: PricesDto[]
+  ): Promise<AssetWeights[]> {
+    const coinIds = assetsList.map((asset) => asset.coinId);
+
+    const marketCaps = await DataSource.select({
+      coinId: MarketCap.id,
+      marketCap: MarketCap.marketCap,
+    })
+      .from(MarketCap)
+      .where(inArray(MarketCap.id, coinIds));
+
+    const marketCapMap = new Map(
+      marketCaps.map((mc) => [mc.coinId, new Decimal(mc.marketCap)])
+    );
+
+    const totalMarketCap = marketCaps.reduce(
+      (acc, curr) => acc.plus(curr.marketCap),
+      new Decimal(0)
+    );
+
+    const minWeight = new Decimal(0.0025);
+
+    let fixedTotalWeight = new Decimal(0);
+    const adjustedWeights = assetsList.map((asset) => {
+      const marketCap = marketCapMap.get(asset.coinId) || new Decimal(0);
+      const rawWeight = marketCap.div(totalMarketCap);
+
+      if (rawWeight.lessThan(minWeight)) {
+        fixedTotalWeight = fixedTotalWeight.plus(minWeight);
+        return { asset, weight: minWeight };
+      }
+
+      return { asset, weight: null };
+    });
+
+    const remainingWeight = new Decimal(1).minus(fixedTotalWeight);
+    const remainingMarketCap = adjustedWeights
+      .filter((entry) => entry.weight === null)
+      .reduce(
+        (acc, entry) =>
+          acc.plus(marketCapMap.get(entry.asset.coinId) || new Decimal(0)),
+        new Decimal(0)
+      );
+
+    const finalWeights = adjustedWeights.map((entry) => {
+      if (entry.weight !== null) {
+        return {
+          ...entry.asset,
+          weight: entry.weight.toNumber(),
+        };
+      }
+
+      const marketCap = marketCapMap.get(entry.asset.coinId) || new Decimal(0);
+      const redistributedWeight = marketCap
+        .div(remainingMarketCap)
+        .times(remainingWeight);
+
+      return {
+        ...entry.asset,
+        weight: redistributedWeight.toNumber(),
+      };
+    });
+
+    return finalWeights;
   }
 
   public static setAmountPerContracts(

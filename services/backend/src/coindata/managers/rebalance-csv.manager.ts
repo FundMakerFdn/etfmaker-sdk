@@ -2,7 +2,7 @@ import { stringify } from "csv-stringify";
 import { DataSource } from "../../db/DataSource";
 import { Coins, Rebalance } from "../../db/schema";
 import { RebalanceDto } from "../../interfaces/Rebalance.interface";
-import { desc, eq } from "drizzle-orm";
+import { desc, inArray } from "drizzle-orm";
 import { RebalanceDataManager } from "./rebalance-data.manager";
 import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
 
@@ -30,11 +30,10 @@ export class RebalanceCsvManager {
   public static async simulateRebalanceDataCSV(
     config: RebalanceConfig
   ): Promise<string> {
-    const rebalanceData = await RebalanceDataManager.generateRebalanceData(
-      config
-    );
+    const simulatedRebalanceData =
+      await RebalanceDataManager.generateRebalanceData(config);
 
-    return this.generateCsvFromRebalanceData(rebalanceData);
+    return this.generateCsvFromRebalanceData(simulatedRebalanceData);
   }
 
   private static async generateCsvFromRebalanceData(
@@ -52,8 +51,15 @@ export class RebalanceCsvManager {
 
     const dataSet = [] as CsvDataRaw[];
 
+    const coinIds = rebalanceData
+      .map((data) => data.data.map((d) => d.coinId))
+      .flat();
+    const coins = await DataSource.select({ id: Coins.id, name: Coins.name })
+      .from(Coins)
+      .where(inArray(Coins.id, coinIds));
+
     for (const data of rebalanceData) {
-      const transformedData = await this.transformDataset(data);
+      const transformedData = this.transformDataset(data, coins);
       dataSet.push(...transformedData);
     }
 
@@ -71,24 +77,21 @@ export class RebalanceCsvManager {
     });
   }
 
-  private static async transformDataset(
-    data: Omit<RebalanceDto, "id">
-  ): Promise<CsvDataRaw[]> {
+  private static transformDataset(
+    data: Omit<RebalanceDto, "id">,
+    coins: { id: number; name: string }[]
+  ): CsvDataRaw[] {
     const transformedData = [] as CsvDataRaw[];
     let id = 1;
 
     for (const asset of data.data) {
-      const coinName = await DataSource.select({ name: Coins.name })
-        .from(Coins)
-        .where(eq(Coins.id, asset.coinId))
-        .limit(1);
-
+      const coinName = coins.find((c) => c.id === asset.coinId)?.name ?? "";
       transformedData.push({
         id: id++,
         etfId: data.etfId,
         timestamp: data.timestamp,
         coinId: asset.coinId,
-        "name of asset": coinName[0].name,
+        "name of asset": coinName,
         weight: asset.weight,
         "amount per contracts": asset.amountPerContracts,
       });

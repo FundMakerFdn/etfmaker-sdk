@@ -240,13 +240,14 @@ export class FundingDataManager {
       }
     }
 
-    const totalDays = positiveDays + negativeDays;
-    if (totalDays === 0) {
-      throw new Error("No complete funding data found for all coins.");
-    }
-
     const calculateDistributionPercent = (value: number): number =>
-      new Decimal(value).div(totalDays).mul(100).toDecimalPlaces(2).toNumber();
+      value > 0
+        ? new Decimal(value)
+            .div(positiveDays + negativeDays)
+            .mul(100)
+            .toDecimalPlaces(2)
+            .toNumber()
+        : 0;
 
     return {
       positive: calculateDistributionPercent(positiveDays),

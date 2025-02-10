@@ -7,4 +7,5 @@ export interface RebalanceConfig {
     | "Hourly"}`;
   startDate: Date;
   initialPrice: number;
+  category?: string;
 }

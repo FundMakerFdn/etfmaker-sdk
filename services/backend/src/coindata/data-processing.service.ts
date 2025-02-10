@@ -11,6 +11,8 @@ import { ChartDataManager } from "./managers/charts-data.manager";
 import { ETFDataManager } from "./managers/etf-data.manager";
 import { CoinInterface } from "../interfaces/Coin.interface";
 import { asc, eq, and, gte } from "drizzle-orm";
+import { ProcessingStatusService } from "../processing-status/processing-status.service";
+import { ProcessingKeysEnum } from "../enums/Processing.enum";
 
 const binanceService = new BinanceService();
 
@@ -115,10 +117,24 @@ export class DataProcessingService {
   }
 
   async generateRebalanceData(config: RebalanceConfig): Promise<void> {
-    const rebalanceData = await RebalanceDataManager.generateRebalanceData(
-      config
-    );
-    await DataSource.insert(Rebalance).values(rebalanceData);
+    if (
+      await ProcessingStatusService.isProcessing(ProcessingKeysEnum.processing)
+    ) {
+      return;
+    }
+    try {
+      await ProcessingStatusService.setProcessing(
+        ProcessingKeysEnum.processing
+      );
+      const rebalanceData = await RebalanceDataManager.generateRebalanceData(
+        config
+      );
+      await DataSource.insert(Rebalance).values(rebalanceData);
+      await ProcessingStatusService.setSuccess(ProcessingKeysEnum.processing);
+    } catch (error) {
+      await ProcessingStatusService.setError(ProcessingKeysEnum.processing);
+      throw error;
+    }
   }
 
   getFundingDaysDistributionChartData(coinId?: number): Promise<{
@@ -134,6 +150,18 @@ export class DataProcessingService {
 
   setYieldETFFundingReward(etfId: RebalanceConfig["etfId"]): Promise<void> {
     return ETFDataManager.setYieldETFFundingReward(etfId);
+  }
+
+  setRebalanceDataManualy() {
+    return RebalanceDataManager.setRebalanceDataManualy(
+      1738928704000,
+      [{ coinId: 3, weight: 0.07 }],
+      {
+        etfId: "top20IndexHourly",
+        startDate: new Date(1738928704000),
+        initialPrice: 100,
+      }
+    );
   }
 
   getSUSDeSpreadVs3mTreasury(

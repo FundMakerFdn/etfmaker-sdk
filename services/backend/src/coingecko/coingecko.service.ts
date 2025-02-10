@@ -1,6 +1,8 @@
 import axios from "axios";
 import moment from "moment";
 import { GetMarketCapLimiter } from "./limiters";
+import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
+import { CoinCategory } from "../interfaces/CoinCategory.interface";
 
 export class CoinGeckoService {
   private readonly apiKey: string;
@@ -18,19 +20,27 @@ export class CoinGeckoService {
     });
   }
 
-  getCoinList(): Promise<Record<string, any>[]> {
+  getCoinList(
+    category?: RebalanceConfig["category"]
+  ): Promise<Record<string, any>[]> {
     const fetchQueue = [];
+    const params = {
+      headers: {
+        accept: "application/json",
+        "x-cg-pro-api-key": this.apiKey,
+      },
+    } as { headers: Record<string, string>; category?: string };
+
+    if (category) {
+      params["category"] = category;
+    }
+
     for (let page = 1; page <= 40; page++) {
       // 40 pages * 250 coins = 10000 coins
       fetchQueue.push(
         axios.get(
           `${this.apiUrl}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=${page}`,
-          {
-            headers: {
-              accept: "application/json",
-              "x-cg-pro-api-key": this.apiKey,
-            },
-          }
+          params
         )
       );
     }
@@ -90,5 +100,16 @@ export class CoinGeckoService {
     }
 
     return data;
+  }
+
+  async getCoinCategories(): Promise<CoinCategory[]> {
+    const response = await axios.get(`${this.apiUrl}/coins/categories/list`, {
+      headers: {
+        accept: "application/json",
+        "x-cg-pro-api-key": this.apiKey,
+      },
+    });
+
+    return response.data;
   }
 }

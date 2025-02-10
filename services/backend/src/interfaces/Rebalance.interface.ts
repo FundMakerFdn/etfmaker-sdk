@@ -6,6 +6,7 @@ export interface RebalanceDto {
   timestamp: Date;
   price: string;
   data: AmountPerContracts[];
+  coinCategory?: string;
 }
 
 export interface PricesDto {
