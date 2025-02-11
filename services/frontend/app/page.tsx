@@ -7,7 +7,7 @@ import { MultilineChart } from "./components/MultilineChart";
 import { SingleLineChart } from "./components/SindleLineChart";
 import { CurrentAPY } from "./components/CurrentAPY";
 import { FundingDaysDistributionChart } from "./components/FundingDaysDistributionChart";
-import { SUSDeAPYWeeklyDistributionChart } from "./components/sUSDeAPYWeeklyDistributionChart";
+import { SUSDeAPYWeeklyDistributionChart } from "./components/SUSDeAPYWeeklyDistributionChart";
 import { FiltersByAssets } from "./components/Filters";
 import { processAPYDataToWeekly } from "./helpers/processAPYDataToWeekly";
 
