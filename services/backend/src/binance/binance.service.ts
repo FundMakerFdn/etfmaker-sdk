@@ -16,7 +16,7 @@ import { BinanceFundingDto } from "./dto/BinanceFunding.dto";
 import { FuturesType } from "../enums/FuturesType.enum";
 import moment from "moment";
 import { DataSource } from "../db/DataSource";
-import { Candles } from "../db/schema";
+import { Candles, Funding, OpenInterest } from "../db/schema";
 
 export class BinanceService {
   private readonly apiUrl: string;
@@ -191,7 +191,7 @@ export class BinanceService {
     }
   }
 
-  async getAllHistoricalCandles(
+  async setAllHistoricalCandles(
     source: CoinSourceEnum,
     symbol: string,
     coinId: number,
@@ -261,34 +261,39 @@ export class BinanceService {
     }
   }
 
-  async getAllFunding(
+  //exists only for futures
+  async setAllFunding(
+    coinId: number,
     symbol: string,
     source: CoinSourceEnum.COINMFUTURES | CoinSourceEnum.USDMFUTURES,
     startTime: number
-  ): Promise<BinanceFundingDto[]> {
-    //exists only for futures
+  ): Promise<void> {
     const endTime = Date.now();
 
-    let allRates: BinanceFundingDto[] = [];
     let currentStartTime = startTime;
 
     while (currentStartTime < endTime) {
-      const rates = await this.getFunding(
+      const ratesData = await this.getFunding(
         symbol,
         currentStartTime,
         endTime,
         source
       );
-      if (rates.length === 0) {
+      if (ratesData.length === 0) {
         currentStartTime += 1000 * 60 * 60 * 24; // Next day
         continue;
       } // No more data
 
-      allRates.push(...rates);
-      currentStartTime = +rates[rates.length - 1].timestamp + 1; // Next chunk
-    }
+      const insertData = ratesData.map((f) => ({
+        coinId,
+        timestamp: new Date(f.timestamp),
+        fundingRate: f.fundingRate.toString(),
+      }));
 
-    return allRates;
+      await DataSource.insert(Funding).values(insertData);
+
+      currentStartTime = +ratesData[ratesData.length - 1].timestamp + 1; // Next chunk
+    }
   }
 
   private async getOpenInterest(
@@ -332,15 +337,15 @@ export class BinanceService {
   }
 
   // Exists only for futures
-  async getAllOpenInterest(
+  async setAllOpenInterest(
+    coinId: number,
     symbol: string,
     source: CoinSourceEnum.COINMFUTURES | CoinSourceEnum.USDMFUTURES,
     startTime: number,
     pair?: string
-  ): Promise<OpenInterestInterface[]> {
+  ): Promise<void> {
     let currentStartTime = startTime;
     const endTime = Date.now();
-    const openInterestData: OpenInterestInterface[] = [];
 
     while (currentStartTime < endTime) {
       const openInterest = await this.getOpenInterest(
@@ -356,12 +361,18 @@ export class BinanceService {
         continue;
       }
 
-      openInterestData.push(...openInterest);
+      const insertData = openInterest.map((oi) => ({
+        coinId,
+        timestamp: new Date(oi.timestamp),
+        sumOpenInterest: oi.sumOpenInterest.toString(),
+        sumOpenInterestValue: oi.sumOpenInterestValue.toString(),
+      }));
+
+      await DataSource.insert(OpenInterest).values(insertData);
+
       currentStartTime =
         +openInterest[openInterest.length - 1].timestamp + 1000 * 60 * 60 * 24; // Next day
     }
-
-    return openInterestData;
   }
 
   async getCurrentPrice(

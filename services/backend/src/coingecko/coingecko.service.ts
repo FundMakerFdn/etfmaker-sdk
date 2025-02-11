@@ -3,6 +3,8 @@ import moment from "moment";
 import { GetMarketCapLimiter } from "./limiters";
 import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
 import { CoinCategory } from "../interfaces/CoinCategory.interface";
+import { DataSource } from "../db/DataSource";
+import { MarketCap } from "../db/schema";
 
 export class CoinGeckoService {
   private readonly apiKey: string;
@@ -61,11 +63,11 @@ export class CoinGeckoService {
     );
   }
 
-  async getCoinMarketCap(
-    coinId: string,
+  async setCoinMarketCap(
+    assetId: string,
+    coinId: number,
     days: number
-  ): Promise<{ timestamp: number; marketCap: number }[]> {
-    let data = [] as { timestamp: number; marketCap: number }[];
+  ): Promise<void> {
     const endTime = moment().valueOf();
     let startTime = moment().subtract(days, "days").valueOf();
     const day = 1000 * 60 * 60 * 24;
@@ -73,7 +75,7 @@ export class CoinGeckoService {
     while (startTime < endTime - day) {
       const response = await GetMarketCapLimiter.schedule(() =>
         axios.get(
-          `${this.apiUrl}/coins/${coinId}/market_chart?vs_currency=usd&days=${days}&interval=daily`,
+          `${this.apiUrl}/coins/${assetId}/market_chart?vs_currency=usd&days=${days}&interval=daily`,
           {
             headers: {
               accept: "application/json",
@@ -87,19 +89,18 @@ export class CoinGeckoService {
         break;
       }
 
-      data = data.concat(
-        response.data.market_caps.map(
-          ([timestamp, marketCap]: [number, number]) => ({
-            timestamp,
-            marketCap,
-          })
-        )
+      const marketCapData = response.data.market_caps.map(
+        ([timestamp, marketCap]: [number, number]) => ({
+          coinId,
+          timestamp: new Date(timestamp),
+          marketCap: marketCap.toString(),
+        })
       );
 
-      startTime = data[data.length - 1].timestamp + 1;
-    }
+      await DataSource.insert(MarketCap).values(marketCapData);
 
-    return data;
+      startTime = marketCapData[marketCapData.length - 1].timestamp + 1;
+    }
   }
 
   async getCoinCategories(): Promise<CoinCategory[]> {

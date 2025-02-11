@@ -167,7 +167,8 @@ export class DataActualizationService {
   }
 
   private async setMarketCap(coins: CoinInterface[]): Promise<void> {
-    console.log("Setting market cap data...");
+    const lastCoinId = coins[coins.length - 1].id;
+    console.log("Fetching market cap data...");
     const tasks = [];
 
     for (const { assetId, id: coinId, source } of coins) {
@@ -195,20 +196,11 @@ export class DataActualizationService {
       tasks.push(
         (async () => {
           try {
-            const marketCap = await coingeckoService.getCoinMarketCap(
-              assetId,
-              days
+            await coingeckoService.setCoinMarketCap(assetId, coinId, days);
+            const percent = (coinId / lastCoinId) * 100;
+            console.log(
+              "Fetching market cap data..." + percent.toFixed(2) + "%"
             );
-
-            if (marketCap.length === 0) return;
-
-            const insertData = marketCap.map((cap) => ({
-              coinId,
-              timestamp: new Date(cap.timestamp),
-              marketCap: cap.marketCap.toString(),
-            }));
-
-            await DataSource.insert(MarketCap).values(insertData);
           } catch (error) {
             console.error(`Error processing coinId ${coinId}:`, error);
           }
@@ -220,6 +212,9 @@ export class DataActualizationService {
   }
 
   private async setOpenInterest(coins: CoinInterface[]): Promise<void> {
+    const lastCoinId = coins[coins.length - 1].id;
+    console.log("Fetching open interest data...");
+
     for (const { symbol, id: coinId, source, pair } of coins) {
       if (!symbol || !coinId || source === CoinSourceEnum.SPOT) continue;
 
@@ -244,22 +239,18 @@ export class DataActualizationService {
       if (moment().diff(startTime, "days") < 1) continue;
 
       try {
-        const openInterest = await binanceService.getAllOpenInterest(
+        await binanceService.setAllOpenInterest(
+          coinId,
           symbol,
           source,
           startTime,
           pair
         );
-        if (openInterest.length === 0) continue;
 
-        const insertData = openInterest.map((oi) => ({
-          coinId,
-          timestamp: new Date(oi.timestamp),
-          sumOpenInterest: oi.sumOpenInterest.toString(),
-          sumOpenInterestValue: oi.sumOpenInterestValue.toString(),
-        }));
-
-        await DataSource.insert(OpenInterest).values(insertData);
+        const percent = (coinId / lastCoinId) * 100;
+        console.log(
+          "Fetching open interest data..." + percent.toFixed(2) + "%"
+        );
       } catch (error) {
         console.error(`Error processing symbol ${symbol}:`, error);
       }
@@ -267,9 +258,12 @@ export class DataActualizationService {
   }
 
   private async setCandles(coins: CoinInterface[]): Promise<void> {
-    const dataPeriod = 6; //months
+    const dataPeriod = 60; //months
+    console.log("Fetching candles data...");
 
     const tasks = [];
+
+    const lastCoinId = coins[coins.length - 1].id;
 
     for (const { symbol, id: coinId, source, status } of coins) {
       if (!symbol || !coinId || status === CoinStatusEnum.DELISTED) continue;
@@ -295,12 +289,15 @@ export class DataActualizationService {
       tasks.push(
         (async () => {
           try {
-            await binanceService.getAllHistoricalCandles(
+            await binanceService.setAllHistoricalCandles(
               source,
               symbol,
               coinId,
               startTime
             );
+
+            const percent = (coinId / lastCoinId) * 100;
+            console.log("Fetching candles data..." + percent.toFixed(2) + "%");
           } catch (error) {
             console.error(`Error processing symbol ${symbol}:`, error);
           }
@@ -312,7 +309,8 @@ export class DataActualizationService {
   }
 
   private async setFundings(coins: CoinInterface[]): Promise<void> {
-    console.log("Setting fundings data...");
+    const lastCoinId = coins[coins.length - 1].id;
+    console.log("Fetching fundings data...");
 
     for (const { symbol, id: coinId, source, futuresType, status } of coins) {
       if (
@@ -342,21 +340,9 @@ export class DataActualizationService {
       if (moment().diff(moment(startTime), "hours") < 8) continue;
 
       try {
-        const fundingData = await binanceService.getAllFunding(
-          symbol,
-          source,
-          startTime
-        );
-
-        if (fundingData.length === 0) continue;
-
-        const insertData = fundingData.map((f) => ({
-          coinId,
-          timestamp: new Date(f.timestamp),
-          fundingRate: f.fundingRate.toString(),
-        }));
-
-        await DataSource.insert(Funding).values(insertData);
+        await binanceService.setAllFunding(coinId, symbol, source, startTime);
+        const percent = (coinId / lastCoinId) * 100;
+        console.log("Fetching fundings data..." + percent.toFixed(2) + "%");
       } catch (error) {
         console.error(`Error processing symbol ${symbol}:`, error);
       }
