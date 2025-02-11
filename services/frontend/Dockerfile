@@ -22,7 +22,7 @@ COPY --from=builder /app/.next ./.next
 COPY package.json package-lock.json ./
 
 # Install only production dependencies
-RUN npm install --only=production
+RUN npm install
 
 # Expose Next.js default port
 EXPOSE 3000

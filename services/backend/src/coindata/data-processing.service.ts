@@ -13,6 +13,7 @@ import { CoinInterface } from "../interfaces/Coin.interface";
 import { asc, eq, and, gte } from "drizzle-orm";
 import { ProcessingStatusService } from "../processing-status/processing-status.service";
 import { ProcessingKeysEnum } from "../enums/Processing.enum";
+import orderBookProducerService from "../orderbook/orderbook.producer.service";
 
 const binanceService = new BinanceService();
 
@@ -122,6 +123,7 @@ export class DataProcessingService {
     ) {
       return;
     }
+
     try {
       await ProcessingStatusService.setProcessing(
         ProcessingKeysEnum.processing
@@ -129,7 +131,11 @@ export class DataProcessingService {
       const rebalanceData = await RebalanceDataManager.generateRebalanceData(
         config
       );
+
       await DataSource.insert(Rebalance).values(rebalanceData);
+
+      await orderBookProducerService.openStreamOrderBook();
+
       await ProcessingStatusService.setSuccess(ProcessingKeysEnum.processing);
     } catch (error) {
       await ProcessingStatusService.setError(ProcessingKeysEnum.processing);

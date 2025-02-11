@@ -8,6 +8,7 @@
       dockerfile: Dockerfile
     depends_on:
       - db
+      - kafka
     environment:
       - NODE_ENV=${NODE_ENV}
       - APP_PORT=${APP_PORT}
@@ -28,10 +29,9 @@
       - BINANCE_URL=${BINANCE_URL}
       - CHOKIDAR_USEPOLLING=true
       - FRONTEND_URL=${FRONTEND_URL}
+      - KAFKA_URL=${KAFKA_URL}
+      - WEBSOCKET_URL=${WEBSOCKET_URL}
 
     ports: 
       - "3001:3001"
     command: npm run dev
-
-volumes:
-  .:/app

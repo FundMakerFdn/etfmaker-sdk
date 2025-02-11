@@ -28,6 +28,8 @@
       - BINANCE_URL=${BINANCE_URL}
       - CHOKIDAR_USEPOLLING=true
       - FRONTEND_URL=${FRONTEND_URL}
+      - KAFKA_URL=${KAFKA_URL}
+      - WEBSOCKET_URL=${WEBSOCKET_URL}
 
     ports: 
       - "3001:3001"
