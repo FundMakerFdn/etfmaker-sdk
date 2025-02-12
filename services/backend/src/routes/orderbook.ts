@@ -1,15 +1,18 @@
 import { streamOrderBook } from "../orderbook/orderbook.controller";
 import { RoutesType } from "../interfaces/RoutesType";
+import { WebSocket } from "@fastify/websocket";
+import { FastifyReply, FastifyRequest } from "fastify";
 
 export const OrderbookRoutes = [
   {
     method: "GET",
     url: "/order-book",
-    handler: () => {
-      console.log("It's websocket route");
-      return "It's websocket route";
+    handler: (request: FastifyRequest, reply: FastifyReply) => {
+      // This handler is for HTTP GET requests
+      reply.send("This endpoint supports WebSocket connections only.");
     },
-    websocket: true,
-    wsHandler: streamOrderBook,
+    wsHandler: (connection: WebSocket, request: FastifyRequest) => {
+      streamOrderBook(connection, request);
+    },
   },
 ] satisfies RoutesType[];

@@ -16,8 +16,8 @@ export const SpotsSymbolsLimiter = new Bottleneck({
 });
 
 export const HistoricalCandlesLimiter = new Bottleneck({
-  maxConcurrent: 10,
-  minTime: 1000 / 90,
+  maxConcurrent: 1,
+  minTime: 250, // 240 requests per minute
 });
 
 export const HistoricalCandlesLimiterBinanceVision = new Bottleneck({

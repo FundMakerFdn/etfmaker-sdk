@@ -20,12 +20,15 @@ export const SingleLineChart: FC<{
       },
       timeScale: {
         timeVisible: true,
-        secondsVisible: false,
+        secondsVisible: true,
         tickMarkFormatter: (time: number) => {
           const date = new Date(time * 1000);
           return date.toLocaleDateString("en-US", {
             month: "short",
             day: "numeric",
+            hour: "numeric",
+            minute: "numeric",
+            second: "numeric",
           });
         },
       },

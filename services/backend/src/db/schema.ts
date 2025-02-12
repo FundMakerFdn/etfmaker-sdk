@@ -65,6 +65,7 @@ export const CoinsRelations = relations(Coins, ({ many }) => ({
   openInterest: many(OpenInterest),
   marketCap: many(MarketCap),
   funding: many(Funding),
+  orderBook: many(OrderBook),
 }));
 
 export const Candles = pgTable(
@@ -254,3 +255,31 @@ export const ProcessingStatus = pgTable("processing_status", {
   status: ProcessingStatusEnumPg("status").notNull(),
   timestamp: timestamp("timestamp").notNull().defaultNow(),
 });
+
+export const OrderBook = pgTable(
+  "order_book",
+  {
+    id: serial("id").primaryKey(),
+    coinId: integer("coin_id")
+      .notNull()
+      .references(() => Coins.id),
+    timestamp: timestamp("timestamp").notNull(),
+    data: jsonb("data").notNull(),
+  },
+  (table) => {
+    return {
+      // Composite index on coinId and timestamp
+      coinIdTimestampIdx: index("order_book_coin_id_timestamp_idx").on(
+        table.coinId,
+        table.timestamp
+      ),
+    };
+  }
+);
+
+export const OrderBookRelations = relations(OrderBook, ({ one }) => ({
+  coin: one(Coins, {
+    fields: [OrderBook.coinId],
+    references: [Coins.id],
+  }),
+}));

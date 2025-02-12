@@ -4,6 +4,8 @@ import kafkaService from "../kafka/kafka.service";
 import WebSocket from "ws";
 import { desc, inArray } from "drizzle-orm";
 import { AmountPerContracts } from "../interfaces/Rebalance.interface";
+import moment from "moment";
+import { OrderBookInterface } from "../interfaces/OrderBook.interface";
 
 export class OrderBookProducerService {
   private readonly connections: Map<string, WebSocket> = new Map();
@@ -65,7 +67,6 @@ export class OrderBookProducerService {
 
     ws.on("open", () => {
       this.connections.set(symbol, ws);
-      console.log(`Connected to Binance WebSocket for ${symbol}.`);
     });
 
     ws.on(
@@ -96,23 +97,35 @@ export class OrderBookProducerService {
   }
 
   private async sendMessageToKafka(data: WebSocket.Data, symbol: string) {
-    let message: string;
-
-    if (typeof data === "string") {
-      message = data;
-    } else if (data instanceof Buffer) {
-      message = data.toString("utf-8");
-    } else if (data instanceof ArrayBuffer) {
-      message = Buffer.from(data).toString("utf-8");
-    } else {
-      throw new Error("Unexpected WebSocket message type");
-    }
-
-    const orderBookUpdate = JSON.parse(message);
-    await kafkaService.sendMessage(
-      `binance_orderbook_${symbol}`,
-      orderBookUpdate
+    const orderBookUpdate = JSON.parse(
+      Buffer.from(data as ArrayBuffer).toString("utf-8")
     );
+
+    if (!orderBookUpdate.b.length || !orderBookUpdate.a.length) return;
+    const bestBid = parseFloat(orderBookUpdate.b[0][0]);
+    const bestAsk = parseFloat(orderBookUpdate.a[0][0]);
+    const spread = ((bestAsk - bestBid) / bestAsk) * 100;
+
+    const bidDepth = orderBookUpdate.b.reduce(
+      (acc: number, [_price, quantity]: [string, string]) =>
+        acc + parseFloat(quantity),
+      0
+    );
+    const askDepth = orderBookUpdate.a.reduce(
+      (acc: number, [_price, quantity]: [string, string]) =>
+        acc + parseFloat(quantity),
+      0
+    );
+
+    const spreadData = {
+      symbol,
+      time: moment().valueOf(),
+      spread: spread.toFixed(4),
+      bidDepth: bidDepth.toFixed(4),
+      askDepth: askDepth.toFixed(4),
+    } satisfies OrderBookInterface;
+
+    await kafkaService.sendMessage(`binance_orderbook_${symbol}`, spreadData);
   }
 }
 

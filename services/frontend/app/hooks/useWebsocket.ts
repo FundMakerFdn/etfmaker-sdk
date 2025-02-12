@@ -3,9 +3,12 @@ import { useState, useEffect } from "react";
 const SERVER_WEBSOCKET_URL = process.env.SERVER_WEBSOCKET_URL;
 
 export const useWebsocket = (endpoint: string) => {
-  const [data, setData] = useState<Record<string, any> | null>({});
+  const [data, setData] = useState<Record<string, any>[] | []>([]);
 
   useEffect(() => {
+    setData([]);
+    if (endpoint === "") return;
+
     const url = SERVER_WEBSOCKET_URL + endpoint;
     console.log(`Connecting to WebSocket at ${url}`);
     const ws = new WebSocket(url);
@@ -14,7 +17,7 @@ export const useWebsocket = (endpoint: string) => {
       console.log(`Connected to WebSocket at ${url}`);
     };
     ws.onmessage = (event) => {
-      setData(JSON.parse(event.data));
+      setData((data) => [...data, JSON.parse(event.data)]);
     };
 
     return () => {

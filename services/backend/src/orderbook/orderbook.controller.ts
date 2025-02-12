@@ -7,7 +7,5 @@ export const streamOrderBook = async (
   request: FastifyRequest
 ) => {
   const symbol = (request.query as { symbol: string }).symbol.toUpperCase();
-  console.log(`Client subscribed: ${symbol}`);
-
-  // orderBookConsumerService.setClient(socket, symbol);
+  orderBookConsumerService.setClient(socket, symbol);
 };

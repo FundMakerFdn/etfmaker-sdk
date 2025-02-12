@@ -53,15 +53,13 @@ const bootstrap = async () => {
   try {
     CoinGeckoRoutes.forEach((route) => fastify.route(route));
     CoinDataRoutes.forEach((route) => fastify.route(route));
-    OrderbookRoutes.forEach((route) =>
-      fastify.register(async () => fastify.route(route))
-    );
+    OrderbookRoutes.forEach((route) => fastify.route(route));
 
     // Fail all processing statuses on server start
     await ProcessingStatusService.failAll();
 
     // Connect Kafka producer
-    await kafkaService.connectProducer();
+    await kafkaService.connectKafka(fastify);
     // Run stream order book Binance wss to kafka
     await orderBookProducerService.openStreamOrderBook();
 

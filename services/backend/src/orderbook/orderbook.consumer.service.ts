@@ -1,5 +1,7 @@
 import WebSocket from "ws";
 import kafkaService from "../kafka/kafka.service";
+import moment from "moment";
+import { OrderBookInterface } from "../interfaces/OrderBook.interface";
 
 class OrderBookConsumerService {
   private readonly clients: Set<{ socket: WebSocket; symbol: string }> =
@@ -12,7 +14,6 @@ class OrderBookConsumerService {
 
     socket.on("close", () => {
       this.clients.delete({ socket, symbol });
-      console.log(`❌ Client unsubscribed: ${symbol}`);
     });
     await this.processSpread();
   }
@@ -26,28 +27,19 @@ class OrderBookConsumerService {
 
     if (newSymbols.length === 0) return;
 
+    await kafkaService.disconnectConcumers();
+
     for (const symbol of newSymbols) {
-      const onMessage = (message: any) => {
-        const orderBook = JSON.parse(message.value.toString());
-
-        if (!orderBook.b.length || !orderBook.a.length) return;
-        const bestBid = parseFloat(orderBook.b[0][0]);
-        const bestAsk = parseFloat(orderBook.a[0][0]);
-        const spread = ((bestAsk - bestBid) / bestAsk) * 100;
-
-        console.log(`📊 Spread for ${symbol}: ${spread.toFixed(4)}%`);
-        const spreadData = { symbol, spread: spread.toFixed(4) };
-
+      const onMessage = (orderBook: OrderBookInterface) => {
         for (const { socket, symbol: clientSymbol } of this.clients) {
-          if (clientSymbol === symbol && socket.readyState === 1) {
-            socket.send(JSON.stringify(spreadData));
+          if (clientSymbol === orderBook.symbol && socket.readyState === 1) {
+            socket.send(JSON.stringify(orderBook));
           }
         }
       };
 
       await kafkaService.startConsumer(
         `binance_orderbook_${symbol}`,
-        "orderbook-consumer",
         onMessage
       );
     }

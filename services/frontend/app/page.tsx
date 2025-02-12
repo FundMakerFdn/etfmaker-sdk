@@ -192,7 +192,16 @@ export default function Page() {
       <DownloadRebalanceDataCsv type="simulation" />
 
       <FiltersByAssets
-        availableAssets={state.availableAssetsToFilter}
+        availableAssets={[
+          {
+            id: "All",
+            name: "All",
+            symbol: "All",
+            source: "All",
+          },
+          ...state.availableAssetsToFilter,
+        ]}
+        value={coinIdFilter}
         setFilterToProcess={(filter) => {
           setCoinIdFilter(filter);
           setIsLoading(true);
