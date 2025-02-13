@@ -1,13 +1,38 @@
 import Decimal from "decimal.js";
 import { asc, eq } from "drizzle-orm";
 import { DataSource } from "../../db/DataSource";
-import { EtfFundingReward, EtfPrice, Funding } from "../../db/schema";
+import {
+  EtfFundingReward,
+  EtfPrice,
+  Funding,
+  FundingRewardApy,
+  sUSDeApy,
+} from "../../db/schema";
 import moment from "moment";
+import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
 
 export class ApyDataManager {
-  public static async fundingRewardAPY(): Promise<
-    { time: number; value: number }[]
+  public static async fundingRewardAPY(
+    etfId: RebalanceConfig["etfId"]
+  ): Promise<
+    { time: number; value: number; etfId: RebalanceConfig["etfId"] }[]
   > {
+    const fundingRewardApy = await DataSource.select({
+      etfId: FundingRewardApy.etfId,
+      time: FundingRewardApy.time,
+      value: FundingRewardApy.value,
+    })
+      .from(FundingRewardApy)
+      .orderBy(asc(FundingRewardApy.time));
+
+    if (fundingRewardApy.length === 0) {
+      return fundingRewardApy as {
+        time: number;
+        value: number;
+        etfId: RebalanceConfig["etfId"];
+      }[];
+    }
+
     const fundingRewards = await DataSource.selectDistinctOn([
       EtfFundingReward.timestamp,
     ])
@@ -30,10 +55,13 @@ export class ApyDataManager {
       const reward = new Decimal(event.reward);
       const APY = reward.div(100).plus(1).pow(amountOfUpdates).sub(1);
       apyTimeSeries.push({
+        etfId,
         time: event.timestamp.getTime() / 1000,
         value: APY.toNumber(),
       });
     }
+
+    await DataSource.insert(FundingRewardApy).values(apyTimeSeries);
     return apyTimeSeries;
   }
 
@@ -68,8 +96,33 @@ export class ApyDataManager {
     return apyTimeSeries;
   }
 
-  public static async sUSDeApy(): Promise<{ time: number; value: number }[]> {
-    const apy = [] as { time: number; value: number }[];
+  public static async sUSDeApy(
+    etfId: RebalanceConfig["etfId"]
+  ): Promise<
+    { time: number; value: number; etfId: RebalanceConfig["etfId"] }[]
+  > {
+    const sUSDeApyData = await DataSource.select({
+      etfId: sUSDeApy.etfId,
+      time: sUSDeApy.time,
+      value: sUSDeApy.value,
+    })
+      .from(sUSDeApy)
+      .where(eq(sUSDeApy.etfId, etfId))
+      .orderBy(asc(sUSDeApy.time));
+
+    if (sUSDeApyData.length > 0) {
+      return sUSDeApyData as {
+        time: number;
+        value: number;
+        etfId: RebalanceConfig["etfId"];
+      }[];
+    }
+
+    const apy = [] as {
+      time: number;
+      value: number;
+      etfId: RebalanceConfig["etfId"];
+    }[];
 
     const eventEveryMinute = new Decimal(1).div(new Decimal(365 * 24 * 60));
 
@@ -100,10 +153,13 @@ export class ApyDataManager {
         : sub.neg().toNumber();
 
       apy.push({
+        etfId,
         time: etfPrice.timestamp.getTime() / 1000,
         value: Number(value),
       });
     }
+
+    await DataSource.insert(sUSDeApy).values(apy);
 
     return apy;
   }

@@ -1,5 +1,12 @@
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
-import { Coins, EtfFundingReward, Funding, Rebalance } from "../../db/schema";
+import {
+  AverageFundingChartData,
+  AverageYieldQuartalFundingRewardData,
+  Coins,
+  EtfFundingReward,
+  Funding,
+  Rebalance,
+} from "../../db/schema";
 import { DataSource } from "../../db/DataSource";
 import {
   AmountPerContracts,
@@ -11,9 +18,43 @@ import { FuturesType } from "../../enums/FuturesType.enum";
 import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
 
 export class FundingDataManager {
-  public static async getAverageFundingChartData(): Promise<{
+  public static async getAverageFundingChartData(
+    etfId: RebalanceConfig["etfId"]
+  ): Promise<{
     [assetName: string]: { time: number; value: number }[];
   }> {
+    const averageFundingData = await DataSource.select({
+      coinName: Coins.name,
+      data: {
+        time: AverageFundingChartData.time,
+        value: AverageFundingChartData.value,
+      },
+    })
+      .from(AverageFundingChartData)
+      .where(and(eq(AverageFundingChartData.etfId, etfId)))
+      .leftJoin(Coins, eq(AverageFundingChartData.coinId, Coins.id))
+      .orderBy(asc(Funding.timestamp));
+
+    if (averageFundingData.length > 0) {
+      const cachedData = {} as {
+        [assetName: string]: { time: number; value: number }[];
+      };
+
+      for (const asset of averageFundingData) {
+        if (!asset.coinName) continue;
+
+        if (!cachedData[asset.coinName]) {
+          cachedData[asset.coinName] = [];
+        }
+        cachedData[asset.coinName].push({
+          time: asset.data.time,
+          value: Number(asset.data.value),
+        });
+      }
+
+      return cachedData;
+    }
+
     const oldestRebalanceData = await DataSource.select({
       timestamp: Rebalance.timestamp,
     })
@@ -64,37 +105,90 @@ export class FundingDataManager {
         .orderBy(asc(sql`date_trunc('hour', ${Funding.timestamp})`));
 
       const windowSize = 8; // 8 hours moving average
-      const movingAverage = fundingRates.map((rate, index, array) => {
-        const start = Math.max(0, index - windowSize + 1);
-        const window = array.slice(start, index + 1);
-        const sum = window.reduce((acc, curr) => acc + Number(curr.value), 0);
-        return {
-          time: new Date(rate.time as string).getTime() / 1000,
-          value: sum / window.length,
-        };
-      });
 
-      data[coin.name] = movingAverage;
+      const movingAverageDb = [];
+      const movingAverageUI = [];
+
+      for (let index = 0; index < fundingRates.length; index++) {
+        const rate = fundingRates[index];
+
+        const start = Math.max(0, index - windowSize + 1);
+        const window = fundingRates.slice(start, index + 1);
+        const sum = window.reduce((acc, curr) => acc + Number(curr.value), 0);
+
+        const time = new Date(rate.time as string).getTime() / 1000;
+        const value = sum / window.length;
+
+        movingAverageUI.push({
+          time,
+          value,
+        });
+
+        movingAverageDb.push({
+          time,
+          value,
+          etfId,
+          coinId: coin.id,
+        });
+      }
+
+      await DataSource.insert(AverageFundingChartData).values(movingAverageDb);
+
+      data[coin.name] = movingAverageUI;
     }
 
     return data;
   }
 
-  public static async getAverageYieldQuartalFundingRewardData(): Promise<
-    { quarter: number; avgYield: number }[]
+  public static async getAverageYieldQuartalFundingRewardData(
+    etfId: RebalanceConfig["etfId"]
+  ): Promise<
+    { quarter: number; avgYield: number; etfId: RebalanceConfig["etfId"] }[]
   > {
-    return (
-      await DataSource.selectDistinct({
-        quarter: sql`DATE_TRUNC('quarter', ${EtfFundingReward.timestamp})`, // Group by quarter
-        avgYield: sql`AVG(${EtfFundingReward.reward}::NUMERIC)`, // Compute avg yield
-      })
-        .from(EtfFundingReward)
-        .groupBy(sql`DATE_TRUNC('quarter', ${EtfFundingReward.timestamp})`)
-        .orderBy(sql`DATE_TRUNC('quarter', ${EtfFundingReward.timestamp})`)
-    ).map((funding) => ({
-      quarter: new Date(funding.quarter as string).getTime() / 1000,
-      avgYield: Number(funding.avgYield),
-    }));
+    const cachedData = await DataSource.select({
+      quarter: AverageYieldQuartalFundingRewardData.quarter,
+      avgYield: AverageYieldQuartalFundingRewardData.avgYield,
+      etfId: AverageYieldQuartalFundingRewardData.etfId,
+    })
+      .from(AverageYieldQuartalFundingRewardData)
+      .where(eq(AverageYieldQuartalFundingRewardData.etfId, etfId))
+      .orderBy(asc(AverageYieldQuartalFundingRewardData.quarter));
+
+    if (cachedData.length > 0) {
+      return cachedData as {
+        quarter: number;
+        avgYield: number;
+        etfId: RebalanceConfig["etfId"];
+      }[];
+    }
+
+    const data = await DataSource.selectDistinct({
+      quarter: sql`DATE_TRUNC('quarter', ${EtfFundingReward.timestamp})`, // Group by quarter
+      avgYield: sql`AVG(${EtfFundingReward.reward}::NUMERIC)`, // Compute avg yield
+    })
+      .from(EtfFundingReward)
+      .groupBy(sql`DATE_TRUNC('quarter', ${EtfFundingReward.timestamp})`)
+      .orderBy(sql`DATE_TRUNC('quarter', ${EtfFundingReward.timestamp})`);
+
+    const result = [] as {
+      quarter: number;
+      avgYield: number;
+      etfId: RebalanceConfig["etfId"];
+    }[];
+
+    for (const funding of data) {
+      result.push({
+        etfId,
+        quarter: new Date(funding.quarter as string).getTime() / 1000,
+        avgYield: Number(funding.avgYield),
+      });
+    }
+
+    await DataSource.insert(AverageYieldQuartalFundingRewardData).values(
+      result
+    );
+
+    return result;
   }
 
   public static async getAverageYieldQuartalFundingAssetData(

@@ -196,8 +196,8 @@ export default function Page() {
           {
             id: "All",
             name: "All",
-            symbol: "All",
-            source: "All",
+            symbol: "",
+            source: "",
           },
           ...state.availableAssetsToFilter,
         ]}
@@ -210,7 +210,8 @@ export default function Page() {
 
       {isLoading && <div>Updating charts...</div>}
 
-      <IndexOhclChart data={state.ohclData} />
+      {state?.APYFundingRewardData && <IndexOhclChart data={state.ohclData} />}
+
       <div
         style={{
           display: "grid",
@@ -218,56 +219,73 @@ export default function Page() {
           gap: "2rem",
         }}
       >
-        <div>
-          <h1>APY funding reward chart</h1>
-          <SingleLineChart data={state.APYFundingRewardData} />
-          <CurrentAPY data={state.APYFundingRewardData} amountOfEntries={7} />
-        </div>
+        {state?.APYFundingRewardData && (
+          <div>
+            <h1>APY funding reward chart</h1>
+            <SingleLineChart data={state.APYFundingRewardData} />
+            <CurrentAPY data={state.APYFundingRewardData} amountOfEntries={7} />
+          </div>
+        )}
 
-        <div>
-          <h1>Backing system chart</h1>
-          <MultilineChart data={state.backingSystem} />
-        </div>
+        {state?.backingSystem && (
+          <div>
+            <h1>Backing system chart</h1>
+            <MultilineChart data={state.backingSystem} />
+          </div>
+        )}
 
-        <div>
-          <h1>Average funding chart</h1>
-          <MultilineChart data={state.averageFundingChartData} />
-        </div>
+        {state?.averageFundingChartData && (
+          <div>
+            <h1>Average funding chart</h1>
+            <MultilineChart data={state.averageFundingChartData} />
+          </div>
+        )}
 
-        {coinIdFilter === "All" && (
+        {coinIdFilter === "All" && state?.SUSD_APY && (
           <div>
             <h1>sUSD APY chart</h1>
             <SingleLineChart data={state.SUSD_APY} />
           </div>
         )}
 
-        <div>
-          <h1>Avg Perp Yield by Quarter chart</h1>
-          <SingleLineChart
-            data={state.averageYieldQuartalFundingRewardData.map((entry) => ({
-              time: entry.quarter,
-              value: entry.avgYield,
-            }))}
-          />
-        </div>
+        {state?.averageYieldQuartalFundingRewardData && (
+          <div>
+            <h1>Avg Perp Yield by Quarter chart</h1>
+            <SingleLineChart
+              data={state.averageYieldQuartalFundingRewardData.map((entry) => ({
+                time: entry.quarter,
+                value: entry.avgYield,
+              }))}
+            />
+          </div>
+        )}
 
-        <div>
-          <h1>Funding Days Distribution</h1>
-          <FundingDaysDistributionChart data={state.fundingDaysDistribution} />
-        </div>
+        {state?.fundingDaysDistribution && (
+          <div>
+            <h1>Funding Days Distribution</h1>
+            <FundingDaysDistributionChart
+              data={state.fundingDaysDistribution}
+            />
+          </div>
+        )}
 
-        <div>
-          <h1>sUSD Spread vs 3m Treasury chart</h1>
-          <SingleLineChart data={state.sUSDeSpreadVs3mTreasuryData} />
-        </div>
+        {state?.sUSDeSpreadVs3mTreasuryData && (
+          <div>
+            <h1>sUSD Spread vs 3m Treasury chart</h1>
+            <SingleLineChart data={state.sUSDeSpreadVs3mTreasuryData} />
+          </div>
+        )}
 
-        <div>
-          <h1>sUSDe APY Weekly Distribution</h1>
-          <SUSDeAPYWeeklyDistributionChart
-            data={state.sUSDeAPYWeeklyDistribution.data}
-            labels={state.sUSDeAPYWeeklyDistribution.labels}
-          />
-        </div>
+        {state?.sUSDeAPYWeeklyDistribution?.data &&
+          state?.sUSDeAPYWeeklyDistribution?.labels && (
+            <div>
+              <h1>sUSDe APY Weekly Distribution</h1>
+              <SUSDeAPYWeeklyDistributionChart
+                data={state.sUSDeAPYWeeklyDistribution.data}
+                labels={state.sUSDeAPYWeeklyDistribution.labels}
+              />
+            </div>
+          )}
       </div>
     </div>
   );

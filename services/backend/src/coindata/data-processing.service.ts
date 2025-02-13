@@ -79,8 +79,10 @@ export class DataProcessingService {
     return RebalanceCsvManager.simulateRebalanceDataCSV(config);
   }
 
-  fundingRewardAPY(): Promise<{ time: number; value: number }[]> {
-    return ApyDataManager.fundingRewardAPY();
+  fundingRewardAPY(
+    etfId: RebalanceConfig["etfId"]
+  ): Promise<{ time: number; value: number }[]> {
+    return ApyDataManager.fundingRewardAPY(etfId);
   }
 
   getCoinFundingAPY(
@@ -89,14 +91,16 @@ export class DataProcessingService {
     return ApyDataManager.coinFundingAPY(coinId);
   }
 
-  sUSDeApy(): Promise<{ time: number; value: number }[]> {
-    return ApyDataManager.sUSDeApy();
+  sUSDeApy(
+    etfId: RebalanceConfig["etfId"]
+  ): Promise<{ time: number; value: number }[]> {
+    return ApyDataManager.sUSDeApy(etfId);
   }
 
-  getAverageYieldQuartalFundingRewardData(): Promise<
-    { quarter: number; avgYield: number }[]
-  > {
-    return FundingDataManager.getAverageYieldQuartalFundingRewardData();
+  getAverageYieldQuartalFundingRewardData(
+    etfId: RebalanceConfig["etfId"]
+  ): Promise<{ quarter: number; avgYield: number }[]> {
+    return FundingDataManager.getAverageYieldQuartalFundingRewardData(etfId);
   }
 
   getAverageYieldQuartalFundingAssetData(
@@ -105,10 +109,10 @@ export class DataProcessingService {
     return FundingDataManager.getAverageYieldQuartalFundingAssetData(coinId);
   }
 
-  getAverageFundingChartData(): Promise<{
+  getAverageFundingChartData(etfId: RebalanceConfig["etfId"]): Promise<{
     [assetName: string]: { time: number; value: number }[];
   }> {
-    return FundingDataManager.getAverageFundingChartData();
+    return FundingDataManager.getAverageFundingChartData(etfId);
   }
 
   getAssetFundingChartData(
@@ -171,9 +175,10 @@ export class DataProcessingService {
   }
 
   getSUSDeSpreadVs3mTreasury(
+    etfId: RebalanceConfig["etfId"],
     coinId?: number
   ): Promise<{ time: number; value: number }[]> {
-    return ChartDataManager.getSUSDeSpreadVs3mTreasury(coinId);
+    return ChartDataManager.getSUSDeSpreadVs3mTreasury(etfId, "year", coinId);
   }
 
   private async getRecentCoinsData(coinIds: number[]): Promise<CoinInfoDto[]> {

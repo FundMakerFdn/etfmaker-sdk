@@ -93,7 +93,9 @@ export const getAPYFundingRate = async (
       const data = await dataProcessingService.getCoinFundingAPY(coinId);
       res.send({ data });
     } else {
-      const data = await dataProcessingService.fundingRewardAPY();
+      const data = await dataProcessingService.fundingRewardAPY(
+        "top20IndexHourly"
+      );
       res.send({ data });
     }
   } catch (error) {
@@ -102,7 +104,7 @@ export const getAPYFundingRate = async (
 };
 
 export const getSUSDeApy = async (req: FastifyRequest, res: FastifyReply) => {
-  const data = await dataProcessingService.sUSDeApy();
+  const data = await dataProcessingService.sUSDeApy("top20IndexHourly");
   res.send({ data });
 };
 
@@ -166,7 +168,9 @@ export const getAverageFundingChartData = async (
       const data = await dataProcessingService.getAssetFundingChartData(coinId);
       res.send({ data });
     } else {
-      const data = await dataProcessingService.getAverageFundingChartData();
+      const data = await dataProcessingService.getAverageFundingChartData(
+        "top20IndexHourly"
+      );
       res.send({ data });
     }
   } catch (error) {
@@ -189,7 +193,9 @@ export const getAverageYieldQuartalFundingData = async (
       res.send({ data });
     } else {
       const data =
-        await dataProcessingService.getAverageYieldQuartalFundingRewardData();
+        await dataProcessingService.getAverageYieldQuartalFundingRewardData(
+          "top20IndexHourly"
+        );
       res.send({ data });
     }
   } catch (error) {
@@ -227,11 +233,14 @@ export const getSUSDeSpreadVs3mTreasury = async (
   try {
     if (coinId && typeof coinId === "number" && !isNaN(coinId)) {
       const data = await dataProcessingService.getSUSDeSpreadVs3mTreasury(
+        "top20IndexHourly",
         coinId
       );
       res.send({ data });
     } else {
-      const data = await dataProcessingService.getSUSDeSpreadVs3mTreasury();
+      const data = await dataProcessingService.getSUSDeSpreadVs3mTreasury(
+        "top20IndexHourly"
+      );
       res.send({ data });
     }
   } catch (error) {

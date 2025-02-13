@@ -2,14 +2,23 @@ import { useState, useEffect } from "react";
 
 const SERVER_WEBSOCKET_URL = process.env.SERVER_WEBSOCKET_URL;
 
-export const useWebsocket = (endpoint: string) => {
-  const [data, setData] = useState<Record<string, any>[] | []>([]);
+export const useWebsocket = (
+  endpoint: string,
+  dataChange: "unshift" | "replace" = "unshift",
+  params?: Record<string, any>
+) => {
+  const [data, setData] = useState<any>([]);
+
+  const url =
+    SERVER_WEBSOCKET_URL +
+    endpoint +
+    "?" +
+    new URLSearchParams({ ...params }).toString();
 
   useEffect(() => {
     setData([]);
-    if (endpoint === "") return;
+    if (params && !Object.values(params).some(Boolean)) return;
 
-    const url = SERVER_WEBSOCKET_URL + endpoint;
     console.log(`Connecting to WebSocket at ${url}`);
     const ws = new WebSocket(url);
 
@@ -17,13 +26,15 @@ export const useWebsocket = (endpoint: string) => {
       console.log(`Connected to WebSocket at ${url}`);
     };
     ws.onmessage = (event) => {
-      setData((data) => [...data, JSON.parse(event.data)]);
+      if (dataChange === "unshift")
+        setData((data) => [...data, JSON.parse(event.data)]);
+      else setData(JSON.parse(event.data));
     };
 
     return () => {
       ws.close();
     };
-  }, [endpoint]);
+  }, [url]);
 
   return data;
 };

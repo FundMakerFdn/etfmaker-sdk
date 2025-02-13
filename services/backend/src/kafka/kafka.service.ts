@@ -1,6 +1,7 @@
 import fastifyKafkaJS from "fastify-kafkajs";
 import { Producer, Partitioners } from "kafkajs";
 import { sleep } from "../helpers/sleep";
+import { RebalanceDataManager } from "../coindata/managers/rebalance-data.manager";
 
 const KAFKA_URL = process.env.KAFKA_URL ?? "localhost:9092";
 
@@ -10,6 +11,12 @@ export class KafkaService {
   private consumer: any = null;
   private readonly createdTopics: Map<string, Array<(data: any) => void>> =
     new Map();
+
+  private readonly subscribedTopicsCallbacks: Map<
+    string,
+    Array<(data: any, topic: string) => void>
+  > = new Map();
+  private consumerRunning: "stopped" | "starting" | "running" = "stopped";
 
   /** Connect Kafka Producer */
   async connectKafka(fastify: any) {
@@ -35,6 +42,12 @@ export class KafkaService {
     this.kafka = fastify.kafka;
     this.consumer = fastify.kafka.client.consumer({
       groupId: "fund_maker_sdk",
+      sessionTimeout: 45000,
+      heartbeatInterval: 5000,
+      maxPollInterval: 60000,
+      retry: {
+        retries: 5,
+      },
     });
     await this.consumer.connect();
     console.log("Kafka Service Connected ✅");
@@ -51,48 +64,61 @@ export class KafkaService {
   }
 
   /** Start Kafka Consumer for a given topic */
-  async startConsumer(topic: string, onMessage: (message: any) => void) {
+  async addListenerToConsumer(
+    topic: string,
+    onMessage: (message: any) => void
+  ) {
     if (!this.checkIfKafkaConnected()) return;
-    const callbacks = this.createdTopics.get(topic);
-    if (callbacks && callbacks?.length > 0) {
-      this.createdTopics.set(topic, [...callbacks, onMessage]);
-      return;
-    } else {
-      this.createdTopics.set(topic, [onMessage]);
-    }
+    await this.startConsumerForAllRebalanceAssets();
 
-    await this.consumer.stop();
-    await this.consumer.subscribe({ topic, fromBeginning: false });
+    const callbacks = this.subscribedTopicsCallbacks.get(topic);
+    if (callbacks && callbacks.length > 0) {
+      this.subscribedTopicsCallbacks.set(topic, [...callbacks, onMessage]);
+    } else {
+      this.subscribedTopicsCallbacks.set(topic, [onMessage]);
+    }
+  }
+
+  /** Start Kafka Consumer for multiple topics */
+  async startConsumerForAllRebalanceAssets() {
+    if (!this.checkIfKafkaConnected()) return;
+    // Ensure consumer is running only once
+    if (this.consumerRunning !== "stopped") return;
+
+    this.consumerRunning = "starting";
+
+    const assetSymbols = await RebalanceDataManager.getRebalanceAssets();
+    const topics = assetSymbols.map(({ id }) => `binance_orderbook_${id}`);
+
+    await Promise.all(
+      topics.map((topic) =>
+        this.consumer.subscribe({ topic, fromBeginning: true })
+      )
+    );
 
     await this.consumer.run({
-      eachMessage: async ({ message }: { message: any }) => {
-        if (!message?.value) return;
-
-        const parsedMessage = JSON.parse(
-          Buffer.from(message.value).toString("utf-8")
-        );
-
-        this.createdTopics.forEach((onMessageCallbacks, key) => {
-          if (key === topic) {
-            onMessageCallbacks.forEach((onMessage) => onMessage(parsedMessage));
-          }
-        });
+      eachMessage: async ({
+        topic,
+        message,
+      }: {
+        topic: string;
+        message: any;
+      }) => {
+        try {
+          if (!message?.value) return;
+          const parsedMessage = JSON.parse(
+            Buffer.from(message.value).toString("utf-8")
+          );
+          this.subscribedTopicsCallbacks
+            .get(topic)
+            ?.forEach((callback) => callback(parsedMessage, topic));
+        } catch (error) {
+          console.error(`Error processing message for topic ${topic}:`, error);
+        }
       },
     });
-  }
 
-  async disconnectConcumers() {
-    if (!this.checkIfKafkaConnected()) return;
-    await this.consumer!.stop();
-  }
-
-  /** Disconnect all consumers and producer */
-  async disconnect() {
-    if (!this.checkIfKafkaConnected()) return;
-
-    await this.producer!.disconnect();
-    await this.consumer!.disconnect();
-    console.log("Kafka Service Disconnected ✅");
+    this.consumerRunning = "running";
   }
 
   private checkIfKafkaConnected() {

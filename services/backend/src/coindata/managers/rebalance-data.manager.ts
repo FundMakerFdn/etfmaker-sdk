@@ -44,6 +44,36 @@ export class RebalanceDataManager {
       ) as Promise<CoinInterface[]>;
   }
 
+  public static async getLatestRebalanceData(): Promise<RebalanceDto> {
+    return (
+      await DataSource.select()
+        .from(Rebalance)
+        .orderBy(desc(Rebalance.timestamp))
+        .limit(1)
+    )?.[0] as RebalanceDto;
+  }
+
+  public static async getAssetRebalanceWeight(coinId: number): Promise<number> {
+    const rebalanceData = (
+      await DataSource.select()
+        .from(Rebalance)
+        .orderBy(desc(Rebalance.timestamp))
+        .limit(1)
+    )?.[0] as RebalanceDto;
+
+    if (!rebalanceData) {
+      throw new Error("No rebalance data found");
+    }
+
+    const asset = rebalanceData.data.find((asset) => asset.coinId === coinId);
+
+    if (!asset) {
+      throw new Error(`No asset found for coinId ${coinId}`);
+    }
+
+    return asset.weight;
+  }
+
   public static async generateRebalanceData(
     config: RebalanceConfig
   ): Promise<Omit<RebalanceDto, "id">[]> {
@@ -252,6 +282,15 @@ export class RebalanceDataManager {
       .where(gte(Rebalance.timestamp, new Date(timestamp))) as Promise<
       RebalanceDto[]
     >;
+  }
+
+  public static async setRebalanceSpread(
+    etfId: RebalanceConfig["etfId"],
+    spread: number
+  ): Promise<void> {
+    await DataSource.update(Rebalance)
+      .set({ spread: spread.toString() })
+      .where(eq(Rebalance.etfId, etfId));
   }
 
   private static async getTopCoinsByMarketCap(

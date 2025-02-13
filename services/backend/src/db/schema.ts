@@ -65,7 +65,6 @@ export const CoinsRelations = relations(Coins, ({ many }) => ({
   openInterest: many(OpenInterest),
   marketCap: many(MarketCap),
   funding: many(Funding),
-  orderBook: many(OrderBook),
 }));
 
 export const Candles = pgTable(
@@ -196,6 +195,7 @@ export const Rebalance = pgTable(
     timestamp: timestamp("timestamp").notNull(),
     price: text("price").notNull(),
     data: jsonb("data").notNull(),
+    spread: text("spread"),
   },
   (table) => {
     return {
@@ -256,30 +256,115 @@ export const ProcessingStatus = pgTable("processing_status", {
   timestamp: timestamp("timestamp").notNull().defaultNow(),
 });
 
-export const OrderBook = pgTable(
-  "order_book",
+export const FundingRewardApy = pgTable(
+  "funding_reward_apy",
   {
     id: serial("id").primaryKey(),
-    coinId: integer("coin_id")
-      .notNull()
-      .references(() => Coins.id),
-    timestamp: timestamp("timestamp").notNull(),
-    data: jsonb("data").notNull(),
+    etfId: text("etf_id").notNull(),
+    time: integer("time").notNull(),
+    value: integer("value").notNull(),
   },
   (table) => {
     return {
       // Composite index on coinId and timestamp
-      coinIdTimestampIdx: index("order_book_coin_id_timestamp_idx").on(
-        table.coinId,
-        table.timestamp
+      coinIdTimestampIdx: index("funding_reward_apy_coin_id_time_idx").on(
+        table.time
+      ),
+      etfIdIdx: index("funding_reward_apy_etf_id_idx").on(table.etfId),
+    };
+  }
+);
+
+export const sUSDeApy = pgTable(
+  "susd_apy",
+  {
+    id: serial("id").primaryKey(),
+    etfId: text("etf_id").notNull(),
+    time: integer("time").notNull(),
+    value: integer("value").notNull(),
+  },
+  (table) => {
+    return {
+      // Composite index on coinId and timestamp
+      coinIdTimestampIdx: index("susd_apy_time_idx").on(table.time),
+      etfIdIdx: index("susd_apy_etf_id_idx").on(table.etfId),
+    };
+  }
+);
+
+export const BackingSystem = pgTable(
+  "backing_system",
+  {
+    id: serial("id").primaryKey(),
+    etfId: text("etf_id").notNull(),
+    coinId: integer("coin_id").notNull(),
+    time: integer("time").notNull(),
+    value: integer("value").notNull(),
+  },
+  (table) => {
+    return {
+      etfIdIdx: index("backing_system_etf_id_idx").on(table.etfId),
+      coinIdIdx: index("backing_system_coin_id_idx").on(table.coinId),
+    };
+  }
+);
+
+export const sUSDeSpreadVs3mTreasury = pgTable(
+  "susd_spread_vs_3m_treasury",
+  {
+    id: serial("id").primaryKey(),
+    coinId: integer("coin_id").notNull(),
+    etfId: text("etf_id").notNull(),
+    time: integer("time").notNull(),
+    value: integer("value").notNull(),
+  },
+  (table) => {
+    return {
+      timeIdx: index("susd_spread_vs_3m_treasury_time_idx").on(table.time),
+      etfIdIdx: index("susd_spread_vs_3m_treasury_etfId_idx").on(table.etfId),
+      coinIdIdx: index("susd_spread_vs_3m_treasury_coinId_idx").on(
+        table.coinId
       ),
     };
   }
 );
 
-export const OrderBookRelations = relations(OrderBook, ({ one }) => ({
-  coin: one(Coins, {
-    fields: [OrderBook.coinId],
-    references: [Coins.id],
-  }),
-}));
+export const AverageFundingChartData = pgTable(
+  "average_funding_chart_data",
+  {
+    id: serial("id").primaryKey(),
+    etfId: text("etf_id").notNull(),
+    coinId: integer("coin_id").notNull(),
+    time: integer("time").notNull(),
+    value: integer("value").notNull(),
+  },
+  (table) => {
+    return {
+      timeIdx: index("average_funding_chart_data_time_idx").on(table.time),
+      coinIdIdx: index("average_funding_chart_data_coinId_idx").on(
+        table.coinId
+      ),
+      etfIdIdx: index("average_funding_chart_data_etfId_idx").on(table.etfId),
+    };
+  }
+);
+
+export const AverageYieldQuartalFundingRewardData = pgTable(
+  "average_yield_quartal_funding_reward_data",
+  {
+    id: serial("id").primaryKey(),
+    etfId: text("etf_id").notNull(),
+    quarter: integer("time").notNull(),
+    avgYield: integer("value").notNull(),
+  },
+  (table) => {
+    return {
+      quarterIdx: index(
+        "average_yield_quartal_funding_reward_data_quarter_idx"
+      ).on(table.quarter),
+      etfIdIdx: index("average_yield_quartal_funding_reward_data_etfId_idx").on(
+        table.etfId
+      ),
+    };
+  }
+);

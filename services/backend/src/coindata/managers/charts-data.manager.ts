@@ -2,6 +2,7 @@ import Decimal from "decimal.js";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { DataSource } from "../../db/DataSource";
 import {
+  BackingSystem,
   Coins,
   EtfPrice,
   Funding,
@@ -15,15 +16,30 @@ import moment from "moment";
 
 export class ChartDataManager {
   public static async getSUSDeSpreadVs3mTreasury(
-    coinId?: number,
-    etfId?: RebalanceConfig["etfId"],
-    period: "day" | "week" | "month" | "year" = "year"
+    etfId: RebalanceConfig["etfId"],
+    period: "day" | "week" | "month" | "year" = "year",
+    coinId?: number
   ): Promise<
     {
       time: number;
       value: number;
     }[]
   > {
+    const whereConditions = [
+      eq(BackingSystem.etfId, etfId),
+      coinId ? eq(BackingSystem.coinId, coinId) : undefined,
+    ].filter(Boolean);
+
+    const data = await DataSource.select({
+      time: BackingSystem.time,
+      value: BackingSystem.value,
+    })
+      .from(BackingSystem)
+      .where(and(...whereConditions))
+      .orderBy(asc(BackingSystem.time));
+
+    if (data?.length > 0) return data;
+
     let lastRebalance;
     if (etfId) {
       lastRebalance = await DataSource.select()
@@ -79,6 +95,7 @@ export class ChartDataManager {
     }
 
     const treasuryRates = await DataSource.select({
+      coinId: Funding.coinId,
       timestamp: sql`DATE_TRUNC('day', ${Funding.timestamp})`,
       avgRate: sql`AVG(CAST(${Funding.fundingRate} AS double precision))`,
     })
@@ -101,7 +118,8 @@ export class ChartDataManager {
       .groupBy(sql`DATE(${EtfPrice.timestamp})`)
       .orderBy(sql`DATE(${EtfPrice.timestamp})`);
 
-    const spreads = [];
+    const valuesForDb = [];
+    const valuesForUI = [];
 
     for (const etfPrice of etfPrices as { timestamp: Date; price: string }[]) {
       const matchingRate = treasuryRates.find((rate: any) =>
@@ -112,34 +130,77 @@ export class ChartDataManager {
         const etfYield = new Decimal(etfPrice.price);
         const treasuryYield = new Decimal(matchingRate.avgRate as string);
 
-        spreads.push({
-          time: moment(etfPrice.timestamp).valueOf() / 1000,
-          value: etfYield.sub(treasuryYield).toNumber(),
+        const time = moment(etfPrice.timestamp).valueOf() / 1000;
+        const value = etfYield.sub(treasuryYield).toNumber();
+
+        valuesForDb.push({
+          coinId: matchingRate.coinId,
+          etfId,
+          time,
+          value,
+        });
+
+        valuesForUI.push({
+          time,
+          value,
         });
       }
     }
 
-    return spreads;
+    await DataSource.insert(BackingSystem).values(valuesForDb);
+
+    return valuesForUI;
   }
 
   public static async getBackingSystemData(coinId?: number): Promise<{
     [assetName: string]: { time: number; value: number }[];
   }> {
-    let coinIds = [];
+    let data: { [assetName: string]: { time: number; value: number }[] } = {};
 
     if (coinId) {
-      coinIds = [coinId];
-    } else {
-      const rebalanceData = await DataSource.select()
-        .from(Rebalance)
-        .orderBy(desc(Rebalance.timestamp))
-        .limit(1);
+      const coin = await DataSource.select()
+        .from(Coins)
+        .where(eq(Coins.id, coinId));
 
-      if (rebalanceData.length === 0) return {};
-      coinIds = (rebalanceData[0].data as AmountPerContracts[]).map(
-        (asset) => asset.coinId
-      );
+      if (!coin.length) throw new Error("Coin not found");
+
+      data[coin[0].name] = await DataSource.select({
+        time: BackingSystem.time,
+        value: BackingSystem.value,
+      })
+        .from(BackingSystem)
+        .where(eq(BackingSystem.coinId, coinId))
+        .orderBy(asc(BackingSystem.time));
+    } else {
+      const rawData = await DataSource.select({
+        coinName: Coins.name,
+        backingSystem: sql`
+          json_agg(json_build_object('time', ${BackingSystem.time}, 'value', ${BackingSystem.value})) 
+        `.as("backingSystem"),
+      })
+        .from(BackingSystem)
+        .leftJoin(Coins, eq(BackingSystem.coinId, Coins.id))
+        .groupBy(Coins.name)
+        .orderBy(asc(BackingSystem.time));
+
+      for (const { coinName, backingSystem } of rawData) {
+        if (coinName)
+          data[coinName] = backingSystem as { time: number; value: number }[];
+      }
     }
+
+    if (data) return data;
+
+    const rebalanceData = await DataSource.select()
+      .from(Rebalance)
+      .orderBy(desc(Rebalance.timestamp))
+      .limit(1);
+
+    if (rebalanceData.length === 0) return {};
+
+    const coinIds = (rebalanceData[0].data as AmountPerContracts[]).map(
+      (asset) => asset.coinId
+    );
     const backingSystem = {} as {
       [assetName: string]: { time: number; value: number }[];
     };
@@ -148,8 +209,15 @@ export class ChartDataManager {
       .from(Coins)
       .where(inArray(Coins.id, coinIds));
 
+    const values = {} as {
+      time: number;
+      value: number;
+      coinId: number;
+      etfId: string;
+    }[];
+
     for (const coin of coins) {
-      backingSystem[coin.name] = (
+      const data = (
         await DataSource.selectDistinctOn([MarketCap.timestamp])
           .from(MarketCap)
           .where(eq(MarketCap.coinId, coin.id))
@@ -158,7 +226,20 @@ export class ChartDataManager {
         time: marketCap.timestamp.getTime() / 1000,
         value: Number(marketCap.marketCap),
       }));
+
+      backingSystem[coin.name] = data;
+
+      values.push(
+        ...data.map((value) => ({
+          time: value.time,
+          value: value.value,
+          coinId: coin.id,
+          etfId: rebalanceData[0].etfId,
+        }))
+      );
     }
+
+    await DataSource.insert(BackingSystem).values(values);
 
     return backingSystem;
   }
