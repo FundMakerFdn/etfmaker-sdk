@@ -3,3 +3,5 @@ node_modules
 .env
 compose.yml
 .next
+kafka_data
+zookeeper_data

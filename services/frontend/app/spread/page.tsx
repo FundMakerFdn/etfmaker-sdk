@@ -8,7 +8,7 @@ import { CoinType } from "app/types/CoinType";
 import { SingleLineChart } from "app/components/SindleLineChart";
 import { EtfSpreadWeight } from "app/components/ETFSpreadWeight";
 
-const SERVER_URL = process.env.SERVER_URL;
+const NEXT_PUBLIC_SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL;
 
 const groupByTime = (data: any): any => {
   const groupedData = Object.groupBy(data, ({ time }) => time);
@@ -50,7 +50,7 @@ export default function Page() {
   useEffect(() => {
     const getData = async () => {
       const rebalanceAssets = await fetch(
-        `${SERVER_URL}/get-rebalance-assets`,
+        `${NEXT_PUBLIC_SERVER_URL}/get-rebalance-assets`,
         {
           method: "GET",
           headers: {

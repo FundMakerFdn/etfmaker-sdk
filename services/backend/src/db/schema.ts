@@ -7,6 +7,7 @@ import {
   text,
   timestamp,
   index,
+  doublePrecision,
 } from "drizzle-orm/pg-core";
 import { enumToPgEnum } from "../helpers/EnumToPg";
 import { FuturesType } from "../enums/FuturesType.enum";
@@ -262,7 +263,7 @@ export const FundingRewardApy = pgTable(
     id: serial("id").primaryKey(),
     etfId: text("etf_id").notNull(),
     time: integer("time").notNull(),
-    value: integer("value").notNull(),
+    value: doublePrecision("value").notNull(),
   },
   (table) => {
     return {
@@ -281,7 +282,7 @@ export const sUSDeApy = pgTable(
     id: serial("id").primaryKey(),
     etfId: text("etf_id").notNull(),
     time: integer("time").notNull(),
-    value: integer("value").notNull(),
+    value: doublePrecision("value").notNull(),
   },
   (table) => {
     return {
@@ -299,7 +300,7 @@ export const BackingSystem = pgTable(
     etfId: text("etf_id").notNull(),
     coinId: integer("coin_id").notNull(),
     time: integer("time").notNull(),
-    value: integer("value").notNull(),
+    value: doublePrecision("value").notNull(),
   },
   (table) => {
     return {
@@ -316,7 +317,7 @@ export const sUSDeSpreadVs3mTreasury = pgTable(
     coinId: integer("coin_id").notNull(),
     etfId: text("etf_id").notNull(),
     time: integer("time").notNull(),
-    value: integer("value").notNull(),
+    value: doublePrecision("value").notNull(),
   },
   (table) => {
     return {
@@ -336,7 +337,7 @@ export const AverageFundingChartData = pgTable(
     etfId: text("etf_id").notNull(),
     coinId: integer("coin_id").notNull(),
     time: integer("time").notNull(),
-    value: integer("value").notNull(),
+    value: doublePrecision("value").notNull(),
   },
   (table) => {
     return {
@@ -355,7 +356,7 @@ export const AverageYieldQuartalFundingRewardData = pgTable(
     id: serial("id").primaryKey(),
     etfId: text("etf_id").notNull(),
     quarter: integer("time").notNull(),
-    avgYield: integer("value").notNull(),
+    avgYield: doublePrecision("value").notNull(),
   },
   (table) => {
     return {

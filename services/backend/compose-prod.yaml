@@ -11,10 +11,8 @@
         condition: service_healthy
       db:
         condition: service_started
-      kafdrop:
-        condition: service_started
       zookeeper:
-        condition: service_started
+        condition: service_healthy
     environment:
       - NODE_ENV=${NODE_ENV}
       - APP_PORT=${APP_PORT}
@@ -41,4 +39,4 @@
     ports: 
       - "3001:3001"
     command: >
-      sh -c "npm run build && node dist/src/index.js"
+      sh -c "npx drizzle-kit migrate --config=drizzle.config.ts && npm run build && node dist/src/index.js"

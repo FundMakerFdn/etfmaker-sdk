@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 
-const SERVER_WEBSOCKET_URL = process.env.SERVER_WEBSOCKET_URL;
+const NEXT_PUBLIC_SERVER_WEBSOCKET_URL =
+  process.env.NEXT_PUBLIC_SERVER_WEBSOCKET_URL;
 
 export const useWebsocket = (
   endpoint: string,
@@ -10,7 +11,7 @@ export const useWebsocket = (
   const [data, setData] = useState<any>([]);
 
   const url =
-    SERVER_WEBSOCKET_URL +
+    NEXT_PUBLIC_SERVER_WEBSOCKET_URL +
     endpoint +
     "?" +
     new URLSearchParams({ ...params }).toString();

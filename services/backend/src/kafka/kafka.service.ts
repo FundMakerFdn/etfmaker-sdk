@@ -46,7 +46,7 @@ export class KafkaService {
       heartbeatInterval: 5000,
       maxPollInterval: 60000,
       retry: {
-        retries: 5,
+        retries: 50,
       },
     });
     await this.consumer.connect();

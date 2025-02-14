@@ -7,8 +7,8 @@
     environment:
       - NODE_ENV=${NODE_ENV}
       - APP_PORT=${APP_PORT}
-      - SERVER_URL=${SERVER_URL}
-      - SERVER_WEBSOCKET_URL=${SERVER_WEBSOCKET_URL}
+      - NEXT_PUBLIC_SERVER_URL=${NEXT_PUBLIC_SERVER_URL}
+      - NEXT_PUBLIC_SERVER_WEBSOCKET_URL=${NEXT_PUBLIC_SERVER_WEBSOCKET_URL}
     ports: 
       - "3000:3000"
     command: npm run dev

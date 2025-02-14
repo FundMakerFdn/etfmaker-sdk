@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, and, gt } from "drizzle-orm";
 import { DataSource } from "../../db/DataSource";
 import {
   EtfFundingReward,
@@ -10,14 +10,14 @@ import {
 } from "../../db/schema";
 import moment from "moment";
 import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
+import { FundingRewardApyReturnDto } from "../dto/FundingRewardApy.dto";
+import { SUSDApyReturnDto } from "../dto/SUSDApy.dto";
 
 export class ApyDataManager {
   public static async fundingRewardAPY(
     etfId: RebalanceConfig["etfId"]
-  ): Promise<
-    { time: number; value: number; etfId: RebalanceConfig["etfId"] }[]
-  > {
-    const fundingRewardApy = await DataSource.select({
+  ): Promise<FundingRewardApyReturnDto[]> {
+    const fundingRewardApyCached = await DataSource.select({
       etfId: FundingRewardApy.etfId,
       time: FundingRewardApy.time,
       value: FundingRewardApy.value,
@@ -25,21 +25,29 @@ export class ApyDataManager {
       .from(FundingRewardApy)
       .orderBy(asc(FundingRewardApy.time));
 
-    if (fundingRewardApy.length === 0) {
-      return fundingRewardApy as {
-        time: number;
-        value: number;
-        etfId: RebalanceConfig["etfId"];
-      }[];
-    }
+    const lastCachedTimestamp =
+      fundingRewardApyCached.length > 0
+        ? moment(
+            Number(
+              fundingRewardApyCached[fundingRewardApyCached.length - 1].time
+            ) * 1000
+          )
+        : moment(0);
 
     const fundingRewards = await DataSource.selectDistinctOn([
       EtfFundingReward.timestamp,
     ])
       .from(EtfFundingReward)
+      .where(
+        and(
+          eq(EtfFundingReward.etfId, etfId),
+          gt(EtfFundingReward.timestamp, lastCachedTimestamp.toDate())
+        )
+      )
       .orderBy(asc(EtfFundingReward.timestamp));
 
-    if (fundingRewards.length === 0) return [];
+    if (fundingRewards.length < 2)
+      return fundingRewardApyCached as FundingRewardApyReturnDto[];
 
     const updatePeriodMs = moment(fundingRewards[1].timestamp)
       .diff(moment(fundingRewards[0].timestamp))
@@ -61,8 +69,15 @@ export class ApyDataManager {
       });
     }
 
-    await DataSource.insert(FundingRewardApy).values(apyTimeSeries);
-    return apyTimeSeries;
+    try {
+      await DataSource.insert(FundingRewardApy).values(apyTimeSeries);
+    } catch (error) {
+      console.log("Error inserting funding reward APY data", error);
+    }
+
+    return fundingRewardApyCached.concat(
+      apyTimeSeries
+    ) as FundingRewardApyReturnDto[];
   }
 
   public static async coinFundingAPY(
@@ -98,10 +113,8 @@ export class ApyDataManager {
 
   public static async sUSDeApy(
     etfId: RebalanceConfig["etfId"]
-  ): Promise<
-    { time: number; value: number; etfId: RebalanceConfig["etfId"] }[]
-  > {
-    const sUSDeApyData = await DataSource.select({
+  ): Promise<SUSDApyReturnDto[]> {
+    const sUSDeApyDataCached = await DataSource.select({
       etfId: sUSDeApy.etfId,
       time: sUSDeApy.time,
       value: sUSDeApy.value,
@@ -110,13 +123,13 @@ export class ApyDataManager {
       .where(eq(sUSDeApy.etfId, etfId))
       .orderBy(asc(sUSDeApy.time));
 
-    if (sUSDeApyData.length > 0) {
-      return sUSDeApyData as {
-        time: number;
-        value: number;
-        etfId: RebalanceConfig["etfId"];
-      }[];
-    }
+    const lastCachedTimestamp =
+      sUSDeApyDataCached.length > 0
+        ? moment(
+            Number(sUSDeApyDataCached[sUSDeApyDataCached.length - 1].time) *
+              1000
+          )
+        : moment(0);
 
     const apy = [] as {
       time: number;
@@ -135,6 +148,12 @@ export class ApyDataManager {
       }
     )
       .from(EtfPrice)
+      .where(
+        and(
+          eq(EtfFundingReward.etfId, etfId),
+          gt(EtfFundingReward.timestamp, lastCachedTimestamp.toDate())
+        )
+      )
       .orderBy(asc(EtfPrice.timestamp));
 
     if (etfPriceData.length === 0) return [];
@@ -161,6 +180,6 @@ export class ApyDataManager {
 
     await DataSource.insert(sUSDeApy).values(apy);
 
-    return apy;
+    return sUSDeApyDataCached.concat(apy) as SUSDApyReturnDto[];
   }
 }

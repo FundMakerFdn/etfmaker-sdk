@@ -33,7 +33,7 @@ export const generateRebalanceData = async (
 ) => {
   const config = {
     etfId: "top20IndexHourly",
-    startDate: new Date(1737801726000),
+    startDate: new Date(1728913724000),
     initialPrice: 100,
   } satisfies RebalanceConfig;
 

@@ -31,11 +31,12 @@ export class FundingDataManager {
       },
     })
       .from(AverageFundingChartData)
-      .where(and(eq(AverageFundingChartData.etfId, etfId)))
+      .where(eq(AverageFundingChartData.etfId, etfId))
       .leftJoin(Coins, eq(AverageFundingChartData.coinId, Coins.id))
-      .orderBy(asc(Funding.timestamp));
+      .orderBy(asc(AverageFundingChartData.time))
+      .execute();
 
-    if (averageFundingData.length > 0) {
+    if (averageFundingData?.length > 0) {
       const cachedData = {} as {
         [assetName: string]: { time: number; value: number }[];
       };

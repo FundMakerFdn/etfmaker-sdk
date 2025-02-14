@@ -19,40 +19,37 @@ export class ChartDataManager {
     etfId: RebalanceConfig["etfId"],
     period: "day" | "week" | "month" | "year" = "year",
     coinId?: number
-  ): Promise<
-    {
-      time: number;
-      value: number;
-    }[]
-  > {
-    const whereConditions = [
-      eq(BackingSystem.etfId, etfId),
-      coinId ? eq(BackingSystem.coinId, coinId) : undefined,
-    ].filter(Boolean);
+  ): Promise<{ time: number; value: number }[]> {
+    const now = moment().utc();
 
-    const data = await DataSource.select({
+    const requestedStartDate = now
+      .clone()
+      .subtract(1, `${period}s`)
+      .startOf("day")
+      .toDate();
+    const fullYearStartDate = now
+      .clone()
+      .subtract(1, "years")
+      .startOf("day")
+      .toDate();
+
+    const lastCachedEntry = await DataSource.select({
       time: BackingSystem.time,
-      value: BackingSystem.value,
     })
       .from(BackingSystem)
-      .where(and(...whereConditions))
-      .orderBy(asc(BackingSystem.time));
+      .where(eq(BackingSystem.etfId, etfId))
+      .orderBy(desc(BackingSystem.time))
+      .limit(1);
 
-    if (data?.length > 0) return data;
+    const lastCachedTimestamp = lastCachedEntry.length
+      ? moment.unix(lastCachedEntry[0].time)
+      : moment(fullYearStartDate);
 
-    let lastRebalance;
-    if (etfId) {
-      lastRebalance = await DataSource.select()
-        .from(Rebalance)
-        .where(eq(Rebalance.etfId, etfId))
-        .orderBy(desc(Rebalance.timestamp))
-        .limit(1);
-    } else {
-      lastRebalance = await DataSource.select()
-        .from(Rebalance)
-        .orderBy(desc(Rebalance.timestamp))
-        .limit(1);
-    }
+    const lastRebalance = await DataSource.select()
+      .from(Rebalance)
+      .where(eq(Rebalance.etfId, etfId))
+      .orderBy(desc(Rebalance.timestamp))
+      .limit(1);
 
     if (!lastRebalance.length) {
       throw new Error("No rebalance data found");
@@ -72,28 +69,17 @@ export class ChartDataManager {
         )
       );
 
-    let perpetualCoinIds;
-    if (coinId) {
-      if (!perpetualCoins.find((coin) => coin.id === coinId)) {
-        return [];
-      }
-      perpetualCoinIds = [coinId];
-    } else {
-      perpetualCoinIds = perpetualCoins.map((coin) => coin.id);
+    const perpetualCoinIds = coinId
+      ? perpetualCoins.some((coin) => coin.id === coinId)
+        ? [coinId]
+        : []
+      : perpetualCoins.map((coin) => coin.id);
+
+    if (!perpetualCoinIds.length) {
+      return [];
     }
 
-    let startDate: number = 0;
-
-    if (period === "day") {
-      startDate = moment().subtract(1, "days").valueOf();
-    } else if (period === "week") {
-      startDate = moment().subtract(1, "weeks").valueOf();
-    } else if (period === "month") {
-      startDate = moment().subtract(1, "months").valueOf();
-    } else if (period === "year") {
-      startDate = moment().subtract(1, "years").valueOf();
-    }
-
+    // Fetch treasury rates for missing period
     const treasuryRates = await DataSource.select({
       coinId: Funding.coinId,
       timestamp: sql`DATE_TRUNC('day', ${Funding.timestamp})`,
@@ -103,7 +89,7 @@ export class ChartDataManager {
       .where(
         and(
           inArray(Funding.coinId, perpetualCoinIds),
-          gte(Funding.timestamp, new Date(startDate))
+          gte(Funding.timestamp, lastCachedTimestamp.toDate()) // Only get new data
         )
       )
       .groupBy(sql`DATE_TRUNC('day', ${Funding.timestamp})`)
@@ -114,13 +100,11 @@ export class ChartDataManager {
       price: sql`AVG(CAST(${EtfPrice.close} AS double precision))`,
     })
       .from(EtfPrice)
-      .where(gte(EtfPrice.timestamp, new Date(startDate)))
+      .where(gte(EtfPrice.timestamp, lastCachedTimestamp.toDate()))
       .groupBy(sql`DATE(${EtfPrice.timestamp})`)
       .orderBy(sql`DATE(${EtfPrice.timestamp})`);
 
-    const valuesForDb = [];
-    const valuesForUI = [];
-
+    const newValues = [];
     for (const etfPrice of etfPrices as { timestamp: Date; price: string }[]) {
       const matchingRate = treasuryRates.find((rate: any) =>
         moment(rate.timestamp).isSame(moment(etfPrice.timestamp))
@@ -130,26 +114,45 @@ export class ChartDataManager {
         const etfYield = new Decimal(etfPrice.price);
         const treasuryYield = new Decimal(matchingRate.avgRate as string);
 
-        const time = moment(etfPrice.timestamp).valueOf() / 1000;
+        const time = moment(etfPrice.timestamp).unix();
         const value = etfYield.sub(treasuryYield).toNumber();
 
-        valuesForDb.push({
+        newValues.push({
           coinId: matchingRate.coinId,
           etfId,
-          time,
-          value,
-        });
-
-        valuesForUI.push({
           time,
           value,
         });
       }
     }
 
-    await DataSource.insert(BackingSystem).values(valuesForDb);
+    // Insert new missing data
+    if (newValues.length) {
+      await DataSource.insert(BackingSystem).values(newValues);
+    }
 
-    return valuesForUI;
+    // Fetch final data from cache including new entries
+    const finalData = await DataSource.select({
+      time: BackingSystem.time,
+      value: BackingSystem.value,
+    })
+      .from(BackingSystem)
+      .where(
+        and(
+          eq(BackingSystem.etfId, etfId),
+          gte(
+            BackingSystem.time,
+            Math.floor(fullYearStartDate.getTime() / 1000)
+          ),
+          coinId ? eq(BackingSystem.coinId, coinId) : undefined
+        )
+      )
+      .orderBy(asc(BackingSystem.time));
+
+    // Filter data to return only requested period
+    return finalData.filter((data) =>
+      moment.unix(data.time).isBetween(requestedStartDate, now, null, "[]")
+    );
   }
 
   public static async getBackingSystemData(coinId?: number): Promise<{

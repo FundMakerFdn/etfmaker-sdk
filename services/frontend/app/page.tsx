@@ -46,7 +46,8 @@ const reducer = (state, action) => {
   }
 };
 
-const SERVER_URL = process.env.SERVER_URL;
+const NEXT_PUBLIC_SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL;
+console.log("SERVER_URL", NEXT_PUBLIC_SERVER_URL);
 
 export default function Page() {
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -56,13 +57,14 @@ export default function Page() {
   const [coinIdFilter, setCoinIdFilter] = React.useState<
     typeof state.availableAssetsToFilter | "All"
   >("All");
+  console.log(process.env.NEXT_PUBLIC_SERVER_URL);
 
   useEffect(() => {
     const updateData = async () => {
       const filter = coinIdFilter === "All" ? "" : `?coinId=${coinIdFilter}`;
 
-      const ohclData = await fetch(
-        `${SERVER_URL}/${
+      const ohclDataQuery = await fetch(
+        `${NEXT_PUBLIC_SERVER_URL}/${
           filter === "" ? "get-etf-prices" : `get-coin-ohcl${filter}`
         }`,
         {
@@ -73,8 +75,8 @@ export default function Page() {
         }
       ).then((res) => res.json());
 
-      const APYFundingRewardData = await fetch(
-        `${SERVER_URL}/get-apy-funding-rate${filter}`,
+      const APYFundingRewardDataQuery = await fetch(
+        `${NEXT_PUBLIC_SERVER_URL}/get-apy-funding-rate${filter}`,
         {
           method: "GET",
           headers: {
@@ -83,8 +85,8 @@ export default function Page() {
         }
       ).then((res) => res.json());
 
-      const backingSystem = await fetch(
-        `${SERVER_URL}/get-backing-system${filter}`,
+      const backingSystemQuery = await fetch(
+        `${NEXT_PUBLIC_SERVER_URL}/get-backing-system${filter}`,
         {
           method: "GET",
           headers: {
@@ -93,15 +95,8 @@ export default function Page() {
         }
       ).then((res) => res.json());
 
-      const SUSD_APY = await fetch(`${SERVER_URL}/get-susd-apy${filter}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }).then((res) => res.json());
-
-      const averageFundingChartData = await fetch(
-        `${SERVER_URL}/get-average-funding-chart-data${filter}`,
+      const SUSD_APYQuery = await fetch(
+        `${NEXT_PUBLIC_SERVER_URL}/get-susd-apy${filter}`,
         {
           method: "GET",
           headers: {
@@ -110,8 +105,8 @@ export default function Page() {
         }
       ).then((res) => res.json());
 
-      const averageYieldQuartalFundingRewardData = await fetch(
-        `${SERVER_URL}/get-average-yield-quartal-funding-reward-data${filter}`,
+      const averageFundingChartDataQuery = await fetch(
+        `${NEXT_PUBLIC_SERVER_URL}/get-average-funding-chart-data${filter}`,
         {
           method: "GET",
           headers: {
@@ -120,8 +115,8 @@ export default function Page() {
         }
       ).then((res) => res.json());
 
-      const fundingDaysDistribution = await fetch(
-        `${SERVER_URL}/get-funding-days-distribution${filter}`,
+      const averageYieldQuartalFundingRewardDataQuery = await fetch(
+        `${NEXT_PUBLIC_SERVER_URL}/get-average-yield-quartal-funding-reward-data${filter}`,
         {
           method: "GET",
           headers: {
@@ -130,8 +125,8 @@ export default function Page() {
         }
       ).then((res) => res.json());
 
-      const sUSDeSpreadVs3mTreasuryData = await fetch(
-        `${SERVER_URL}/get-susd-spread-vs-3m-treasury${filter}`,
+      const fundingDaysDistributionQuery = await fetch(
+        `${NEXT_PUBLIC_SERVER_URL}/get-funding-days-distribution${filter}`,
         {
           method: "GET",
           headers: {
@@ -139,20 +134,52 @@ export default function Page() {
           },
         }
       ).then((res) => res.json());
+
+      const sUSDeSpreadVs3mTreasuryDataQuery = await fetch(
+        `${NEXT_PUBLIC_SERVER_URL}/get-susd-spread-vs-3m-treasury${filter}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      ).then((res) => res.json());
+
+      const availableAssetsToFilterQuery = await fetch(
+        `${NEXT_PUBLIC_SERVER_URL}/get-rebalance-assets`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      ).then((res) => res.json());
+
+      const [
+        ohclData,
+        APYFundingRewardData,
+        backingSystem,
+        SUSD_APY,
+        averageFundingChartData,
+        averageYieldQuartalFundingRewardData,
+        fundingDaysDistribution,
+        sUSDeSpreadVs3mTreasuryData,
+        availableAssetsToFilter,
+      ] = await Promise.all([
+        ohclDataQuery,
+        APYFundingRewardDataQuery,
+        backingSystemQuery,
+        SUSD_APYQuery,
+        averageFundingChartDataQuery,
+        averageYieldQuartalFundingRewardDataQuery,
+        fundingDaysDistributionQuery,
+        sUSDeSpreadVs3mTreasuryDataQuery,
+        availableAssetsToFilterQuery,
+      ]);
 
       const sUSDeAPYWeeklyDistribution = processAPYDataToWeekly(
         APYFundingRewardData.data
       );
-
-      const availableAssetsToFilter = await fetch(
-        `${SERVER_URL}/get-rebalance-assets`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      ).then((res) => res.json());
 
       dispatch({
         type: "updateData",

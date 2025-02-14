@@ -1,8 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   env: {
-    SERVER_URL: process.env.SERVER_URL,
-    SERVER_WEBSOCKET_URL: process.env.SERVER_WEBSOCKET_URL,
+    NEXT_PUBLIC_SERVER_URL: process.env.NEXT_PUBLIC_SERVER_URL,
+    NEXT_PUBLIC_SERVER_WEBSOCKET_URL:
+      process.env.NEXT_PUBLIC_SERVER_WEBSOCKET_URL,
   },
 };
 
