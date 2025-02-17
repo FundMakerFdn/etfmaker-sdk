@@ -1,3 +1,4 @@
+# 1️⃣ Build Stage
 FROM node:18-alpine AS builder
 
 # Set working directory
@@ -16,13 +17,11 @@ FROM node:18-alpine AS runner
 
 WORKDIR /app
 
-# Copy only the built files from the previous stage
-COPY --from=builder /app/.next ./.next
+# Copy only the necessary files from builder stage
+COPY --from=builder /app/.next .next
+COPY --from=builder /app/node_modules ./node_modules
 # COPY --from=builder /app/public ./public
-COPY package.json package-lock.json ./
-
-# Install only production dependencies
-RUN npm install
+COPY --from=builder /app/package.json ./package.json
 
 # Expose Next.js default port
 EXPOSE 3000

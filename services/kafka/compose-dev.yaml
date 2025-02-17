@@ -35,6 +35,7 @@ services:
       KAFKA_LOG_RETENTION_BYTES: 1073741824 # 1GB per topic
       KAFKA_LOG_SEGMENT_BYTES: 536870912  # 512MB per log segment
       KAFKA_DELETE_TOPIC_ENABLE: "true"  # Allow topic deletion
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"  # Enable auto topic creation
 
     ports:
       - "9092:9092"

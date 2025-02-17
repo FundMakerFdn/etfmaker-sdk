@@ -4,7 +4,7 @@ export interface RebalanceConfig {
     | "Monthly"
     | "Weekly"
     | "Daily"
-    | "Hourly"}`;
+    | "Hourly"}${string}`;
   startDate: Date;
   initialPrice: number;
   category?: string;

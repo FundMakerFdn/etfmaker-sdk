@@ -8,13 +8,15 @@ import {
   notInArray,
   inArray,
   isNull,
+  or,
+  like,
 } from "drizzle-orm";
 import moment from "moment";
 import { DataSource } from "../../db/DataSource";
 import { Coins, Rebalance, MarketCap } from "../../db/schema";
 import { getRebalanceIntervalMs } from "../../helpers/GetRebalanceIntervalMs";
 import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
-import { ETFDataManager } from "./etf-data.manager";
+import { ETFDataManager } from "../../coindata/managers/etf-data.manager";
 import { CoinInterface } from "../../interfaces/Coin.interface";
 import {
   AmountPerContracts,
@@ -22,6 +24,7 @@ import {
 } from "../../interfaces/Rebalance.interface";
 import blacklistCoins from "../../../blacklist.json";
 import Decimal from "decimal.js";
+import { CoinSourceEnum } from "../../enums/CoinSource.enum";
 
 export class RebalanceDataManager {
   public static async getRebalanceAssets(): Promise<CoinInterface[]> {
@@ -76,12 +79,10 @@ export class RebalanceDataManager {
 
   public static async generateRebalanceData(
     config: RebalanceConfig
-  ): Promise<Omit<RebalanceDto, "id">[]> {
-    const rebalanceData = [] as Omit<RebalanceDto, "id">[];
-
+  ): Promise<void> {
     const amountOfCoins = Number(RegExp(/\d+/).exec(config.etfId)?.[0] ?? 0);
 
-    const coins = await this.getTopCoinsByMarketCap(
+    const coins = await this.getTopUsdmCoinsByMarketCap(
       amountOfCoins,
       config.startDate,
       new Date()
@@ -153,7 +154,10 @@ export class RebalanceDataManager {
         amountPerContracts
       );
 
-      price = Number(etfCandle?.close ?? price);
+      price =
+        Number(etfCandle?.close ?? price) > 0
+          ? Number(etfCandle?.close ?? price)
+          : 0;
 
       const data = {
         etfId: config.etfId,
@@ -165,14 +169,12 @@ export class RebalanceDataManager {
 
       if (config?.category) data.coinCategory = config.category;
 
-      rebalanceData.push(data);
+      await DataSource.insert(Rebalance).values([data]);
 
       startTime = endTime;
       endTime = moment(endTime).add(rebalancePeriodMs).valueOf();
       if (moment(endTime).isAfter(today)) break;
     }
-
-    return rebalanceData;
   }
 
   public static async setRebalanceDataManualy(
@@ -293,7 +295,7 @@ export class RebalanceDataManager {
       .where(eq(Rebalance.etfId, etfId));
   }
 
-  private static async getTopCoinsByMarketCap(
+  private static async getTopUsdmCoinsByMarketCap(
     amount: number,
     startTimestamp: Date,
     endTimestamp: Date
@@ -315,8 +317,8 @@ export class RebalanceDataManager {
 
     const topCoinIds = topMarketCaps.map((entry) => entry.coinId);
 
-    const result = await DataSource.select({
-      coin: Coins,
+    const spotsAssetIds = await DataSource.select({
+      assetId: Coins.assetId,
     })
       .from(Coins)
       .where(
@@ -326,6 +328,17 @@ export class RebalanceDataManager {
         )
       );
 
-    return result.map((coin) => coin.coin) as CoinInterface[];
+    return DataSource.select()
+      .from(Coins)
+      .where(
+        and(
+          eq(Coins.source, CoinSourceEnum.USDMFUTURES),
+          inArray(
+            Coins.assetId,
+            spotsAssetIds.map((asset) => asset.assetId)
+          ),
+          sql`${Coins.pair} ~ '(USDT|USDC)$'`
+        )
+      ) as Promise<CoinInterface[]>;
   }
 }

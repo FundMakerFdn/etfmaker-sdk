@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useReducer } from "react";
+import React, { useEffect, useReducer, useState } from "react";
 import { IndexOhclChart } from "./components/IndexOhclChart";
 import { DownloadRebalanceDataCsv } from "./components/DownloadRebalanceCsv";
 import { MultilineChart } from "./components/MultilineChart";
@@ -8,8 +8,8 @@ import { SingleLineChart } from "./components/SindleLineChart";
 import { CurrentAPY } from "./components/CurrentAPY";
 import { FundingDaysDistributionChart } from "./components/FundingDaysDistributionChart";
 import { SUSDeAPYWeeklyDistributionChart } from "./components/SUSDeAPYWeeklyDistributionChart";
-import { FiltersByAssets } from "./components/Filters";
-import { processAPYDataToWeekly } from "./helpers/processAPYDataToWeekly";
+import { FiltersByAssets, FiltersByCategory } from "./components/Filters";
+import { getHomePageData } from "./data/getHomePageData";
 
 const initialState = {
   ohclData: [],
@@ -22,6 +22,7 @@ const initialState = {
   sUSDeSpreadVs3mTreasuryData: [],
   sUSDeAPYWeeklyDistribution: [],
   availableAssetsToFilter: [],
+  availableCategoriesToFilter: [],
 };
 
 const reducer = (state, action) => {
@@ -29,182 +30,48 @@ const reducer = (state, action) => {
     case "updateData":
       return {
         ...state,
-        ohclData: action.payload.ohclData,
-        APYFundingRewardData: action.payload.APYFundingRewardData,
-        backingSystem: action.payload.backingSystem,
-        SUSD_APY: action.payload.SUSD_APY,
-        averageFundingChartData: action.payload.averageFundingChartData,
-        averageYieldQuartalFundingRewardData:
-          action.payload.averageYieldQuartalFundingRewardData,
-        fundingDaysDistribution: action.payload.fundingDaysDistribution,
-        sUSDeSpreadVs3mTreasuryData: action.payload.sUSDeSpreadVs3mTreasuryData,
-        sUSDeAPYWeeklyDistribution: action.payload.sUSDeAPYWeeklyDistribution,
-        availableAssetsToFilter: action.payload.availableAssetsToFilter,
+        ...action.payload,
       };
     default:
       return state;
   }
 };
 
-const NEXT_PUBLIC_SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL;
-console.log("SERVER_URL", NEXT_PUBLIC_SERVER_URL);
-
 export default function Page() {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [isInitialLoaded, setIsInitialLoaded] = React.useState(false);
-  const [error, setError] = React.useState(null);
-  const [coinIdFilter, setCoinIdFilter] = React.useState<
+  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoaded, setIsInitialLoaded] = useState(false);
+  const [error, setError] = useState<string>();
+  const [coinIdFilter, setCoinIdFilter] = useState<
     typeof state.availableAssetsToFilter | "All"
   >("All");
-  console.log(process.env.NEXT_PUBLIC_SERVER_URL);
+  const [categoryFilter, setCategoryFilter] = useState<
+    typeof state.availableCategoriesToFilter | "All"
+  >("All");
 
   useEffect(() => {
     const updateData = async () => {
-      const filter = coinIdFilter === "All" ? "" : `?coinId=${coinIdFilter}`;
+      let filter = "";
 
-      const ohclDataQuery = await fetch(
-        `${NEXT_PUBLIC_SERVER_URL}/${
-          filter === "" ? "get-etf-prices" : `get-coin-ohcl${filter}`
-        }`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      ).then((res) => res.json());
+      if (coinIdFilter !== "All") filter += `?coinId=${coinIdFilter}`;
+      if (categoryFilter !== "All") filter += `?category=${categoryFilter}`;
 
-      const APYFundingRewardDataQuery = await fetch(
-        `${NEXT_PUBLIC_SERVER_URL}/get-apy-funding-rate${filter}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      ).then((res) => res.json());
-
-      const backingSystemQuery = await fetch(
-        `${NEXT_PUBLIC_SERVER_URL}/get-backing-system${filter}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      ).then((res) => res.json());
-
-      const SUSD_APYQuery = await fetch(
-        `${NEXT_PUBLIC_SERVER_URL}/get-susd-apy${filter}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      ).then((res) => res.json());
-
-      const averageFundingChartDataQuery = await fetch(
-        `${NEXT_PUBLIC_SERVER_URL}/get-average-funding-chart-data${filter}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      ).then((res) => res.json());
-
-      const averageYieldQuartalFundingRewardDataQuery = await fetch(
-        `${NEXT_PUBLIC_SERVER_URL}/get-average-yield-quartal-funding-reward-data${filter}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      ).then((res) => res.json());
-
-      const fundingDaysDistributionQuery = await fetch(
-        `${NEXT_PUBLIC_SERVER_URL}/get-funding-days-distribution${filter}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      ).then((res) => res.json());
-
-      const sUSDeSpreadVs3mTreasuryDataQuery = await fetch(
-        `${NEXT_PUBLIC_SERVER_URL}/get-susd-spread-vs-3m-treasury${filter}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      ).then((res) => res.json());
-
-      const availableAssetsToFilterQuery = await fetch(
-        `${NEXT_PUBLIC_SERVER_URL}/get-rebalance-assets`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      ).then((res) => res.json());
-
-      const [
-        ohclData,
-        APYFundingRewardData,
-        backingSystem,
-        SUSD_APY,
-        averageFundingChartData,
-        averageYieldQuartalFundingRewardData,
-        fundingDaysDistribution,
-        sUSDeSpreadVs3mTreasuryData,
-        availableAssetsToFilter,
-      ] = await Promise.all([
-        ohclDataQuery,
-        APYFundingRewardDataQuery,
-        backingSystemQuery,
-        SUSD_APYQuery,
-        averageFundingChartDataQuery,
-        averageYieldQuartalFundingRewardDataQuery,
-        fundingDaysDistributionQuery,
-        sUSDeSpreadVs3mTreasuryDataQuery,
-        availableAssetsToFilterQuery,
-      ]);
-
-      const sUSDeAPYWeeklyDistribution = processAPYDataToWeekly(
-        APYFundingRewardData.data
-      );
-
-      dispatch({
-        type: "updateData",
-        payload: {
-          ohclData: ohclData.data,
-          APYFundingRewardData: APYFundingRewardData.data,
-          backingSystem: backingSystem.data,
-          SUSD_APY: SUSD_APY.data,
-          averageFundingChartData: averageFundingChartData.data,
-          averageYieldQuartalFundingRewardData:
-            averageYieldQuartalFundingRewardData.data,
-          fundingDaysDistribution: fundingDaysDistribution.data,
-          sUSDeSpreadVs3mTreasuryData: sUSDeSpreadVs3mTreasuryData.data,
-          sUSDeAPYWeeklyDistribution,
-          availableAssetsToFilter: availableAssetsToFilter.data,
-        },
-      });
+      try {
+        await getHomePageData(filter, dispatch);
+      } catch (error) {
+        console.error(error);
+        setError("Error during fetching data");
+      }
       setIsInitialLoaded(true);
       setIsLoading(false);
     };
 
     updateData();
-  }, [coinIdFilter]);
+  }, [coinIdFilter, categoryFilter]);
 
   if (!isInitialLoaded) return <div>Loading...</div>;
+
+  console.log(state?.availableCategoriesToFilter);
 
   return (
     <div
@@ -218,24 +85,39 @@ export default function Page() {
       <DownloadRebalanceDataCsv type="saved" />
       <DownloadRebalanceDataCsv type="simulation" />
 
-      <FiltersByAssets
-        availableAssets={[
-          {
-            id: "All",
-            name: "All",
-            symbol: "",
-            source: "",
-          },
-          ...state.availableAssetsToFilter,
-        ]}
-        value={coinIdFilter}
-        setFilterToProcess={(filter) => {
-          setCoinIdFilter(filter);
-          setIsLoading(true);
-        }}
-      />
+      {state?.availableAssetsToFilter && (
+        <FiltersByAssets
+          availableAssets={[
+            {
+              id: "All",
+              name: "All",
+              symbol: "",
+              source: "",
+            },
+            ...state.availableAssetsToFilter,
+          ]}
+          value={coinIdFilter}
+          setFilterToProcess={(filter) => {
+            setCoinIdFilter(filter);
+            setIsLoading(true);
+          }}
+        />
+      )}
 
-      {isLoading && <div>Updating charts...</div>}
+      {state?.availableCategoriesToFilter && (
+        <FiltersByCategory
+          availableCategories={["All", ...state.availableCategoriesToFilter]}
+          value={categoryFilter}
+          setFilterToProcess={(filter) => {
+            setCategoryFilter(filter);
+            setIsLoading(true);
+          }}
+        />
+      )}
+
+      {error && <div>{error}</div>}
+
+      {isLoading && !error && <div>Updating charts...</div>}
 
       {state?.APYFundingRewardData && <IndexOhclChart data={state.ohclData} />}
 

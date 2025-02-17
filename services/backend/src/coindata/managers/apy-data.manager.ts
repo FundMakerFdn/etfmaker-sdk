@@ -150,11 +150,12 @@ export class ApyDataManager {
       .from(EtfPrice)
       .where(
         and(
-          eq(EtfFundingReward.etfId, etfId),
-          gt(EtfFundingReward.timestamp, lastCachedTimestamp.toDate())
+          eq(EtfPrice.etfId, etfId),
+          gt(EtfPrice.timestamp, lastCachedTimestamp.toDate())
         )
       )
-      .orderBy(asc(EtfPrice.timestamp));
+      .orderBy(asc(EtfPrice.timestamp))
+      .execute();
 
     if (etfPriceData.length === 0) return [];
 

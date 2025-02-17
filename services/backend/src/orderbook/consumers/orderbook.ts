@@ -2,7 +2,7 @@ import WebSocket from "ws";
 import kafkaService from "../../kafka/kafka.service";
 import { OrderBookInterface } from "../../interfaces/OrderBook.interface";
 import moment from "moment";
-import { RebalanceDataManager } from "../../coindata/managers/rebalance-data.manager";
+import { RebalanceDataManager } from "../../rebalance/managers/rebalance-data.manager";
 
 class OrderBookConsumerService {
   private readonly orderBookByCoinClients: Set<{

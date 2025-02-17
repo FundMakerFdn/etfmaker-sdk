@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
+import GlobalConfig from "../app.config";
 
 const NEXT_PUBLIC_SERVER_WEBSOCKET_URL =
-  process.env.NEXT_PUBLIC_SERVER_WEBSOCKET_URL;
+  GlobalConfig.NEXT_PUBLIC_SERVER_WEBSOCKET_URL;
 
 export const useWebsocket = (
   endpoint: string,

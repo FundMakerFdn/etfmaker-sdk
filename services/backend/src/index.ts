@@ -7,6 +7,10 @@ import { OrderbookRoutes } from "./routes/orderbook";
 import orderBookProducerService from "./orderbook/orderbook.producer.service";
 import kafkaService from "./kafka/kafka.service";
 import fastifyWebsocket from "@fastify/websocket";
+import fastifySchedulePlugin from "@fastify/schedule";
+import { CoinDataActualizationCronJob } from "./actualization/actualization.schedule.service";
+import { ActualizationRoutes } from "./routes/actualization";
+import { RebalanceRoutes } from "./routes/rebalance";
 
 const APP_HOST = process.env.APP_HOST ?? "0.0.0.0";
 const APP_PORT = process.env.APP_PORT ? Number(process.env.APP_PORT) : 3001;
@@ -50,10 +54,15 @@ const bootstrap = async () => {
   // Register the websocket plugin
   await fastify.register(fastifyWebsocket);
 
+  // Register the schedule plugin
+  await fastify.register(fastifySchedulePlugin);
+
   try {
     CoinGeckoRoutes.forEach((route) => fastify.route(route));
     CoinDataRoutes.forEach((route) => fastify.route(route));
     OrderbookRoutes.forEach((route) => fastify.route(route));
+    ActualizationRoutes.forEach((route) => fastify.route(route));
+    RebalanceRoutes.forEach((route) => fastify.route(route));
 
     // Fail all processing statuses on server start
     await ProcessingStatusService.failAll();
@@ -65,6 +74,10 @@ const bootstrap = async () => {
 
     await fastify.listen({ port: APP_PORT, host: APP_HOST });
     fastify.log.info(`Server is running at http://${APP_HOST}:${APP_PORT}`);
+
+    fastify.ready(() => {
+      fastify.scheduler.addCronJob(CoinDataActualizationCronJob);
+    });
   } catch (err) {
     fastify.log.error("Error starting Fastify server:", err);
     process.exit(1);

@@ -1,14 +1,12 @@
  services:
   frontend:
-    volumes:
-      - .:/app
-      - /app/node_modules
     build: .
     environment:
-      - NODE_ENV=${NODE_ENV}
+      - NODE_ENV=production
       - APP_PORT=${APP_PORT}
       - NEXT_PUBLIC_SERVER_URL=${NEXT_PUBLIC_SERVER_URL}
       - NEXT_PUBLIC_SERVER_WEBSOCKET_URL=${NEXT_PUBLIC_SERVER_WEBSOCKET_URL}
     ports: 
       - "3000:3000"
-    command: npm run start
+    command: > 
+      sh -c 'ls -a && npm run start'

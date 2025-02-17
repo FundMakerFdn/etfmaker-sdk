@@ -1,6 +1,7 @@
 "use client";
 
 import { FC } from "react";
+import appConfig from "app/app.config";
 
 export const DownloadRebalanceDataCsv: FC<{ type: "saved" | "simulation" }> = ({
   type,
@@ -11,12 +12,15 @@ export const DownloadRebalanceDataCsv: FC<{ type: "saved" | "simulation" }> = ({
         ? "get-rebalance-data-csv"
         : "get-simulated-rebalance-data-csv";
     try {
-      const response = await fetch(`http://localhost:3001/${endPoint}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "text/csv",
-        },
-      });
+      const response = await fetch(
+        `${appConfig.NEXT_PUBLIC_SERVER_URL}/${endPoint}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "text/csv",
+          },
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);

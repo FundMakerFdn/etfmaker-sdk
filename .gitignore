@@ -5,3 +5,4 @@ compose.yml
 .next
 kafka_data
 zookeeper_data
+app.config.js

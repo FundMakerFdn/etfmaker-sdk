@@ -1,52 +1,14 @@
 import { FastifyReply, FastifyRequest } from "fastify";
-import { DataActualizationService } from "./data-actualization.service";
 import { DataProcessingService } from "./data-processing.service";
-import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
+import { indexConfig } from "../index.config";
 
-const dataActualizationService = new DataActualizationService();
 const dataProcessingService = new DataProcessingService();
-
-export const actualizeCoinData = async (
-  req: FastifyRequest,
-  res: FastifyReply
-) => {
-  const data = await dataActualizationService.actualizeData({
-    etfId: "top20IndexHourly",
-    startDate: new Date(1737801726000),
-    initialPrice: 100,
-    // category: "ai-meme-coins",
-  });
-  res.send({ data });
-};
-
-export const getRebalanceAssets = async (
-  req: FastifyRequest,
-  res: FastifyReply
-) => {
-  const data = await dataProcessingService.getRebalanceAssets();
-  res.send({ data });
-};
-
-export const generateRebalanceData = async (
-  req: FastifyRequest,
-  res: FastifyReply
-) => {
-  const config = {
-    etfId: "top20IndexHourly",
-    startDate: new Date(1728913724000),
-    initialPrice: 100,
-  } satisfies RebalanceConfig;
-
-  await dataActualizationService.actualizeData(config);
-  await dataProcessingService.generateRebalanceData(config);
-  res.send({ message: "Rebalance data generated" });
-};
 
 export const generateETFPriceData = async (
   req: FastifyRequest,
   res: FastifyReply
 ) => {
-  await dataProcessingService.generateETFPrice("top20IndexHourly");
+  await dataProcessingService.generateETFPrice(indexConfig.etfId);
   res.send({ message: "ETF price data generated" });
 };
 
@@ -54,8 +16,20 @@ export const generateEtfFundingRewardData = async (
   req: FastifyRequest,
   res: FastifyReply
 ) => {
-  await dataProcessingService.setYieldETFFundingReward("top20IndexHourly");
+  await dataProcessingService.setYieldETFFundingReward(indexConfig.etfId);
   res.send({ message: "ETF funding reward data generated" });
+};
+
+export const getAllSpotUsdtPairs = async (
+  req: FastifyRequest,
+  res: FastifyReply
+) => {
+  try {
+    const data = await dataProcessingService.getAllSpotUsdtPairs();
+    res.send({ data });
+  } catch (error) {
+    res.send({ error: "Can't get all spot usdt pairs" + error });
+  }
 };
 
 export const getETFPrices = async (req: FastifyRequest, res: FastifyReply) => {
@@ -94,7 +68,7 @@ export const getAPYFundingRate = async (
       res.send({ data });
     } else {
       const data = await dataProcessingService.fundingRewardAPY(
-        "top20IndexHourly"
+        indexConfig.etfId
       );
       res.send({ data });
     }
@@ -104,7 +78,7 @@ export const getAPYFundingRate = async (
 };
 
 export const getSUSDeApy = async (req: FastifyRequest, res: FastifyReply) => {
-  const data = await dataProcessingService.sUSDeApy("top20IndexHourly");
+  const data = await dataProcessingService.sUSDeApy(indexConfig.etfId);
   res.send({ data });
 };
 
@@ -127,36 +101,6 @@ export const getBackingSystem = async (
   }
 };
 
-export const getRebalanceDataCsv = async (
-  req: FastifyRequest,
-  res: FastifyReply
-) => {
-  const data = await dataProcessingService.getRebalanceDataCsv();
-  res.header("Content-Type", "text/csv");
-  res.header(
-    "Content-Disposition",
-    'attachment; filename="rebalance-data.csv"'
-  );
-  res.send(data);
-};
-
-export const getSimulatedRebalanceDataCsv = async (
-  req: FastifyRequest,
-  res: FastifyReply
-) => {
-  const data = await dataProcessingService.simulateRebalanceDataCSV({
-    etfId: "top20IndexHourly",
-    startDate: new Date(1737801726000),
-    initialPrice: 100,
-  });
-  res.header("Content-Type", "text/csv");
-  res.header(
-    "Content-Disposition",
-    'attachment; filename="rebalance-data.csv"'
-  );
-  res.send(data);
-};
-
 export const getAverageFundingChartData = async (
   req: FastifyRequest,
   res: FastifyReply
@@ -169,7 +113,7 @@ export const getAverageFundingChartData = async (
       res.send({ data });
     } else {
       const data = await dataProcessingService.getAverageFundingChartData(
-        "top20IndexHourly"
+        indexConfig.etfId
       );
       res.send({ data });
     }
@@ -194,7 +138,7 @@ export const getAverageYieldQuartalFundingData = async (
     } else {
       const data =
         await dataProcessingService.getAverageYieldQuartalFundingRewardData(
-          "top20IndexHourly"
+          indexConfig.etfId
         );
       res.send({ data });
     }
@@ -233,13 +177,13 @@ export const getSUSDeSpreadVs3mTreasury = async (
   try {
     if (coinId && typeof coinId === "number" && !isNaN(coinId)) {
       const data = await dataProcessingService.getSUSDeSpreadVs3mTreasury(
-        "top20IndexHourly",
+        indexConfig.etfId,
         coinId
       );
       res.send({ data });
     } else {
       const data = await dataProcessingService.getSUSDeSpreadVs3mTreasury(
-        "top20IndexHourly"
+        indexConfig.etfId
       );
       res.send({ data });
     }

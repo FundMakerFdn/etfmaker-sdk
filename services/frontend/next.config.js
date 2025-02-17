@@ -5,6 +5,7 @@ const nextConfig = {
     NEXT_PUBLIC_SERVER_WEBSOCKET_URL:
       process.env.NEXT_PUBLIC_SERVER_WEBSOCKET_URL,
   },
+  reactStrictMode: true,
 };
 
 module.exports = nextConfig;

@@ -1,16 +1,16 @@
 import fastifyKafkaJS from "fastify-kafkajs";
-import { Producer, Partitioners } from "kafkajs";
+import { Producer, Partitioners, logLevel } from "kafkajs";
 import { sleep } from "../helpers/sleep";
-import { RebalanceDataManager } from "../coindata/managers/rebalance-data.manager";
+import { DataProcessingService } from "../coindata/data-processing.service";
 
 const KAFKA_URL = process.env.KAFKA_URL ?? "localhost:9092";
+
+const dataProcessingService = new DataProcessingService();
 
 export class KafkaService {
   private kafka: any = null;
   private producer: Producer | null = null;
   private consumer: any = null;
-  private readonly createdTopics: Map<string, Array<(data: any) => void>> =
-    new Map();
 
   private readonly subscribedTopicsCallbacks: Map<
     string,
@@ -25,12 +25,14 @@ export class KafkaService {
     await sleep(5000);
     try {
       await fastify.register(fastifyKafkaJS, {
+        logLevel: logLevel.ERROR,
         clientConfig: {
           brokers: [KAFKA_URL],
           clientId: "fund_maker_sdk",
         },
         producerConfig: {
           createPartitioner: Partitioners.DefaultPartitioner,
+          allowAutoTopicCreation: true,
         },
       });
     } catch (e) {
@@ -42,9 +44,8 @@ export class KafkaService {
     this.kafka = fastify.kafka;
     this.consumer = fastify.kafka.client.consumer({
       groupId: "fund_maker_sdk",
-      sessionTimeout: 45000,
-      heartbeatInterval: 5000,
-      maxPollInterval: 60000,
+      sessionTimeout: 90000,
+      heartbeatInterval: 30000,
       retry: {
         retries: 50,
       },
@@ -55,7 +56,15 @@ export class KafkaService {
 
   /** Send message to a Kafka topic */
   async sendMessage(topic: string, message: object) {
-    if (!this.checkIfKafkaConnected()) return;
+    if (this.consumerRunning === "stopped") {
+      try {
+        await this.startConsumerForAllRebalanceAssets();
+      } catch (error) {}
+      return;
+    }
+
+    if (!this.checkIfKafkaConnected() || this.consumerRunning !== "running")
+      return;
 
     await this.producer!.send({
       topic,
@@ -87,8 +96,24 @@ export class KafkaService {
 
     this.consumerRunning = "starting";
 
-    const assetSymbols = await RebalanceDataManager.getRebalanceAssets();
-    const topics = assetSymbols.map(({ id }) => `binance_orderbook_${id}`);
+    const assets = await dataProcessingService.getAllSpotUsdtPairs();
+    const topics = assets.map(({ id }) => `binance_orderbook_${id}`);
+
+    // Ensure topics exist before subscribing
+    const admin = this.kafka.client.admin();
+    await admin.connect();
+
+    // await this.deleteAllTopics();
+
+    await admin.createTopics({
+      topics: topics.map((topic) => ({
+        topic,
+        numPartitions: 1,
+        replicationFactor: 1,
+      })),
+    });
+
+    await admin.disconnect();
 
     await Promise.all(
       topics.map((topic) =>
@@ -130,6 +155,23 @@ export class KafkaService {
       return false;
     }
     return true;
+  }
+
+  private async deleteAllTopics() {
+    try {
+      // Ensure topics exist before subscribing
+      const admin = this.kafka.client.admin();
+      await admin.connect();
+      const topics = await admin.listTopics();
+
+      if (topics.length === 0) {
+        console.log("No topics found.");
+        return;
+      }
+
+      await admin.deleteTopics({ topics });
+      await admin.disconnect();
+    } catch (error) {}
   }
 }
 

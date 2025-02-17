@@ -1,8 +1,7 @@
 import {
-  actualizeCoinData,
   generateEtfFundingRewardData,
   generateETFPriceData,
-  generateRebalanceData,
+  getAllSpotUsdtPairs,
   getAPYFundingRate,
   getAverageFundingChartData,
   getAverageYieldQuartalFundingData,
@@ -10,30 +9,12 @@ import {
   getCoinOHCL,
   getETFPrices,
   getFundingDaysDistribution,
-  getRebalanceAssets,
-  getRebalanceDataCsv,
-  getSimulatedRebalanceDataCsv,
   getSUSDeApy,
   getSUSDeSpreadVs3mTreasury,
 } from "../coindata/data.controller";
 import { RoutesType } from "../interfaces/RoutesType";
 
 export const CoinDataRoutes = [
-  {
-    method: "POST",
-    url: "/actualize-coindata",
-    handler: actualizeCoinData,
-  },
-  {
-    method: "GET",
-    url: "/get-rebalance-assets",
-    handler: getRebalanceAssets,
-  },
-  {
-    method: "POST",
-    url: "/generate-rebalance-data",
-    handler: generateRebalanceData,
-  },
   {
     method: "POST",
     url: "/generate-etf-price-data",
@@ -71,16 +52,6 @@ export const CoinDataRoutes = [
   },
   {
     method: "GET",
-    url: "/get-rebalance-data-csv",
-    handler: getRebalanceDataCsv,
-  },
-  {
-    method: "GET",
-    url: "/get-simulated-rebalance-data-csv",
-    handler: getSimulatedRebalanceDataCsv,
-  },
-  {
-    method: "GET",
     url: "/get-average-funding-chart-data",
     handler: getAverageFundingChartData,
   },
@@ -98,5 +69,10 @@ export const CoinDataRoutes = [
     method: "GET",
     url: "/get-susd-spread-vs-3m-treasury",
     handler: getSUSDeSpreadVs3mTreasury,
+  },
+  {
+    method: "GET",
+    url: "/get-all-spot-usdt-pairs",
+    handler: getAllSpotUsdtPairs,
   },
 ] satisfies RoutesType[];

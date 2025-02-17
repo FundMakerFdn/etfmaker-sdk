@@ -59,12 +59,12 @@ export class ETFDataManager {
 
     const startTime = lastETFPriceTimestamp?.timestamp
       ? moment(lastETFPriceTimestamp?.timestamp).add(1, "minute")
-      : moment(rebalanceData[0].timestamp);
+      : moment(moment().subtract(60, "months").add(1, "minute"));
     const endTime = moment(startTime).add(1, "minute");
 
     let prevReward = lastETFPriceTimestamp?.close
-      ? +lastETFPriceTimestamp?.close
-      : +rebalanceData[0].price;
+      ? Number(lastETFPriceTimestamp?.close)
+      : Number(rebalanceData[0].price);
 
     while (endTime.isBefore(lastCandleDataLimit)) {
       const coinsWithPrices = await this.getCoinsPriceStartEndRecords(
@@ -84,21 +84,27 @@ export class ETFDataManager {
       const assetsWithWeights = await this.setAssetWeights(coinsWithPrices);
       const amountPerContracts = this.setAmountPerContracts(
         assetsWithWeights,
-        +rebalanceData[0].price
+        Number(rebalanceData[0].price)
       );
 
       const etfCandle = this.getCloseETFPrice(prevReward, amountPerContracts);
 
-      prevReward = +etfCandle.close;
+      prevReward = Number(etfCandle.close);
 
-      await DataSource.insert(EtfPrice).values({
-        etfId: etfId as string,
-        timestamp: startTime.toDate(),
-        open: etfCandle.open.toString(),
-        high: etfCandle.high.toString(),
-        low: etfCandle.low.toString(),
-        close: etfCandle.close.toString(),
-      });
+      if (
+        [etfCandle.open, etfCandle.close, etfCandle.high, etfCandle.low].every(
+          (value) => value !== ""
+        )
+      ) {
+        await DataSource.insert(EtfPrice).values({
+          etfId: etfId as string,
+          timestamp: startTime.toDate(),
+          open: etfCandle.open,
+          high: etfCandle.high,
+          low: etfCandle.low,
+          close: etfCandle.close,
+        });
+      }
       startTime.add(1, "minute");
       endTime.add(1, "minute");
     }
@@ -160,7 +166,7 @@ export class ETFDataManager {
 
     for (const asset of assetsAmountPerContracts) {
       const amount = new Decimal(asset.amountPerContracts);
-      // Using each asset’s baseline from the start close
+
       const baseline = new Decimal(asset.startTime.close);
       const pnlOpen = new Decimal(asset.startTime.open)
         .sub(baseline)
@@ -179,11 +185,16 @@ export class ETFDataManager {
       pnlCloseSum = pnlCloseSum.add(pnlClose);
     }
 
+    const open = previousPrice.add(pnlOpenSum);
+    const close = previousPrice.add(pnlCloseSum);
+    const high = previousPrice.add(pnlHighSum);
+    const low = previousPrice.add(pnlLowSum);
+
     return {
-      open: previousPrice.add(pnlOpenSum).toString(),
-      high: previousPrice.add(pnlHighSum).toString(),
-      low: previousPrice.add(pnlLowSum).toString(),
-      close: previousPrice.add(pnlCloseSum).toString(),
+      open: open.isNaN() ? "" : open.toString(),
+      high: high.isNaN() ? "" : high.toString(),
+      low: low.isNaN() ? "" : low.toString(),
+      close: close.isNaN() ? "" : close.toString(),
     };
   }
 
@@ -329,12 +340,31 @@ export class ETFDataManager {
     assetsListWithWeights: AssetWeights[],
     etfPrice: number
   ): AmountPerContracts[] {
-    return assetsListWithWeights.map((asset) => ({
-      ...asset,
-      amountPerContracts: Decimal(etfPrice)
-        .mul(new Decimal(asset.weight))
-        .div(new Decimal(asset.startTime.close))
-        .toNumber(),
-    }));
+    const result = [] as AmountPerContracts[];
+
+    for (const asset of assetsListWithWeights) {
+      let price;
+      for (const p of [
+        asset.startTime.close,
+        asset.endTime.open,
+        asset.endTime.close,
+        asset.startTime.open,
+      ]) {
+        price = new Decimal(p);
+        if (!price.eq(0)) break;
+      }
+
+      if (!price) continue;
+
+      result.push({
+        ...asset,
+        amountPerContracts: Decimal(etfPrice)
+          .mul(new Decimal(asset.weight))
+          .div(price)
+          .toNumber(),
+      });
+    }
+
+    return result;
   }
 }
