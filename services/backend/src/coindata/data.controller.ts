@@ -97,6 +97,7 @@ export const getBackingSystem = async (
       res.send({ data });
     }
   } catch (error) {
+    console.log(error);
     res.send({ error: "Can't get BackingSystem data" });
   }
 };
@@ -143,6 +144,7 @@ export const getAverageYieldQuartalFundingData = async (
       res.send({ data });
     }
   } catch (error) {
+    console.log(error);
     res.send({ error: "Can't get Average Yield Quartal Funding data" });
   }
 };
@@ -188,6 +190,7 @@ export const getSUSDeSpreadVs3mTreasury = async (
       res.send({ data });
     }
   } catch (error) {
+    console.log(error);
     res.send({ error: "Can't get sUSDe Spread Vs 3m Treasury data" });
   }
 };

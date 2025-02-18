@@ -143,53 +143,20 @@ export class FundingDataManager {
 
   public static async getAverageYieldQuartalFundingRewardData(
     etfId: RebalanceConfig["etfId"]
-  ): Promise<
-    { quarter: number; avgYield: number; etfId: RebalanceConfig["etfId"] }[]
-  > {
-    const cachedData = await DataSource.select({
-      quarter: AverageYieldQuartalFundingRewardData.quarter,
-      avgYield: AverageYieldQuartalFundingRewardData.avgYield,
-      etfId: AverageYieldQuartalFundingRewardData.etfId,
-    })
-      .from(AverageYieldQuartalFundingRewardData)
-      .where(eq(AverageYieldQuartalFundingRewardData.etfId, etfId))
-      .orderBy(asc(AverageYieldQuartalFundingRewardData.quarter));
-
-    if (cachedData.length > 0) {
-      return cachedData as {
-        quarter: number;
-        avgYield: number;
-        etfId: RebalanceConfig["etfId"];
-      }[];
-    }
-
-    const data = await DataSource.selectDistinct({
-      quarter: sql`DATE_TRUNC('quarter', ${EtfFundingReward.timestamp})`, // Group by quarter
-      avgYield: sql`AVG(${EtfFundingReward.reward}::NUMERIC)`, // Compute avg yield
+  ): Promise<{ quarter: string; avgYield: number }[]> {
+    const data = await DataSource.select({
+      quarter: sql`TO_CHAR(DATE_TRUNC('quarter', ${EtfFundingReward.timestamp}), 'Q YYYY')`,
+      avgYield: sql`AVG(${EtfFundingReward.reward}::NUMERIC)`,
     })
       .from(EtfFundingReward)
+      .where(eq(EtfFundingReward.etfId, etfId))
       .groupBy(sql`DATE_TRUNC('quarter', ${EtfFundingReward.timestamp})`)
       .orderBy(sql`DATE_TRUNC('quarter', ${EtfFundingReward.timestamp})`);
 
-    const result = [] as {
-      quarter: number;
-      avgYield: number;
-      etfId: RebalanceConfig["etfId"];
-    }[];
-
-    for (const funding of data) {
-      result.push({
-        etfId,
-        quarter: new Date(funding.quarter as string).getTime() / 1000,
-        avgYield: Number(funding.avgYield),
-      });
-    }
-
-    await DataSource.insert(AverageYieldQuartalFundingRewardData).values(
-      result
-    );
-
-    return result;
+    return data.map((funding) => ({
+      quarter: funding.quarter as string,
+      avgYield: Number(funding.avgYield),
+    }));
   }
 
   public static async getAverageYieldQuartalFundingAssetData(

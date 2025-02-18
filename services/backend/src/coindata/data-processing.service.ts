@@ -11,6 +11,7 @@ import { asc, eq, and, gte, sql } from "drizzle-orm";
 import { CoinInterface } from "../interfaces/Coin.interface";
 import { CoinSourceEnum } from "../enums/CoinSource.enum";
 import { CoinStatusEnum } from "../enums/CoinStatus.enum";
+import { SUSDApyReturnDto } from "./dto/SUSDApy.dto";
 
 const binanceService = new BinanceService();
 
@@ -70,9 +71,7 @@ export class DataProcessingService {
     }));
   }
 
-  getBackingSystemData(coinId?: number): Promise<{
-    [assetName: string]: { time: number; value: number }[];
-  }> {
+  getBackingSystemData(coinId?: number): Promise<any[]> {
     return ChartDataManager.getBackingSystemData(coinId);
   }
 
@@ -88,15 +87,13 @@ export class DataProcessingService {
     return ApyDataManager.coinFundingAPY(coinId);
   }
 
-  sUSDeApy(
-    etfId: RebalanceConfig["etfId"]
-  ): Promise<{ time: number; value: number }[]> {
+  sUSDeApy(etfId: RebalanceConfig["etfId"]): Promise<SUSDApyReturnDto[]> {
     return ApyDataManager.sUSDeApy(etfId);
   }
 
   getAverageYieldQuartalFundingRewardData(
     etfId: RebalanceConfig["etfId"]
-  ): Promise<{ quarter: number; avgYield: number }[]> {
+  ): Promise<{ quarter: string; avgYield: number }[]> {
     return FundingDataManager.getAverageYieldQuartalFundingRewardData(etfId);
   }
 

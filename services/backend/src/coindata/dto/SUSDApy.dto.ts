@@ -1,7 +1,4 @@
-import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
-
 export interface SUSDApyReturnDto {
-  time: number;
+  date: number;
   value: number;
-  etfId: RebalanceConfig["etfId"];
 }

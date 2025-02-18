@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { asc, eq, and, gt } from "drizzle-orm";
+import { asc, eq, and, gt, sql } from "drizzle-orm";
 import { DataSource } from "../../db/DataSource";
 import {
   EtfFundingReward,
@@ -174,13 +174,24 @@ export class ApyDataManager {
 
       apy.push({
         etfId,
-        time: etfPrice.timestamp.getTime() / 1000,
+        time: Math.floor(etfPrice.timestamp.getTime() / 1000),
         value: Number(value),
       });
     }
 
     await DataSource.insert(sUSDeApy).values(apy);
 
-    return sUSDeApyDataCached.concat(apy) as SUSDApyReturnDto[];
+    return DataSource.select({
+      date: sql`TO_CHAR(DATE_TRUNC('day', to_timestamp(${sUSDeApy.time})), 'MM/DD/YYYY')`.as(
+        "date"
+      ),
+      value: sql`AVG(${sUSDeApy.value})`.as("avg_value"),
+    })
+      .from(sUSDeApy)
+      .where(eq(sUSDeApy.etfId, etfId))
+      .groupBy(sql`date_trunc('day', to_timestamp(${sUSDeApy.time}))`)
+      .orderBy(
+        asc(sql`date_trunc('day', to_timestamp(${sUSDeApy.time}))`)
+      ) as Promise<SUSDApyReturnDto[]>;
   }
 }

@@ -2,17 +2,18 @@ import Decimal from "decimal.js";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { DataSource } from "../../db/DataSource";
 import {
-  BackingSystem,
   Coins,
   EtfPrice,
   Funding,
   MarketCap,
   Rebalance,
+  sUSDeSpreadVs3mTreasury,
 } from "../../db/schema";
 import { AmountPerContracts } from "../../interfaces/Rebalance.interface";
 import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
 import { FuturesType } from "../../enums/FuturesType.enum";
 import moment from "moment";
+import { CoinSourceEnum } from "../../enums/CoinSource.enum";
 
 export class ChartDataManager {
   public static async getSUSDeSpreadVs3mTreasury(
@@ -34,11 +35,11 @@ export class ChartDataManager {
       .toDate();
 
     const lastCachedEntry = await DataSource.select({
-      time: BackingSystem.time,
+      time: sUSDeSpreadVs3mTreasury.time,
     })
-      .from(BackingSystem)
-      .where(eq(BackingSystem.etfId, etfId))
-      .orderBy(desc(BackingSystem.time))
+      .from(sUSDeSpreadVs3mTreasury)
+      .where(eq(sUSDeSpreadVs3mTreasury.etfId, etfId))
+      .orderBy(desc(sUSDeSpreadVs3mTreasury.time))
       .limit(1);
 
     const lastCachedTimestamp = lastCachedEntry.length
@@ -92,7 +93,7 @@ export class ChartDataManager {
           gte(Funding.timestamp, lastCachedTimestamp.toDate()) // Only get new data
         )
       )
-      .groupBy(sql`DATE_TRUNC('day', ${Funding.timestamp})`)
+      .groupBy(sql`DATE_TRUNC('day', ${Funding.timestamp}), ${Funding.coinId}`)
       .orderBy(sql`DATE_TRUNC('day', ${Funding.timestamp})`);
 
     const etfPrices = await DataSource.select({
@@ -128,26 +129,29 @@ export class ChartDataManager {
 
     // Insert new missing data
     if (newValues.length) {
-      await DataSource.insert(BackingSystem).values(newValues);
+      await DataSource.insert(sUSDeSpreadVs3mTreasury).values(newValues);
     }
 
     // Fetch final data from cache including new entries
-    const finalData = await DataSource.select({
-      time: BackingSystem.time,
-      value: BackingSystem.value,
-    })
-      .from(BackingSystem)
+    const finalData = await DataSource.selectDistinctOn(
+      [sUSDeSpreadVs3mTreasury.time],
+      {
+        time: sUSDeSpreadVs3mTreasury.time,
+        value: sUSDeSpreadVs3mTreasury.value,
+      }
+    )
+      .from(sUSDeSpreadVs3mTreasury)
       .where(
         and(
-          eq(BackingSystem.etfId, etfId),
+          eq(sUSDeSpreadVs3mTreasury.etfId, etfId),
           gte(
-            BackingSystem.time,
+            sUSDeSpreadVs3mTreasury.time,
             Math.floor(fullYearStartDate.getTime() / 1000)
           ),
-          coinId ? eq(BackingSystem.coinId, coinId) : undefined
+          coinId ? eq(sUSDeSpreadVs3mTreasury.coinId, coinId) : undefined
         )
       )
-      .orderBy(asc(BackingSystem.time));
+      .orderBy(asc(sUSDeSpreadVs3mTreasury.time));
 
     // Filter data to return only requested period
     return finalData.filter((data) =>
@@ -155,95 +159,101 @@ export class ChartDataManager {
     );
   }
 
-  public static async getBackingSystemData(coinId?: number): Promise<{
-    [assetName: string]: { time: number; value: number }[];
-  }> {
-    let data: { [assetName: string]: { time: number; value: number }[] } = {};
+  public static async getBackingSystemData(coinId?: number): Promise<any[]> {
+    let coinIds: number[] = [];
 
     if (coinId) {
-      const coin = await DataSource.select()
-        .from(Coins)
-        .where(eq(Coins.id, coinId));
-
-      if (!coin.length) throw new Error("Coin not found");
-
-      data[coin[0].name] = await DataSource.select({
-        time: BackingSystem.time,
-        value: BackingSystem.value,
-      })
-        .from(BackingSystem)
-        .where(eq(BackingSystem.coinId, coinId))
-        .orderBy(asc(BackingSystem.time));
+      coinIds = [coinId];
     } else {
-      const rawData = await DataSource.select({
-        coinName: Coins.name,
-        backingSystem: sql`
-          json_agg(json_build_object('time', ${BackingSystem.time}, 'value', ${BackingSystem.value})) 
-        `.as("backingSystem"),
-      })
-        .from(BackingSystem)
-        .leftJoin(Coins, eq(BackingSystem.coinId, Coins.id))
-        .groupBy(Coins.name)
-        .orderBy(asc(BackingSystem.time));
+      const rebalanceData = await DataSource.select()
+        .from(Rebalance)
+        .orderBy(desc(Rebalance.timestamp))
+        .limit(1);
 
-      for (const { coinName, backingSystem } of rawData) {
-        if (coinName)
-          data[coinName] = backingSystem as { time: number; value: number }[];
-      }
-    }
+      if (rebalanceData.length === 0) return [];
 
-    if (data) return data;
-
-    const rebalanceData = await DataSource.select()
-      .from(Rebalance)
-      .orderBy(desc(Rebalance.timestamp))
-      .limit(1);
-
-    if (rebalanceData.length === 0) return {};
-
-    const coinIds = (rebalanceData[0].data as AmountPerContracts[]).map(
-      (asset) => asset.coinId
-    );
-    const backingSystem = {} as {
-      [assetName: string]: { time: number; value: number }[];
-    };
-
-    const coins = await DataSource.select()
-      .from(Coins)
-      .where(inArray(Coins.id, coinIds));
-
-    const values = {} as {
-      time: number;
-      value: number;
-      coinId: number;
-      etfId: string;
-    }[];
-
-    for (const coin of coins) {
-      const data = (
-        await DataSource.selectDistinctOn([MarketCap.timestamp])
-          .from(MarketCap)
-          .where(eq(MarketCap.coinId, coin.id))
-          .orderBy(asc(MarketCap.timestamp))
-      ).map((marketCap) => ({
-        time: marketCap.timestamp.getTime() / 1000,
-        value: Number(marketCap.marketCap),
-      }));
-
-      backingSystem[coin.name] = data;
-
-      values.push(
-        ...data.map((value) => ({
-          time: value.time,
-          value: value.value,
-          coinId: coin.id,
-          etfId: rebalanceData[0].etfId,
-        }))
+      coinIds = (rebalanceData[0].data as AmountPerContracts[]).map(
+        (asset) => asset.coinId
       );
     }
 
-    await DataSource.insert(BackingSystem).values(values);
+    // Batch query to get all assetIds linked to coinIds
+    const coinsWithAssetIds = await DataSource.select({
+      coinId: Coins.id,
+      assetId: Coins.assetId,
+      name: Coins.name,
+    })
+      .from(Coins)
+      .where(inArray(Coins.id, coinIds));
 
-    return backingSystem;
+    const assetIds = coinsWithAssetIds.map((coin) => coin.assetId);
+
+    // Fetch all SPOT market coins with the same assetId
+    const spotCoins = await DataSource.select({
+      id: Coins.id,
+      name: Coins.name,
+    })
+      .from(Coins)
+      .where(
+        and(
+          inArray(Coins.assetId, assetIds),
+          eq(Coins.source, CoinSourceEnum.SPOT)
+        )
+      );
+
+    const spotCoinIds = spotCoins.map((coin) => coin.id);
+
+    // Batch query to get all market cap data
+    const marketCaps = await DataSource.select({
+      coinId: MarketCap.coinId,
+      date: sql`DATE_TRUNC('day', ${MarketCap.timestamp})`.as("date"),
+      marketCap: MarketCap.marketCap,
+    })
+      .from(MarketCap)
+      .where(
+        and(
+          inArray(MarketCap.coinId, spotCoinIds),
+          gte(MarketCap.timestamp, moment().subtract(1, "year").toDate())
+        )
+      )
+      .orderBy(asc(MarketCap.timestamp));
+
+    // Using a Map for efficient lookups
+    const dataMap = new Map<string, any>();
+
+    for (const { coinId, date, marketCap } of marketCaps) {
+      const coinName = spotCoins.find((c) => c.id === coinId)?.name;
+      if (!coinName) continue;
+
+      const dateStr = moment(date as Date).format("YYYY-MM-DD");
+
+      if (!dataMap.has(dateStr)) {
+        dataMap.set(dateStr, { date: moment(date as Date).toDate() });
+      }
+
+      const entry = dataMap.get(dateStr)!;
+
+      if (!entry[coinName]) {
+        entry[coinName] = { sum: 0, count: 0 };
+      }
+
+      entry[coinName].sum += Number(marketCap);
+      entry[coinName].count += 1;
+    }
+
+    // Convert to final format and compute averages
+    const result = Array.from(dataMap.values()).map((entry) => {
+      const finalEntry: any = { date: entry.date };
+      for (const [key, { sum, count }] of Object.entries(entry) as [
+        [string, { sum: number; count: number }]
+      ]) {
+        if (key !== "date") {
+          finalEntry[key] = sum / count;
+        }
+      }
+      return finalEntry;
+    });
+
+    return result;
   }
 }

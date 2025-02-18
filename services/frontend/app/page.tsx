@@ -10,6 +10,9 @@ import { FundingDaysDistributionChart } from "./components/FundingDaysDistributi
 import { SUSDeAPYWeeklyDistributionChart } from "./components/SUSDeAPYWeeklyDistributionChart";
 import { FiltersByAssets, FiltersByCategory } from "./components/Filters";
 import { getHomePageData } from "./data/getHomePageData";
+import { SystemBacking } from "./components/charts/SystemBacking";
+import { SUSDeApy } from "./components/charts/SUSDsAPY";
+import { AvgPerpetualYieldByQuarter } from "./components/charts/AvgPerpetualYieldByQ";
 
 const initialState = {
   ohclData: [],
@@ -139,7 +142,7 @@ export default function Page() {
         {state?.backingSystem && (
           <div>
             <h1>Backing system chart</h1>
-            <MultilineChart data={state.backingSystem} />
+            <SystemBacking data={state.backingSystem} />
           </div>
         )}
 
@@ -153,18 +156,15 @@ export default function Page() {
         {coinIdFilter === "All" && state?.SUSD_APY && (
           <div>
             <h1>sUSD APY chart</h1>
-            <SingleLineChart data={state.SUSD_APY} />
+            <SUSDeApy data={state.SUSD_APY} />
           </div>
         )}
 
         {state?.averageYieldQuartalFundingRewardData && (
           <div>
             <h1>Avg Perp Yield by Quarter chart</h1>
-            <SingleLineChart
-              data={state.averageYieldQuartalFundingRewardData.map((entry) => ({
-                time: entry.quarter,
-                value: entry.avgYield,
-              }))}
+            <AvgPerpetualYieldByQuarter
+              data={state.averageYieldQuartalFundingRewardData}
             />
           </div>
         )}
