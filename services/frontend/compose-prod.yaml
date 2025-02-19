@@ -10,3 +10,6 @@
       - "3000:3000"
     command: > 
       sh -c 'ls -a && npm run start'
+    
+    networks:
+      - fund-maker-network

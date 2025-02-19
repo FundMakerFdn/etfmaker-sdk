@@ -3,7 +3,7 @@ import { Producer, Partitioners, logLevel } from "kafkajs";
 import { sleep } from "../helpers/sleep";
 import { DataProcessingService } from "../coindata/data-processing.service";
 
-const KAFKA_URL = process.env.KAFKA_URL ?? "localhost:9092";
+const KAFKA_URL = process.env.KAFKA_URL ?? "kafka:9092";
 
 const dataProcessingService = new DataProcessingService();
 

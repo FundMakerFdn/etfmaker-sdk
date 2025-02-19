@@ -40,3 +40,6 @@
       - "3001:3001"
     command: >
       sh -c "npx drizzle-kit migrate --config=drizzle.config.ts && npm run build && node dist/src/index.js"
+
+    networks:
+      - fund-maker-network
