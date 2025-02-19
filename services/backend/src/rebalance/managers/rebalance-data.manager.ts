@@ -76,8 +76,9 @@ export class RebalanceDataManager {
   }
 
   public static async generateRebalanceData(
-    config: RebalanceConfig
-  ): Promise<void> {
+    config: RebalanceConfig,
+    returnData = false
+  ): Promise<RebalanceDto[] | void> {
     const amountOfCoins = Number(RegExp(/\d+/).exec(config.etfId)?.[0] ?? 0);
 
     const coins = await this.getTopUsdmCoinsByMarketCap(
@@ -172,6 +173,12 @@ export class RebalanceDataManager {
       startTime = endTime;
       endTime = moment(endTime).add(rebalancePeriodMs).valueOf();
       if (moment(endTime).isAfter(today)) break;
+    }
+
+    if (returnData) {
+      return DataSource.select()
+        .from(Rebalance)
+        .where(eq(Rebalance.etfId, config.etfId)) as Promise<RebalanceDto[]>;
     }
   }
 

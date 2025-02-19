@@ -31,9 +31,9 @@ export class RebalanceCsvManager {
     config: RebalanceConfig
   ): Promise<string> {
     const simulatedRebalanceData =
-      await RebalanceDataManager.generateRebalanceData(config);
+      await RebalanceDataManager.generateRebalanceData(config, true);
 
-    return this.generateCsvFromRebalanceData(simulatedRebalanceData);
+    return this.generateCsvFromRebalanceData(simulatedRebalanceData!);
   }
 
   private static async generateCsvFromRebalanceData(
