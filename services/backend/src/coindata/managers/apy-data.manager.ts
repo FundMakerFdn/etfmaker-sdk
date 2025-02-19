@@ -27,11 +27,7 @@ export class ApyDataManager {
 
     const lastCachedTimestamp =
       fundingRewardApyCached.length > 0
-        ? moment(
-            Number(
-              fundingRewardApyCached[fundingRewardApyCached.length - 1].time
-            ) * 1000
-          )
+        ? moment(fundingRewardApyCached[fundingRewardApyCached.length - 1].time)
         : moment(0);
 
     const fundingRewards = await DataSource.selectDistinctOn([
@@ -64,7 +60,7 @@ export class ApyDataManager {
       const APY = reward.div(100).plus(1).pow(amountOfUpdates).sub(1);
       apyTimeSeries.push({
         etfId,
-        time: event.timestamp.getTime() / 1000,
+        time: event.timestamp,
         value: APY.toNumber(),
       });
     }
@@ -75,9 +71,18 @@ export class ApyDataManager {
       console.log("Error inserting funding reward APY data", error);
     }
 
-    return fundingRewardApyCached.concat(
-      apyTimeSeries
-    ) as FundingRewardApyReturnDto[];
+    const requstedData = (await DataSource.selectDistinctOn(
+      [FundingRewardApy.time],
+      {
+        etfId: FundingRewardApy.etfId,
+        time: FundingRewardApy.time,
+        value: FundingRewardApy.value,
+      }
+    )
+      .from(FundingRewardApy)
+      .orderBy(asc(FundingRewardApy.time))) as FundingRewardApyReturnDto[];
+
+    return requstedData;
   }
 
   public static async coinFundingAPY(
@@ -125,14 +130,11 @@ export class ApyDataManager {
 
     const lastCachedTimestamp =
       sUSDeApyDataCached.length > 0
-        ? moment(
-            Number(sUSDeApyDataCached[sUSDeApyDataCached.length - 1].time) *
-              1000
-          )
+        ? moment(sUSDeApyDataCached[sUSDeApyDataCached.length - 1].time)
         : moment(0);
 
     const apy = [] as {
-      time: number;
+      time: Date;
       value: number;
       etfId: RebalanceConfig["etfId"];
     }[];
@@ -174,7 +176,7 @@ export class ApyDataManager {
 
       apy.push({
         etfId,
-        time: Math.floor(etfPrice.timestamp.getTime() / 1000),
+        time: etfPrice.timestamp,
         value: Number(value),
       });
     }
@@ -182,16 +184,16 @@ export class ApyDataManager {
     await DataSource.insert(sUSDeApy).values(apy);
 
     return DataSource.select({
-      date: sql`TO_CHAR(DATE_TRUNC('day', to_timestamp(${sUSDeApy.time})), 'MM/DD/YYYY')`.as(
+      date: sql`TO_CHAR(DATE_TRUNC('day', ${sUSDeApy.time}), 'MM/DD/YYYY')`.as(
         "date"
       ),
       value: sql`AVG(${sUSDeApy.value})`.as("avg_value"),
     })
       .from(sUSDeApy)
       .where(eq(sUSDeApy.etfId, etfId))
-      .groupBy(sql`date_trunc('day', to_timestamp(${sUSDeApy.time}))`)
-      .orderBy(
-        asc(sql`date_trunc('day', to_timestamp(${sUSDeApy.time}))`)
-      ) as Promise<SUSDApyReturnDto[]>;
+      .groupBy(sql`date_trunc('day', ${sUSDeApy.time})`)
+      .orderBy(asc(sql`date_trunc('day', ${sUSDeApy.time})`)) as Promise<
+      SUSDApyReturnDto[]
+    >;
   }
 }

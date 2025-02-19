@@ -1,7 +1,8 @@
 "use client";
 
 import { ChartDataType } from "app/types/ChartDataType";
-import { ColorType, createChart, LineSeries } from "lightweight-charts";
+import { ColorType, createChart, LineSeries, Time } from "lightweight-charts";
+import moment from "moment";
 import { FC, memo, useEffect, useRef } from "react";
 
 export const SingleLineChart: FC<{
@@ -35,7 +36,10 @@ export const SingleLineChart: FC<{
       const lineSeries = apyChart.addSeries(LineSeries, { color: "#2962FF" });
 
       lineSeries.setData(
-        apyData.map((item) => ({ time: item.time, value: +item.value }))
+        apyData.map((item) => ({
+          time: moment(item.time).unix() as Time,
+          value: +item.value,
+        }))
       );
 
       apyChart.timeScale().fitContent();

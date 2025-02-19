@@ -18,10 +18,10 @@ export const CoinGeckoCoinList = async (
   reply.send(top100CoinList);
 };
 
-export const CoinCategoryList = async (
+export const CoinCategoryList = (
   request: FastifyRequest,
   reply: FastifyReply
 ) => {
-  const categories = await coinGeckoService.getCoinCategories();
+  const categories = coinGeckoService.getCoinCategories();
   reply.send(categories);
 };

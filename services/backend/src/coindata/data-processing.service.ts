@@ -12,6 +12,7 @@ import { CoinInterface } from "../interfaces/Coin.interface";
 import { CoinSourceEnum } from "../enums/CoinSource.enum";
 import { CoinStatusEnum } from "../enums/CoinStatus.enum";
 import { SUSDApyReturnDto } from "./dto/SUSDApy.dto";
+import { FilterInterface } from "../interfaces/FilterInterface";
 
 const binanceService = new BinanceService();
 
@@ -77,7 +78,7 @@ export class DataProcessingService {
 
   fundingRewardAPY(
     etfId: RebalanceConfig["etfId"]
-  ): Promise<{ time: number; value: number }[]> {
+  ): Promise<{ time: Date; value: number }[]> {
     return ApyDataManager.fundingRewardAPY(etfId);
   }
 
@@ -104,7 +105,7 @@ export class DataProcessingService {
   }
 
   getAverageFundingChartData(etfId: RebalanceConfig["etfId"]): Promise<{
-    [assetName: string]: { time: number; value: number }[];
+    [assetName: string]: { time: Date; value: number }[];
   }> {
     return FundingDataManager.getAverageFundingChartData(etfId);
   }
@@ -115,11 +116,19 @@ export class DataProcessingService {
     return FundingDataManager.getAssetFundingChartData(coinId);
   }
 
-  getFundingDaysDistributionChartData(coinId?: number): Promise<{
+  getFundingDaysDistributionChartData(
+    coinId?: number,
+    etfId?: RebalanceConfig["etfId"],
+    period?: FilterInterface["period"]
+  ): Promise<{
     positive: number;
     negative: number;
   }> {
-    return FundingDataManager.getFundingDaysDistributionChartData(coinId);
+    return FundingDataManager.getFundingDaysDistributionChartData(
+      coinId,
+      etfId,
+      period
+    );
   }
 
   generateETFPrice(etfId: RebalanceConfig["etfId"]): Promise<void> {
@@ -132,9 +141,10 @@ export class DataProcessingService {
 
   getSUSDeSpreadVs3mTreasury(
     etfId: RebalanceConfig["etfId"],
-    coinId?: number
-  ): Promise<{ time: number; value: number }[]> {
-    return ChartDataManager.getSUSDeSpreadVs3mTreasury(etfId, "year", coinId);
+    coinId?: number,
+    period?: FilterInterface["period"]
+  ): Promise<{ time: Date; value: number }[]> {
+    return ChartDataManager.getSUSDeSpreadVs3mTreasury(etfId, coinId, period);
   }
 
   private async getRecentCoinsData(coinIds: number[]): Promise<CoinInfoDto[]> {

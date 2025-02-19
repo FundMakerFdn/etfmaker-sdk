@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, sql } from "drizzle-orm";
 import { DataSource } from "../../db/DataSource";
 import {
   Coins,
@@ -18,24 +18,25 @@ import { CoinSourceEnum } from "../../enums/CoinSource.enum";
 export class ChartDataManager {
   public static async getSUSDeSpreadVs3mTreasury(
     etfId: RebalanceConfig["etfId"],
-    period: "day" | "week" | "month" | "year" = "year",
-    coinId?: number
-  ): Promise<{ time: number; value: number }[]> {
+    coinId?: number,
+    period?: "day" | "week" | "month" | "year"
+  ): Promise<{ time: Date; value: number }[]> {
     const now = moment().utc();
 
-    const requestedStartDate = now
-      .clone()
-      .subtract(1, `${period}s`)
-      .startOf("day")
-      .toDate();
-    const fullYearStartDate = now
-      .clone()
-      .subtract(1, "years")
-      .startOf("day")
-      .toDate();
+    let requestedStartDate = new Date(0);
+
+    if (period) {
+      requestedStartDate = now
+        .clone()
+        .subtract(1, `${period}s`)
+        .startOf("day")
+        .toDate();
+    }
+
+    const fullYearStartDate = new Date(0);
 
     const lastCachedEntry = await DataSource.select({
-      time: sUSDeSpreadVs3mTreasury.time,
+      timestamp: sUSDeSpreadVs3mTreasury.time,
     })
       .from(sUSDeSpreadVs3mTreasury)
       .where(eq(sUSDeSpreadVs3mTreasury.etfId, etfId))
@@ -43,8 +44,8 @@ export class ChartDataManager {
       .limit(1);
 
     const lastCachedTimestamp = lastCachedEntry.length
-      ? moment.unix(lastCachedEntry[0].time)
-      : moment(fullYearStartDate);
+      ? moment(lastCachedEntry[0].timestamp).add(1, "day").toDate()
+      : moment(fullYearStartDate).toDate();
 
     const lastRebalance = await DataSource.select()
       .from(Rebalance)
@@ -90,7 +91,7 @@ export class ChartDataManager {
       .where(
         and(
           inArray(Funding.coinId, perpetualCoinIds),
-          gte(Funding.timestamp, lastCachedTimestamp.toDate()) // Only get new data
+          gt(Funding.timestamp, lastCachedTimestamp) // Only get new data
         )
       )
       .groupBy(sql`DATE_TRUNC('day', ${Funding.timestamp}), ${Funding.coinId}`)
@@ -101,7 +102,7 @@ export class ChartDataManager {
       price: sql`AVG(CAST(${EtfPrice.close} AS double precision))`,
     })
       .from(EtfPrice)
-      .where(gte(EtfPrice.timestamp, lastCachedTimestamp.toDate()))
+      .where(gt(EtfPrice.timestamp, lastCachedTimestamp))
       .groupBy(sql`DATE(${EtfPrice.timestamp})`)
       .orderBy(sql`DATE(${EtfPrice.timestamp})`);
 
@@ -115,7 +116,7 @@ export class ChartDataManager {
         const etfYield = new Decimal(etfPrice.price);
         const treasuryYield = new Decimal(matchingRate.avgRate as string);
 
-        const time = moment(etfPrice.timestamp).unix();
+        const time = new Date(etfPrice.timestamp);
         const value = etfYield.sub(treasuryYield).toNumber();
 
         newValues.push({
@@ -144,19 +145,13 @@ export class ChartDataManager {
       .where(
         and(
           eq(sUSDeSpreadVs3mTreasury.etfId, etfId),
-          gte(
-            sUSDeSpreadVs3mTreasury.time,
-            Math.floor(fullYearStartDate.getTime() / 1000)
-          ),
+          gte(sUSDeSpreadVs3mTreasury.time, requestedStartDate),
           coinId ? eq(sUSDeSpreadVs3mTreasury.coinId, coinId) : undefined
         )
       )
       .orderBy(asc(sUSDeSpreadVs3mTreasury.time));
 
-    // Filter data to return only requested period
-    return finalData.filter((data) =>
-      moment.unix(data.time).isBetween(requestedStartDate, now, null, "[]")
-    );
+    return finalData;
   }
 
   public static async getBackingSystemData(coinId?: number): Promise<any[]> {

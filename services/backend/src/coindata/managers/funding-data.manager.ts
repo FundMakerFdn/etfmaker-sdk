@@ -1,7 +1,6 @@
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import {
   AverageFundingChartData,
-  AverageYieldQuartalFundingRewardData,
   Coins,
   EtfFundingReward,
   Funding,
@@ -16,12 +15,13 @@ import moment from "moment";
 import Decimal from "decimal.js";
 import { FuturesType } from "../../enums/FuturesType.enum";
 import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
+import { FilterInterface } from "../../interfaces/FilterInterface";
 
 export class FundingDataManager {
   public static async getAverageFundingChartData(
     etfId: RebalanceConfig["etfId"]
   ): Promise<{
-    [assetName: string]: { time: number; value: number }[];
+    [assetName: string]: { time: Date; value: number }[];
   }> {
     const averageFundingData = await DataSource.select({
       coinName: Coins.name,
@@ -38,7 +38,7 @@ export class FundingDataManager {
 
     if (averageFundingData?.length > 0) {
       const cachedData = {} as {
-        [assetName: string]: { time: number; value: number }[];
+        [assetName: string]: { time: Date; value: number }[];
       };
 
       for (const asset of averageFundingData) {
@@ -74,7 +74,7 @@ export class FundingDataManager {
       return {};
 
     const data = {} as {
-      [assetName: string]: { time: number; value: number }[];
+      [assetName: string]: { time: Date; value: number }[];
     };
     const coins = await DataSource.select({
       name: Coins.name,
@@ -117,7 +117,7 @@ export class FundingDataManager {
         const window = fundingRates.slice(start, index + 1);
         const sum = window.reduce((acc, curr) => acc + Number(curr.value), 0);
 
-        const time = new Date(rate.time as string).getTime() / 1000;
+        const time = new Date(rate.time as string);
         const value = sum / window.length;
 
         movingAverageUI.push({
@@ -180,7 +180,7 @@ export class FundingDataManager {
   public static async getFundingDaysDistributionChartData(
     coinId?: number,
     etfId?: RebalanceConfig["etfId"],
-    period: "day" | "week" | "month" | "year" = "year"
+    period: FilterInterface["period"] = "year"
   ): Promise<{ positive: number; negative: number }> {
     let lastRebalance;
     if (etfId) {

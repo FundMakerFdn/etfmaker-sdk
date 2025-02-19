@@ -1,7 +1,7 @@
 "use client";
 
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { FC, useState, useMemo } from "react";
+import { FC, useState } from "react";
 import {
   Select,
   SelectTrigger,
@@ -18,16 +18,6 @@ import {
 } from "app/shadcn/components/ui/card";
 import { ChartContainer, ChartTooltip } from "app/shadcn/components/ui/chart";
 
-const formatData = (data) => {
-  return data.map((item) => ({
-    ...item,
-    date: new Date(item.time * 1000).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    }),
-  }));
-};
-
 export const SUSDeApy: FC<{ data: any[] }> = ({ data }) => {
   const [timeRange, setTimeRange] = useState("90d");
 
@@ -35,8 +25,7 @@ export const SUSDeApy: FC<{ data: any[] }> = ({ data }) => {
     <Card>
       <CardHeader className="flex items-center gap-2 space-y-0 border-b py-5 sm:flex-row">
         <div className="grid flex-1 gap-1 text-center sm:text-left">
-          <CardTitle>ETF Index - Hourly</CardTitle>
-          <CardDescription>Tracking ETF values over time</CardDescription>
+          <CardTitle>sUSD APY chart</CardTitle>
         </div>
         <Select value={timeRange} onValueChange={setTimeRange}>
           <SelectTrigger

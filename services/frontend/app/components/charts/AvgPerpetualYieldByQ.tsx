@@ -2,7 +2,12 @@
 
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 
-import { Card, CardContent } from "../../shadcn/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../../shadcn/components/ui/card";
 import {
   ChartConfig,
   ChartContainer,
@@ -26,6 +31,9 @@ export const AvgPerpetualYieldByQuarter: FC<{ data: any }> = ({ data }) => {
   return (
     <Card>
       <CardContent>
+        <CardHeader className="items-center pb-0">
+          <CardTitle>Avg Perp Yield by Quarter chart</CardTitle>
+        </CardHeader>
         <ChartContainer config={chartConfig}>
           <BarChart accessibilityLayer data={formattedData}>
             <CartesianGrid vertical={false} />

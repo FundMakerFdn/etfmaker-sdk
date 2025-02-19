@@ -3,7 +3,7 @@
 import { generateDistinctDarkColors } from "app/helpers/generateDistinctDarkColors";
 import { ChartDataType } from "app/types/ChartDataType";
 import { createChart, LineSeries } from "lightweight-charts";
-import { FC, Fragment, useEffect, useMemo, useRef } from "react";
+import { FC, useEffect, useMemo, useRef } from "react";
 
 export const MultilineChart: FC<{
   data: {

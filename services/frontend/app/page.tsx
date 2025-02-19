@@ -6,13 +6,14 @@ import { DownloadRebalanceDataCsv } from "./components/DownloadRebalanceCsv";
 import { MultilineChart } from "./components/MultilineChart";
 import { SingleLineChart } from "./components/SindleLineChart";
 import { CurrentAPY } from "./components/CurrentAPY";
-import { FundingDaysDistributionChart } from "./components/FundingDaysDistributionChart";
-import { SUSDeAPYWeeklyDistributionChart } from "./components/SUSDeAPYWeeklyDistributionChart";
 import { FiltersByAssets, FiltersByCategory } from "./components/Filters";
 import { getHomePageData } from "./data/getHomePageData";
 import { SystemBacking } from "./components/charts/SystemBacking";
 import { SUSDeApy } from "./components/charts/SUSDsAPY";
 import { AvgPerpetualYieldByQuarter } from "./components/charts/AvgPerpetualYieldByQ";
+import { FundingDaysDistribution } from "./components/charts/FundingDaysDistribution";
+import { SUSDeSpreadVsTreasury } from "./components/charts/SUSDeSpreadVsTreasury";
+import { SUSDeAPYWeeklyDistribution } from "./components/charts/SUSDeWeeklyDistribution";
 
 const initialState = {
   ohclData: [],
@@ -21,7 +22,6 @@ const initialState = {
   SUSD_APY: [],
   averageFundingChartData: [],
   averageYieldQuartalFundingRewardData: [],
-  fundingDaysDistribution: [],
   sUSDeSpreadVs3mTreasuryData: [],
   sUSDeAPYWeeklyDistribution: [],
   availableAssetsToFilter: [],
@@ -74,8 +74,6 @@ export default function Page() {
 
   if (!isInitialLoaded) return <div>Loading...</div>;
 
-  console.log(state?.availableCategoriesToFilter);
-
   return (
     <div
       style={{
@@ -122,7 +120,7 @@ export default function Page() {
 
       {isLoading && !error && <div>Updating charts...</div>}
 
-      {state?.APYFundingRewardData && <IndexOhclChart data={state.ohclData} />}
+      {state?.ohclData && <IndexOhclChart data={state.ohclData} />}
 
       <div
         style={{
@@ -139,12 +137,7 @@ export default function Page() {
           </div>
         )}
 
-        {state?.backingSystem && (
-          <div>
-            <h1>Backing system chart</h1>
-            <SystemBacking data={state.backingSystem} />
-          </div>
-        )}
+        {state?.backingSystem && <SystemBacking data={state.backingSystem} />}
 
         {state?.averageFundingChartData && (
           <div>
@@ -154,47 +147,22 @@ export default function Page() {
         )}
 
         {coinIdFilter === "All" && state?.SUSD_APY && (
-          <div>
-            <h1>sUSD APY chart</h1>
-            <SUSDeApy data={state.SUSD_APY} />
-          </div>
+          <SUSDeApy data={state.SUSD_APY} />
         )}
 
         {state?.averageYieldQuartalFundingRewardData && (
-          <div>
-            <h1>Avg Perp Yield by Quarter chart</h1>
-            <AvgPerpetualYieldByQuarter
-              data={state.averageYieldQuartalFundingRewardData}
-            />
-          </div>
+          <AvgPerpetualYieldByQuarter
+            data={state.averageYieldQuartalFundingRewardData}
+          />
         )}
 
-        {state?.fundingDaysDistribution && (
-          <div>
-            <h1>Funding Days Distribution</h1>
-            <FundingDaysDistributionChart
-              data={state.fundingDaysDistribution}
-            />
-          </div>
-        )}
+        <FundingDaysDistribution coinId={coinIdFilter} />
 
-        {state?.sUSDeSpreadVs3mTreasuryData && (
-          <div>
-            <h1>sUSD Spread vs 3m Treasury chart</h1>
-            <SingleLineChart data={state.sUSDeSpreadVs3mTreasuryData} />
-          </div>
-        )}
+        <SUSDeSpreadVsTreasury coinId={coinIdFilter} />
 
-        {state?.sUSDeAPYWeeklyDistribution?.data &&
-          state?.sUSDeAPYWeeklyDistribution?.labels && (
-            <div>
-              <h1>sUSDe APY Weekly Distribution</h1>
-              <SUSDeAPYWeeklyDistributionChart
-                data={state.sUSDeAPYWeeklyDistribution.data}
-                labels={state.sUSDeAPYWeeklyDistribution.labels}
-              />
-            </div>
-          )}
+        {state?.APYFundingRewardData && (
+          <SUSDeAPYWeeklyDistribution data={state.APYFundingRewardData} />
+        )}
       </div>
     </div>
   );

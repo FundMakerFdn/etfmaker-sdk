@@ -8,8 +8,6 @@ import {
   notInArray,
   inArray,
   isNull,
-  or,
-  like,
 } from "drizzle-orm";
 import moment from "moment";
 import { DataSource } from "../../db/DataSource";
@@ -22,7 +20,7 @@ import {
   AmountPerContracts,
   RebalanceDto,
 } from "../../interfaces/Rebalance.interface";
-import blacklistCoins from "../../../blacklist.json";
+import blacklistCoins from "../../config/blacklist.json";
 import Decimal from "decimal.js";
 import { CoinSourceEnum } from "../../enums/CoinSource.enum";
 

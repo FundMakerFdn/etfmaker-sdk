@@ -5,6 +5,7 @@ import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
 import { CoinCategory } from "../interfaces/CoinCategory.interface";
 import { DataSource } from "../db/DataSource";
 import { MarketCap } from "../db/schema";
+import categoryWhiteList from "../config/category-whitelist.json";
 
 export class CoinGeckoService {
   private readonly apiKey: string;
@@ -31,6 +32,9 @@ export class CoinGeckoService {
         accept: "application/json",
         "x-cg-pro-api-key": this.apiKey,
       },
+      vs_currency: "usd",
+      order: "market_cap_desc",
+      per_page: "250",
     } as { headers: Record<string, string>; category?: string };
 
     if (category) {
@@ -40,10 +44,12 @@ export class CoinGeckoService {
     for (let page = 1; page <= 40; page++) {
       // 40 pages * 250 coins = 10000 coins
       fetchQueue.push(
-        axios.get(
-          `${this.apiUrl}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=${page}`,
-          params
-        )
+        axios.get(`${this.apiUrl}/coins/markets`, {
+          params: {
+            ...params,
+            page: page.toString(),
+          },
+        })
       );
     }
 
@@ -103,14 +109,7 @@ export class CoinGeckoService {
     }
   }
 
-  async getCoinCategories(): Promise<CoinCategory[]> {
-    const response = await axios.get(`${this.apiUrl}/coins/categories/list`, {
-      headers: {
-        accept: "application/json",
-        "x-cg-pro-api-key": this.apiKey,
-      },
-    });
-
-    return response.data;
+  getCoinCategories(): CoinCategory[] {
+    return categoryWhiteList as CoinCategory[];
   }
 }

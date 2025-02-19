@@ -1,30 +1,35 @@
 export const processAPYDataToWeekly = (data) => {
-  // Create buckets for each range
-  const ranges = {
-    "0-5": 0,
-    "5-10": 0,
-    "10-15": 0,
-    "15+": 0,
-  };
+  const chartData = [
+    {
+      period: "0-5",
+      weeks: 0,
+      fill: "var(--color-0-5)",
+    },
+    {
+      period: "5-10",
+      weeks: 0,
+      fill: "var(--color-5-10)",
+    },
+    {
+      period: "10-15",
+      weeks: 0,
+      fill: "var(--color-10-15)",
+    },
+    {
+      period: "15+",
+      weeks: 0,
+      fill: "var(--color-15+)",
+    },
+  ];
 
   // Count weeks in each range
   data.forEach((item) => {
     const value = item.value;
-    if (value <= 5) ranges["0-5"]++;
-    else if (value <= 10) ranges["5-10"]++;
-    else if (value <= 15) ranges["10-15"]++;
-    else ranges["15+"]++;
+    if (value <= 5) chartData[0].weeks++;
+    else if (value <= 10) chartData[1].weeks++;
+    else if (value <= 15) chartData[2].weeks++;
+    else chartData[3].weeks++;
   });
 
-  // Calculate percentages
-  const totalWeeks = Object.values(ranges).reduce((a, b) => a + b, 0);
-  const percentages = {};
-  for (let range in ranges) {
-    percentages[range] = ((ranges[range] / totalWeeks) * 100).toFixed(1);
-  }
-
-  return {
-    data: Object.values(ranges),
-    labels: Object.keys(ranges),
-  };
+  return chartData;
 };

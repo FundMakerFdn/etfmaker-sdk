@@ -1,4 +1,4 @@
 export interface SUSDApyReturnDto {
-  date: number;
+  date: Date;
   value: number;
 }

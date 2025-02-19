@@ -262,13 +262,13 @@ export const FundingRewardApy = pgTable(
   {
     id: serial("id").primaryKey(),
     etfId: text("etf_id").notNull(),
-    time: integer("time").notNull(),
+    time: timestamp("timestamp").notNull(),
     value: doublePrecision("value").notNull(),
   },
   (table) => {
     return {
       // Composite index on coinId and timestamp
-      coinIdTimestampIdx: index("funding_reward_apy_coin_id_time_idx").on(
+      coinIdTimeIdx: index("funding_reward_apy_coin_id_time_idx").on(
         table.time
       ),
       etfIdIdx: index("funding_reward_apy_etf_id_idx").on(table.etfId),
@@ -281,31 +281,14 @@ export const sUSDeApy = pgTable(
   {
     id: serial("id").primaryKey(),
     etfId: text("etf_id").notNull(),
-    time: integer("time").notNull(),
+    time: timestamp("timestamp").notNull(),
     value: doublePrecision("value").notNull(),
   },
   (table) => {
     return {
       // Composite index on coinId and timestamp
-      coinIdTimestampIdx: index("susd_apy_time_idx").on(table.time),
+      coinIdTimeIdx: index("susd_apy_time_idx").on(table.time),
       etfIdIdx: index("susd_apy_etf_id_idx").on(table.etfId),
-    };
-  }
-);
-
-export const BackingSystem = pgTable(
-  "backing_system",
-  {
-    id: serial("id").primaryKey(),
-    etfId: text("etf_id").notNull(),
-    coinId: integer("coin_id").notNull(),
-    time: integer("time").notNull(),
-    value: doublePrecision("value").notNull(),
-  },
-  (table) => {
-    return {
-      etfIdIdx: index("backing_system_etf_id_idx").on(table.etfId),
-      coinIdIdx: index("backing_system_coin_id_idx").on(table.coinId),
     };
   }
 );
@@ -316,7 +299,7 @@ export const sUSDeSpreadVs3mTreasury = pgTable(
     id: serial("id").primaryKey(),
     coinId: integer("coin_id").notNull(),
     etfId: text("etf_id").notNull(),
-    time: integer("time").notNull(),
+    time: timestamp("timestamp").notNull(),
     value: doublePrecision("value").notNull(),
   },
   (table) => {
@@ -336,7 +319,7 @@ export const AverageFundingChartData = pgTable(
     id: serial("id").primaryKey(),
     etfId: text("etf_id").notNull(),
     coinId: integer("coin_id").notNull(),
-    time: integer("time").notNull(),
+    time: timestamp("timestamp").notNull(),
     value: doublePrecision("value").notNull(),
   },
   (table) => {
@@ -346,26 +329,6 @@ export const AverageFundingChartData = pgTable(
         table.coinId
       ),
       etfIdIdx: index("average_funding_chart_data_etfId_idx").on(table.etfId),
-    };
-  }
-);
-
-export const AverageYieldQuartalFundingRewardData = pgTable(
-  "average_yield_quartal_funding_reward_data",
-  {
-    id: serial("id").primaryKey(),
-    etfId: text("etf_id").notNull(),
-    quarter: integer("time").notNull(),
-    avgYield: doublePrecision("value").notNull(),
-  },
-  (table) => {
-    return {
-      quarterIdx: index(
-        "average_yield_quartal_funding_reward_data_quarter_idx"
-      ).on(table.quarter),
-      etfIdIdx: index("average_yield_quartal_funding_reward_data_etfId_idx").on(
-        table.etfId
-      ),
     };
   }
 );

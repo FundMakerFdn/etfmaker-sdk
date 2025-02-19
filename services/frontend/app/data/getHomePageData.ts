@@ -70,26 +70,6 @@ export const getHomePageData = async (
     }
   ).then((res) => res.json());
 
-  const fundingDaysDistributionQuery = fetch(
-    `${NEXT_PUBLIC_SERVER_URL}/get-funding-days-distribution${filter}`,
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    }
-  ).then((res) => res.json());
-
-  const sUSDeSpreadVs3mTreasuryDataQuery = fetch(
-    `${NEXT_PUBLIC_SERVER_URL}/get-susd-spread-vs-3m-treasury${filter}`,
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    }
-  ).then((res) => res.json());
-
   const availableAssetsToFilterQuery = fetch(
     `${NEXT_PUBLIC_SERVER_URL}/get-rebalance-assets`,
     {
@@ -117,8 +97,6 @@ export const getHomePageData = async (
     SUSD_APY,
     averageFundingChartData,
     averageYieldQuartalFundingRewardData,
-    fundingDaysDistribution,
-    sUSDeSpreadVs3mTreasuryData,
     availableAssetsToFilter,
     availableCategoriesToFilter,
   ] = await Promise.all([
@@ -128,8 +106,6 @@ export const getHomePageData = async (
     SUSD_APYQuery,
     averageFundingChartDataQuery,
     averageYieldQuartalFundingRewardDataQuery,
-    fundingDaysDistributionQuery,
-    sUSDeSpreadVs3mTreasuryDataQuery,
     availableAssetsToFilterQuery,
     availableCategoriesToFilterQuery,
   ]);
@@ -148,8 +124,6 @@ export const getHomePageData = async (
       averageFundingChartData: averageFundingChartData.data,
       averageYieldQuartalFundingRewardData:
         averageYieldQuartalFundingRewardData.data,
-      fundingDaysDistribution: fundingDaysDistribution.data,
-      sUSDeSpreadVs3mTreasuryData: sUSDeSpreadVs3mTreasuryData.data,
       sUSDeAPYWeeklyDistribution,
       availableAssetsToFilter: availableAssetsToFilter.data,
       availableCategoriesToFilter: availableCategoriesToFilter.data,

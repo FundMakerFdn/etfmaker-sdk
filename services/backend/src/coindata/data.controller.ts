@@ -1,6 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { DataProcessingService } from "./data-processing.service";
 import { indexConfig } from "../index.config";
+import { FilterInterface } from "../interfaces/FilterInterface";
 
 const dataProcessingService = new DataProcessingService();
 
@@ -153,19 +154,32 @@ export const getFundingDaysDistribution = async (
   req: FastifyRequest,
   res: FastifyReply
 ) => {
-  const queryParams = req.query as { coinId: string };
+  const queryParams = req.query as {
+    coinId: string;
+    period: FilterInterface["period"];
+  };
   const coinId = parseInt(queryParams.coinId);
+  const period = queryParams.period;
   try {
     if (coinId && typeof coinId === "number" && !isNaN(coinId)) {
       const data =
-        await dataProcessingService.getFundingDaysDistributionChartData(coinId);
+        await dataProcessingService.getFundingDaysDistributionChartData(
+          coinId,
+          undefined,
+          period
+        );
       res.send({ data });
     } else {
       const data =
-        await dataProcessingService.getFundingDaysDistributionChartData();
+        await dataProcessingService.getFundingDaysDistributionChartData(
+          undefined,
+          undefined,
+          period
+        );
       res.send({ data });
     }
   } catch (error) {
+    console.log(error);
     res.send({ error: "Can't get Funding Days Distribution data" });
   }
 };
@@ -174,18 +188,25 @@ export const getSUSDeSpreadVs3mTreasury = async (
   req: FastifyRequest,
   res: FastifyReply
 ) => {
-  const queryParams = req.query as { coinId: string };
+  const queryParams = req.query as {
+    coinId: string;
+    period: FilterInterface["period"];
+  };
   const coinId = parseInt(queryParams.coinId);
+  const period = queryParams.period;
   try {
     if (coinId && typeof coinId === "number" && !isNaN(coinId)) {
       const data = await dataProcessingService.getSUSDeSpreadVs3mTreasury(
         indexConfig.etfId,
-        coinId
+        coinId,
+        period
       );
       res.send({ data });
     } else {
       const data = await dataProcessingService.getSUSDeSpreadVs3mTreasury(
-        indexConfig.etfId
+        indexConfig.etfId,
+        undefined,
+        period
       );
       res.send({ data });
     }

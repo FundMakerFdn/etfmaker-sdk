@@ -1,0 +1,706 @@
+[
+  {
+    "category_id": "account-abstraction",
+    "name": "Account Abstraction"
+  },
+  {
+    "category_id": "adventure-games",
+    "name": "Adventure Games"
+  },
+  {
+    "category_id": "ai-agent-launchpad",
+    "name": "AI Agent Launchpad"
+  },
+  {
+    "category_id": "ai-agents",
+    "name": "AI Agents"
+  },
+  {
+    "category_id": "ai-applications",
+    "name": "AI Applications"
+  },
+  {
+    "category_id": "ai-framework",
+    "name": "AI Framework"
+  },
+  {
+    "category_id": "ai-meme-coins",
+    "name": "AI Meme"
+  },
+  {
+    "category_id": "airdropped-tokens-by-nft-projects",
+    "name": "Airdropped Tokens by NFT Projects"
+  },
+  {
+    "category_id": "alleged-sec-securities",
+    "name": "Alleged SEC Securities"
+  },
+  {
+    "category_id": "analytics",
+    "name": "Analytics"
+  },
+  {
+    "category_id": "anime-themed-coins",
+    "name": "Anime-Themed"
+  },
+  {
+    "category_id": "animoca-brands",
+    "name": "Animoca Brands Portfolio"
+  },
+  {
+    "category_id": "appchains",
+    "name": "Appchains"
+  },
+  {
+    "category_id": "artificial-intelligence",
+    "name": "Artificial Intelligence (AI)"
+  },
+  {
+    "category_id": "automated-market-maker-amm",
+    "name": "Automated Market Maker (AMM)"
+  },
+  {
+    "category_id": "avalanche-subnet",
+    "name": "Avalanche L1"
+  },
+  {
+    "category_id": "axie-infinity",
+    "name": "Axie Infinity Ecosystem"
+  },
+  {
+    "category_id": "base-meme-coins",
+    "name": "Base Meme"
+  },
+  {
+    "category_id": "binance-alpha-spotlight",
+    "name": "Binance Alpha Spotlight"
+  },
+  {
+    "category_id": "binance-hodler-airdrops",
+    "name": "Binance HODLer Airdrops"
+  },
+  {
+    "category_id": "binance-launchpad",
+    "name": "Binance Launchpad"
+  },
+  {
+    "category_id": "binance-launchpool",
+    "name": "Binance Launchpool"
+  },
+  {
+    "category_id": "binance-megadrop",
+    "name": "Binance Megadrop"
+  },
+  {
+    "category_id": "binance-peg-tokens",
+    "name": "Binance-Peg Tokens"
+  },
+  {
+    "category_id": "bitcoin-fork",
+    "name": "Bitcoin Fork"
+  },
+  {
+    "category_id": "bitcoin-layer-2",
+    "name": "Bitcoin Sidechains"
+  },
+  {
+    "category_id": "bittensor-ecosystem",
+    "name": "Bittensor Ecosystem"
+  },
+  {
+    "category_id": "brc-20",
+    "name": "BRC-20"
+  },
+  {
+    "category_id": "breeding",
+    "name": "Breeding"
+  },
+  {
+    "category_id": "bridged-dai",
+    "name": "Bridged DAI"
+  },
+  {
+    "category_id": "bridged-weth",
+    "name": "Bridged WETH"
+  },
+  {
+    "category_id": "bridge-governance-tokens",
+    "name": "Bridge Governance Tokens"
+  },
+  {
+    "category_id": "btcfi",
+    "name": "BTCfi"
+  },
+  {
+    "category_id": "card-games",
+    "name": "Card Games"
+  },
+  {
+    "category_id": "cat-themed-coins",
+    "name": "Cat-Themed"
+  },
+  {
+    "category_id": "centralized-exchange-token-cex",
+    "name": "Centralized Exchange (CEX) Token"
+  },
+  {
+    "category_id": "chaingpt-pad",
+    "name": "ChainGPT Launchpad"
+  },
+  {
+    "category_id": "charity",
+    "name": "Charity"
+  },
+  {
+    "category_id": "consensys-portofolio",
+    "name": "Consensys Portfolio"
+  },
+  {
+    "category_id": "cross-chain-communication",
+    "name": "Cross-chain Communication"
+  },
+  {
+    "category_id": "asset-backed-tokens",
+    "name": "Crypto-Backed Tokens"
+  },
+  {
+    "category_id": "curve-ecosystem",
+    "name": "Curve Ecosystem"
+  },
+  {
+    "category_id": "cybersecurity",
+    "name": "Cybersecurity"
+  },
+  {
+    "category_id": "daomaker-ecosystem",
+    "name": "DaoMaker Launchpad"
+  },
+  {
+    "category_id": "data-availability",
+    "name": "Data Availability"
+  },
+  {
+    "category_id": "decentralized-exchange",
+    "name": "Decentralized Exchange (DEX)"
+  },
+  {
+    "category_id": "decentralized-finance-defi",
+    "name": "Decentralized Finance (DeFi)"
+  },
+  {
+    "category_id": "identity",
+    "name": "Decentralized Identifier (DID)"
+  },
+  {
+    "category_id": "decentralized-science-desci",
+    "name": "Decentralized Science (DeSci)"
+  },
+  {
+    "category_id": "defai",
+    "name": "DeFAI"
+  },
+  {
+    "category_id": "depin",
+    "name": "DePIN"
+  },
+  {
+    "category_id": "decentralized-derivatives",
+    "name": "Derivatives"
+  },
+  {
+    "category_id": "dex-aggregator",
+    "name": "Dex Aggregator"
+  },
+  {
+    "category_id": "discord-bots",
+    "name": "Discord Bots"
+  },
+  {
+    "category_id": "dog-themed-coins",
+    "name": "Dog-Themed"
+  },
+  {
+    "category_id": "e-commerce",
+    "name": "E-commerce"
+  },
+  {
+    "category_id": "elon-musk-inspired-coins",
+    "name": "Elon Musk-Inspired"
+  },
+  {
+    "category_id": "energy",
+    "name": "Energy"
+  },
+  {
+    "category_id": "entertainment",
+    "name": "Entertainment"
+  },
+  {
+    "category_id": "ether-fi-ecosystem",
+    "name": "Ether.fi Ecosystem"
+  },
+  {
+    "category_id": "exchange-based-tokens",
+    "name": "Exchange-based Tokens"
+  },
+  {
+    "category_id": "fan-token",
+    "name": "Fan Token"
+  },
+  {
+    "category_id": "farcaster-ecosystem",
+    "name": "Farcaster Ecosystem"
+  },
+  {
+    "category_id": "fixed-interest",
+    "name": "Fixed Interest"
+  },
+  {
+    "category_id": "frog-themed-coins",
+    "name": "Frog-Themed"
+  },
+  {
+    "category_id": "gambling",
+    "name": "Gambling (GambleFi)"
+  },
+  {
+    "category_id": "gaming-blockchains",
+    "name": "Gaming Blockchains"
+  },
+  {
+    "category_id": "gaming",
+    "name": "Gaming (GameFi)"
+  },
+  {
+    "category_id": "gaming-governance-token",
+    "name": "Gaming Governance Token"
+  },
+  {
+    "category_id": "gaming-marketplace",
+    "name": "Gaming Marketplace"
+  },
+  {
+    "category_id": "gaming-platform",
+    "name": "Gaming Platform"
+  },
+  {
+    "category_id": "gaming-utility-token",
+    "name": "Gaming Utility Token"
+  },
+  {
+    "category_id": "guild-scholarship",
+    "name": "Guild and Scholarship"
+  },
+  {
+    "category_id": "healthcare",
+    "name": "Healthcare"
+  },
+  {
+    "category_id": "impossible-launchpad",
+    "name": "Impossible Finance Launchpad"
+  },
+  {
+    "category_id": "infrastructure",
+    "name": "Infrastructure"
+  },
+  {
+    "category_id": "inscriptions",
+    "name": "Inscriptions"
+  },
+  {
+    "category_id": "insurance",
+    "name": "Insurance"
+  },
+  {
+    "category_id": "intent",
+    "name": "Intent"
+  },
+  {
+    "category_id": "internet-of-things-iot",
+    "name": "Internet of Things (IOT)"
+  },
+  {
+    "category_id": "launchpad",
+    "name": "Launchpad"
+  },
+  {
+    "category_id": "layer-0-l0",
+    "name": "Layer 0 (L0)"
+  },
+  {
+    "category_id": "layer-1",
+    "name": "Layer 1 (L1)"
+  },
+  {
+    "category_id": "layer-2",
+    "name": "Layer 2 (L2)"
+  },
+  {
+    "category_id": "layer-3-l3",
+    "name": "Layer 3 (L3)"
+  },
+  {
+    "category_id": "lending-borrowing",
+    "name": "Lending/Borrowing Protocols"
+  },
+  {
+    "category_id": "liquid-restaked-eth",
+    "name": "Liquid Restaked ETH"
+  },
+  {
+    "category_id": "liquid-restaked-sol",
+    "name": "Liquid Restaked SOL"
+  },
+  {
+    "category_id": "liquid-restaking-governance-token",
+    "name": "Liquid Restaking Governance Tokens"
+  },
+  {
+    "category_id": "liquid-restaking-tokens",
+    "name": "Liquid Restaking Tokens"
+  },
+  {
+    "category_id": "liquid-staked-sol",
+    "name": "Liquid Staked SOL"
+  },
+  {
+    "category_id": "liquid-staking",
+    "name": "Liquid Staking"
+  },
+  {
+    "category_id": "liquid-staking-governance-tokens",
+    "name": "Liquid Staking Governance Tokens"
+  },
+  {
+    "category_id": "liquid-staking-tokens",
+    "name": "Liquid Staking Tokens"
+  },
+  {
+    "category_id": "lsdfi",
+    "name": "LSDFi"
+  },
+  {
+    "category_id": "made-in-china",
+    "name": "Made in China"
+  },
+  {
+    "category_id": "made-in-usa",
+    "name": "Made in USA"
+  },
+  {
+    "category_id": "marketing",
+    "name": "Marketing"
+  },
+  {
+    "category_id": "masternodes",
+    "name": "Masternodes"
+  },
+  {
+    "category_id": "meme-token",
+    "name": "Meme"
+  },
+  {
+    "category_id": "memorial-themed",
+    "name": "Memorial Themed"
+  },
+  {
+    "category_id": "metagovernance",
+    "name": "Metagovernance"
+  },
+  {
+    "category_id": "metaverse",
+    "name": "Metaverse"
+  },
+  {
+    "category_id": "mev-protection",
+    "name": "MEV Protection"
+  },
+  {
+    "category_id": "massively-multiplayer-online-mmo",
+    "name": "MMO"
+  },
+  {
+    "category_id": "modular-blockchain",
+    "name": "Modular Blockchain"
+  },
+  {
+    "category_id": "morpho-ecosystem",
+    "name": "Morpho Ecosystem"
+  },
+  {
+    "category_id": "move-to-earn",
+    "name": "Move To Earn"
+  },
+  {
+    "category_id": "murad-picks",
+    "name": "Murad Picks"
+  },
+  {
+    "category_id": "music",
+    "name": "Music"
+  },
+  {
+    "category_id": "name-service",
+    "name": "Name Service"
+  },
+  {
+    "category_id": "non-fungible-tokens-nft",
+    "name": "NFT"
+  },
+  {
+    "category_id": "nftfi",
+    "name": "NFTFi"
+  },
+  {
+    "category_id": "nft-marketplace",
+    "name": "NFT Marketplace"
+  },
+  {
+    "category_id": "olympus-pro",
+    "name": "Olympus Pro Ecosystem"
+  },
+  {
+    "category_id": "on-chain-gaming",
+    "name": "On-chain Gaming"
+  },
+  {
+    "category_id": "superchain-ecosystem",
+    "name": "Optimism Superchain Ecosystem"
+  },
+  {
+    "category_id": "decentralized-options",
+    "name": "Options"
+  },
+  {
+    "category_id": "oracle",
+    "name": "Oracle"
+  },
+  {
+    "category_id": "paal-ai",
+    "name": "PAAL AI Launchpad"
+  },
+  {
+    "category_id": "parallel-evm",
+    "name": "Parallelized EVM"
+  },
+  {
+    "category_id": "parody-meme-coins",
+    "name": "Parody Meme"
+  },
+  {
+    "category_id": "payment-solutions",
+    "name": "Payment Solutions"
+  },
+  {
+    "category_id": "decentralized-perpetuals",
+    "name": "Perpetuals"
+  },
+  {
+    "category_id": "play-to-earn",
+    "name": "Play To Earn"
+  },
+  {
+    "category_id": "politifi",
+    "name": "PolitiFi"
+  },
+  {
+    "category_id": "poolz-finance-launchpad",
+    "name": "Poolz Finance Launchpad"
+  },
+  {
+    "category_id": "prediction-markets",
+    "name": "Prediction Markets"
+  },
+  {
+    "category_id": "privacy-blockchain",
+    "name": "Privacy Blockchain"
+  },
+  {
+    "category_id": "privacy-coins",
+    "name": "Privacy Coins"
+  },
+  {
+    "category_id": "proof-of-stake-pos",
+    "name": "Proof of Stake (PoS)"
+  },
+  {
+    "category_id": "proof-of-work-pow",
+    "name": "Proof of Work (PoW)"
+  },
+  {
+    "category_id": "pump-fun",
+    "name": "Pump.fun Ecosystem"
+  },
+  {
+    "category_id": "quest-to-earn",
+    "name": "Quest-to-Earn"
+  },
+  {
+    "category_id": "real-world-assets-rwa",
+    "name": "Real World Assets (RWA)"
+  },
+  {
+    "category_id": "rebase-tokens",
+    "name": "Rebase Tokens"
+  },
+  {
+    "category_id": "restaking",
+    "name": "Restaking"
+  },
+  {
+    "category_id": "retail",
+    "name": "Retail"
+  },
+  {
+    "category_id": "rollup",
+    "name": "Rollup"
+  },
+  {
+    "category_id": "rollups-as-a-service-raas",
+    "name": "Rollups-as-a-Service (RaaS)"
+  },
+  {
+    "category_id": "rpg",
+    "name": "RPG"
+  },
+  {
+    "category_id": "runes",
+    "name": "Runes"
+  },
+  {
+    "category_id": "rwa-protocol",
+    "name": "RWA Protocol"
+  },
+  {
+    "category_id": "seigniorage",
+    "name": "Seigniorage"
+  },
+  {
+    "category_id": "sidechain",
+    "name": "SideChain"
+  },
+  {
+    "category_id": "simulation-games",
+    "name": "Simulation Games"
+  },
+  {
+    "category_id": "smart-contract-platform",
+    "name": "Smart Contract Platform"
+  },
+  {
+    "category_id": "socialfi",
+    "name": "SocialFi"
+  },
+  {
+    "category_id": "solana-meme-coins",
+    "name": "Solana Meme"
+  },
+  {
+    "category_id": "sports",
+    "name": "Sports"
+  },
+  {
+    "category_id": "sports-games",
+    "name": "Sports Games"
+  },
+  {
+    "category_id": "stock-market-themed",
+    "name": "Stock market-themed"
+  },
+  {
+    "category_id": "storage",
+    "name": "Storage"
+  },
+  {
+    "category_id": "sui-meme",
+    "name": "Sui Meme"
+  },
+  {
+    "category_id": "synthetic-assets",
+    "name": "Synthetic Issuer"
+  },
+  {
+    "category_id": "tap-to-earn",
+    "name": "Tap to Earn"
+  },
+  {
+    "category_id": "telegram_apps",
+    "name": "Telegram Apps"
+  },
+  {
+    "category_id": "terminal-of-truths",
+    "name": "Terminal of Truths"
+  },
+  {
+    "category_id": "the-boy-s-club",
+    "name": "The Boy’s Club"
+  },
+  {
+    "category_id": "tokenfi-launchpad",
+    "name": "TokenFi Launchpad"
+  },
+  {
+    "category_id": "real-estate",
+    "name": "Tokenized Real Estate"
+  },
+  {
+    "category_id": "ton-meme-coins",
+    "name": "TON Meme"
+  },
+  {
+    "category_id": "tron-meme",
+    "name": "TRON Meme"
+  },
+  {
+    "category_id": "virtual-reality",
+    "name": "Virtual Reality"
+  },
+  {
+    "category_id": "virtuals-protocol-ecosystem",
+    "name": "Virtuals Protocol Ecosystem"
+  },
+  {
+    "category_id": "wallets",
+    "name": "Wallets"
+  },
+  {
+    "category_id": "world-liberty-financial-portfolio",
+    "name": "World Liberty Financial Portfolio"
+  },
+  {
+    "category_id": "wrapped-tokens",
+    "name": "Wrapped-Tokens"
+  },
+  {
+    "category_id": "yearn-yfi-partnerships-mergers",
+    "name": "Yearn Ecosystem"
+  },
+  {
+    "category_id": "yield-aggregator",
+    "name": "Yield Aggregator"
+  },
+  {
+    "category_id": "yield-farming",
+    "name": "Yield Farming"
+  },
+  {
+    "category_id": "yield-optimizer",
+    "name": "Yield Optimizer"
+  },
+  {
+    "category_id": "yield-tokenization-product",
+    "name": "Yield Tokenization Product"
+  },
+  {
+    "category_id": "yield-tokenization",
+    "name": "Yield Tokenization Protocol"
+  },
+  {
+    "category_id": "zero-knowledge-zk",
+    "name": "Zero Knowledge (ZK)"
+  },
+  {
+    "category_id": "zoo-themed",
+    "name": "Zoo-Themed"
+  }
+]

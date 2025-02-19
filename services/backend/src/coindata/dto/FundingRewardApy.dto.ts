@@ -1,7 +1,7 @@
 import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
 
 export interface FundingRewardApyReturnDto {
-  time: number;
+  time: Date;
   value: number;
   etfId: RebalanceConfig["etfId"];
 }

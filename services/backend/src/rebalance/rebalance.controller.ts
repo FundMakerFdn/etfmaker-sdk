@@ -5,10 +5,12 @@ import moment from "moment";
 import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
 import { CoinGeckoService } from "../coingecko/coingecko.service";
 import { DataProcessingService } from "../coindata/data-processing.service";
+import { ActualizationService } from "../actualization/actualization.service";
 
 const dataProcessingService = new DataProcessingService();
 const coingeckoService = new CoinGeckoService();
 const rebalanceService = new RebalanceService();
+const actualizationService = new ActualizationService();
 
 export const getRebalanceAssets = async (
   req: FastifyRequest,
@@ -56,7 +58,7 @@ export const precalculateRebalanceData = async (
   req: FastifyRequest,
   res: FastifyReply
 ) => {
-  const categories = await coingeckoService.getCoinCategories();
+  const categories = coingeckoService.getCoinCategories();
 
   for (const category of categories) {
     const config = {
@@ -66,6 +68,7 @@ export const precalculateRebalanceData = async (
       category: category["category_id"],
     } as RebalanceConfig;
 
+    await actualizationService.actualizeData(config);
     await rebalanceService.generateRebalanceData(config);
     await dataProcessingService.generateETFPrice(config.etfId);
     await dataProcessingService.setYieldETFFundingReward(config.etfId);
