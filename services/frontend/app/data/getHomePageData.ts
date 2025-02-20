@@ -110,23 +110,23 @@ export const getHomePageData = async (
     availableCategoriesToFilterQuery,
   ]);
 
-  const sUSDeAPYWeeklyDistribution = processAPYDataToWeekly(
-    APYFundingRewardData.data
-  );
+  const sUSDeAPYWeeklyDistribution = APYFundingRewardData?.data
+    ? processAPYDataToWeekly(APYFundingRewardData.data)
+    : [];
 
   dispatch({
     type: "updateData",
     payload: {
-      ohclData: ohclData.data,
-      APYFundingRewardData: APYFundingRewardData.data,
-      backingSystem: backingSystem.data,
-      SUSD_APY: SUSD_APY.data,
-      averageFundingChartData: averageFundingChartData.data,
+      ohclData: ohclData?.data ?? [],
+      APYFundingRewardData: APYFundingRewardData?.data ?? [],
+      backingSystem: backingSystem?.data ?? [],
+      SUSD_APY: SUSD_APY?.data ?? [],
+      averageFundingChartData: averageFundingChartData?.data ?? [],
       averageYieldQuartalFundingRewardData:
-        averageYieldQuartalFundingRewardData.data,
+        averageYieldQuartalFundingRewardData?.data ?? [],
       sUSDeAPYWeeklyDistribution,
-      availableAssetsToFilter: availableAssetsToFilter.data,
-      availableCategoriesToFilter: availableCategoriesToFilter.data,
+      availableAssetsToFilter: availableAssetsToFilter?.data ?? [],
+      availableCategoriesToFilter: availableCategoriesToFilter?.data ?? [],
     },
   });
 };

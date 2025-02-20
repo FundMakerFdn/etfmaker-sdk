@@ -38,19 +38,19 @@ export const FundingDaysDistribution: FC<{ coinId: number }> = ({ coinId }) => {
   useEffect(() => {
     const getData = async () => {
       try {
-        const { data } = await getFundingDaysDistributionData({
+        const response = await getFundingDaysDistributionData({
           coinId: coinId.toString() === "All" ? undefined : coinId.toString(),
           period: "year",
         });
         const chartData = [
           {
             quality: "positive",
-            days: data.positive,
+            days: response?.data?.positive ?? 0,
             fill: "var(--color-positive)",
           },
           {
             quality: "negative",
-            days: data.negative,
+            days: response?.data?.negative ?? 0,
             fill: "var(--color-negative)",
           },
         ];
