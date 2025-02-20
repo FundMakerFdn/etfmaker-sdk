@@ -11,11 +11,9 @@ export const useWebsocket = (
 ) => {
   const [data, setData] = useState<any>([]);
 
-  const url =
-    NEXT_PUBLIC_SERVER_WEBSOCKET_URL +
-    endpoint +
-    "?" +
-    new URLSearchParams({ ...params }).toString();
+  let url = NEXT_PUBLIC_SERVER_WEBSOCKET_URL + endpoint;
+
+  if (params) url += "?" + new URLSearchParams({ ...params }).toString();
 
   useEffect(() => {
     setData([]);
@@ -28,6 +26,7 @@ export const useWebsocket = (
       console.log(`Connected to WebSocket at ${url}`);
     };
     ws.onmessage = (event) => {
+      console.log("event");
       if (dataChange === "unshift")
         setData((data) => [...data, JSON.parse(event.data)]);
       else setData(JSON.parse(event.data));

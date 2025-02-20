@@ -1,11 +1,20 @@
 "use client";
 
+import { getOHCLDataInfo } from "app/data/getOHCLDataInfo";
 import { OhclChartDataType } from "app/types/OhclChartDataType";
 import { CandlestickSeries, ColorType, createChart } from "lightweight-charts";
-import { useRef, useEffect, FC } from "react";
+import { useRef, useEffect, FC, useState } from "react";
 
-export const IndexOhclChart: FC<{ data: OhclChartDataType[] }> = (props) => {
-  const ohclData = props.data;
+export const IndexOhclChart: FC<{ coinId: number }> = ({ coinId }) => {
+  const [ohclData, setOhclData] = useState<OhclChartDataType[]>([]);
+
+  useEffect(() => {
+    const getOhclData = async () => {
+      const data = await getOHCLDataInfo(coinId);
+      setOhclData(data);
+    };
+    getOhclData();
+  }, [coinId]);
 
   const ohclChartRef = useRef(null);
 

@@ -5,9 +5,5 @@ export interface BinanceCoinsDataDto {
     string,
     { symbol: string; pair: string; futuresType: FuturesType }
   >;
-  coinMFutures: Map<
-    string,
-    { symbol: string; pair: string; futuresType: FuturesType }
-  >;
   spots: Map<string, { symbol: string }>;
 }

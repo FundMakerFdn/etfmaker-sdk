@@ -8,8 +8,9 @@
       - NEXT_PUBLIC_SERVER_WEBSOCKET_URL=${NEXT_PUBLIC_SERVER_WEBSOCKET_URL}
     ports: 
       - "3000:3000"
-    command: > 
-      sh -c 'ls -a && npm run start'
+    command: npm run start
     
     networks:
       - fund-maker-network
+
+    restart: always

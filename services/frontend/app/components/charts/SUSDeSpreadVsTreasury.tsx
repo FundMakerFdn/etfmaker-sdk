@@ -34,7 +34,7 @@ export const SUSDeSpreadVsTreasury: FC<{ coinId: number }> = ({ coinId }) => {
         period
       );
 
-      setData(sUSDeSpreadVs3mTreasuryData?.data ?? []);
+      setData(sUSDeSpreadVs3mTreasuryData);
     };
 
     getData();

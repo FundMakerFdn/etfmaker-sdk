@@ -120,11 +120,10 @@ export class ActualizationService {
     coinList: Record<string, any>[],
     binanceCoinSymbols: BinanceCoinsDataDto
   ): Omit<CoinInterface, "id">[] {
-    const { usdMFutures, coinMFutures, spots } = binanceCoinSymbols;
+    const { usdMFutures, spots } = binanceCoinSymbols;
 
     const classifiedCoins = coinList.reduce((acc, coin) => {
       const usdMFuturesBinanceData = usdMFutures.get(coin.symbol);
-      const coinMFuturesBinanceData = coinMFutures.get(coin.symbol);
       const spotBinanceData = spots.get(coin.symbol);
 
       if (usdMFuturesBinanceData) {
@@ -136,18 +135,6 @@ export class ActualizationService {
           status: CoinStatusEnum.ACTIVE,
           pair: usdMFuturesBinanceData.pair,
           futuresType: usdMFuturesBinanceData.futuresType,
-        });
-      }
-
-      if (coinMFuturesBinanceData) {
-        acc.push({
-          name: coin.name,
-          assetId: coin.id,
-          source: CoinSourceEnum.COINMFUTURES,
-          symbol: coinMFuturesBinanceData.symbol,
-          status: CoinStatusEnum.ACTIVE,
-          pair: coinMFuturesBinanceData.pair,
-          futuresType: coinMFuturesBinanceData.futuresType,
         });
       }
 

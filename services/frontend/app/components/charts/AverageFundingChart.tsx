@@ -4,6 +4,13 @@ import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
 
 import { FC, useState, useMemo, useEffect } from "react";
 import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@radix-ui/react-select";
+import {
   Card,
   CardHeader,
   CardTitle,
@@ -15,7 +22,7 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "app/shadcn/components/ui/chart";
-import { getBackingSystem } from "app/data/getBackingSystem";
+import { getAverageFundingChartData } from "app/data/getAverageFundingData";
 
 const generateChartConfig = (data) => {
   if (!data || data?.length === 0) return {};
@@ -51,12 +58,14 @@ const generateChartConfig = (data) => {
   return config;
 };
 
-export const SystemBacking: FC<{ coinId: number }> = ({ coinId }) => {
+export const AverageFundingChart: FC<{ coinId: number }> = ({ coinId }) => {
+  //   const [timeRange, setTimeRange] = useState("90d");
+
   const [data, setData] = useState([]);
 
   useEffect(() => {
     const getData = async () => {
-      const data = await getBackingSystem(coinId);
+      const data = await getAverageFundingChartData(coinId);
       setData(data);
     };
     getData();
@@ -68,7 +77,7 @@ export const SystemBacking: FC<{ coinId: number }> = ({ coinId }) => {
     <Card>
       <CardHeader className="flex items-center gap-2 space-y-0 border-b py-5 sm:flex-row">
         <div className="grid flex-1 gap-1 text-center sm:text-left">
-          <CardTitle>Backing system chart</CardTitle>
+          <CardTitle>Average funding chart</CardTitle>
         </div>
         {/* <Select value={timeRange} onValueChange={setTimeRange}>
           <SelectTrigger
@@ -172,7 +181,7 @@ export const SystemBacking: FC<{ coinId: number }> = ({ coinId }) => {
                         >
                           <span />
                           <span>
-                            {entry.name}: {entry.value.toLocaleString()}
+                            {entry.name}: {entry.value}
                           </span>
                         </li>
                       ))}

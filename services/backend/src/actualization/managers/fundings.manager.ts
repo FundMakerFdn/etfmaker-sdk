@@ -44,7 +44,7 @@ export const setFundingsData = async (
     if (moment().diff(moment(startTime), "hours") < 8) continue;
 
     try {
-      await binanceService.setAllFunding(coinId, symbol, source, startTime);
+      await binanceService.setAllFunding(coinId, symbol, startTime);
       const percent = (coinId / lastCoinId) * 100;
       console.log("Fetching fundings data..." + percent.toFixed(2) + "%");
     } catch (error) {

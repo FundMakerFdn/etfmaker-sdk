@@ -39,7 +39,7 @@ export const FundingDaysDistribution: FC<{ coinId: number }> = ({ coinId }) => {
     const getData = async () => {
       try {
         const response = await getFundingDaysDistributionData({
-          coinId: coinId.toString() === "All" ? undefined : coinId.toString(),
+          coinId,
           period: "year",
         });
         const chartData = [

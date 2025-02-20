@@ -38,13 +38,7 @@ export const setOpenInterestData = async (
     if (moment().diff(startTime, "days") < 1) continue;
 
     try {
-      await binanceService.setAllOpenInterest(
-        coinId,
-        symbol,
-        source,
-        startTime,
-        pair
-      );
+      await binanceService.setAllOpenInterest(coinId, symbol, startTime);
 
       const percent = (coinId / lastCoinId) * 100;
       console.log("Fetching open interest data..." + percent.toFixed(2) + "%");

@@ -29,7 +29,8 @@ export class OrderBookProducerService {
   private closeStreamOrderBook() {
     if (this.connections.size === 0) return;
 
-    this.connections.forEach((connection) => connection.close());
+    for (const connection of this.connections.values()) connection.close();
+
     this.connections.clear();
     console.log("Order book streaming connections closed.");
   }

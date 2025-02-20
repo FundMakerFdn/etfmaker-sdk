@@ -1,11 +1,24 @@
+import {
+  getAvailableAssetsToFilter,
+  getAvailableCategoriesToFilter,
+} from "app/data/getFiltersData";
 import { CoinType } from "app/types/CoinType";
-import { FC } from "react";
+import { FC, useEffect, useState } from "react";
 
 export const FiltersByAssets: FC<{
-  availableAssets: CoinType[];
   value: number;
   setFilterToProcess: (filter: number) => void;
-}> = ({ availableAssets, setFilterToProcess, value }) => {
+}> = ({ setFilterToProcess, value }) => {
+  const [availableAssets, setAvailableAssets] = useState<CoinType[]>([]);
+
+  useEffect(() => {
+    const getAvailableAssets = async () => {
+      const assets = await getAvailableAssetsToFilter();
+      setAvailableAssets(assets);
+    };
+    getAvailableAssets();
+  }, []);
+
   return (
     <div>
       <select
@@ -23,10 +36,19 @@ export const FiltersByAssets: FC<{
 };
 
 export const FiltersByCategory: FC<{
-  availableCategories: string[];
   value: string;
   setFilterToProcess: (filter: string) => void;
-}> = ({ availableCategories, setFilterToProcess, value }) => {
+}> = ({ setFilterToProcess, value }) => {
+  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    const getAvailableAssets = async () => {
+      const categories = await getAvailableCategoriesToFilter();
+      setAvailableCategories(categories);
+    };
+    getAvailableAssets();
+  }, []);
+
   return (
     <div>
       <select

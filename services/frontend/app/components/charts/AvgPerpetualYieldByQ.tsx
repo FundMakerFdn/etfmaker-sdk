@@ -13,7 +13,8 @@ import {
   ChartContainer,
   ChartTooltip,
 } from "../../shadcn/components/ui/chart";
-import { FC } from "react";
+import { FC, useEffect, useState } from "react";
+import { getAverageYieldQuartalFundingRewardData } from "app/data/getAverageYieldQuartalFundingRewardData";
 
 const chartConfig = {
   avgYield: {
@@ -22,11 +23,23 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export const AvgPerpetualYieldByQuarter: FC<{ data: any }> = ({ data }) => {
-  const formattedData = data.map((item) => ({
-    ...item,
-    quarter: "Q" + item.quarter,
-  }));
+export const AvgPerpetualYieldByQuarter: FC<{ coinId: number }> = ({
+  coinId,
+}) => {
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    const getData = async () => {
+      const data = await getAverageYieldQuartalFundingRewardData(coinId);
+      setData(
+        data.map((item) => ({
+          ...item,
+          quarter: "Q" + item.quarter,
+        }))
+      );
+    };
+    getData();
+  }, [coinId]);
 
   return (
     <Card>
@@ -35,7 +48,7 @@ export const AvgPerpetualYieldByQuarter: FC<{ data: any }> = ({ data }) => {
           <CardTitle>Avg Perp Yield by Quarter chart</CardTitle>
         </CardHeader>
         <ChartContainer config={chartConfig}>
-          <BarChart accessibilityLayer data={formattedData}>
+          <BarChart accessibilityLayer data={data}>
             <CartesianGrid vertical={false} />
             <XAxis
               dataKey="quarter"

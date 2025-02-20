@@ -120,6 +120,7 @@ export const getAverageFundingChartData = async (
       res.send({ data });
     }
   } catch (error) {
+    console.log(error);
     res.send({ error: "Can't get Average Funding Chart data" });
   }
 };

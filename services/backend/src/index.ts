@@ -8,7 +8,7 @@ import orderBookProducerService from "./orderbook/orderbook.producer.service";
 import kafkaService from "./kafka/kafka.service";
 import fastifyWebsocket from "@fastify/websocket";
 import fastifySchedulePlugin from "@fastify/schedule";
-import { CoinDataActualizationCronJob } from "./actualization/actualization.schedule.service";
+import { CoinDataActualizationCronJob } from "./actualization/actualization.cron.service";
 import { ActualizationRoutes } from "./routes/actualization";
 import { RebalanceRoutes } from "./routes/rebalance";
 
@@ -63,6 +63,9 @@ const bootstrap = async () => {
     OrderbookRoutes.forEach((route) => fastify.route(route));
     ActualizationRoutes.forEach((route) => fastify.route(route));
     RebalanceRoutes.forEach((route) => fastify.route(route));
+
+    console.log("Registered Routes:");
+    console.log(fastify.printRoutes({ commonPrefix: false }));
 
     // Fail all processing statuses on server start
     await ProcessingStatusService.failAll();

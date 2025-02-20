@@ -2,7 +2,6 @@
 
 import { ChartDataType } from "app/types/ChartDataType";
 import { ColorType, createChart, LineSeries, Time } from "lightweight-charts";
-import moment from "moment";
 import { FC, memo, useEffect, useRef } from "react";
 
 export const SingleLineChart: FC<{
@@ -24,7 +23,7 @@ export const SingleLineChart: FC<{
           timeVisible: true,
           secondsVisible: true,
           tickMarkFormatter: (time: number) => {
-            const date = new Date(time * 1000);
+            const date = new Date(time);
             return date.toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
@@ -37,7 +36,7 @@ export const SingleLineChart: FC<{
 
       lineSeries.setData(
         apyData.map((item) => ({
-          time: moment(item.time).unix() as Time,
+          time: (new Date(item.time).valueOf() / 1000) as Time,
           value: +item.value,
         }))
       );

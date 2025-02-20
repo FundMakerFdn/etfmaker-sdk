@@ -14,8 +14,9 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "../../shadcn/components/ui/chart";
-import { FC } from "react";
+import { FC, useEffect, useState } from "react";
 import { processAPYDataToWeekly } from "app/helpers/processAPYDataToWeekly";
+import { getApyFundingReward } from "app/data/getApyFundingReward";
 
 const chartConfig = {
   "0-5": {
@@ -37,9 +38,20 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export const SUSDeAPYWeeklyDistribution: FC<{
-  data: number[];
-}> = ({ data }) => {
-  const chartData = processAPYDataToWeekly(data);
+  coinId: number;
+}> = ({ coinId }) => {
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    const getData = async () => {
+      const APYFundingRewardData = await getApyFundingReward(coinId);
+      const sUSDeAPYWeeklyDistribution = APYFundingRewardData
+        ? processAPYDataToWeekly(APYFundingRewardData)
+        : [];
+      setData(sUSDeAPYWeeklyDistribution);
+    };
+    getData();
+  }, [coinId]);
 
   return (
     <Card className="flex flex-col">
@@ -54,7 +66,7 @@ export const SUSDeAPYWeeklyDistribution: FC<{
           <PieChart>
             <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
             <Pie
-              data={chartData}
+              data={data}
               dataKey="weeks"
               nameKey="period"
               innerRadius={60}

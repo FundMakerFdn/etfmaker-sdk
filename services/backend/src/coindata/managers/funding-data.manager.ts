@@ -20,40 +20,35 @@ import { FilterInterface } from "../../interfaces/FilterInterface";
 export class FundingDataManager {
   public static async getAverageFundingChartData(
     etfId: RebalanceConfig["etfId"]
-  ): Promise<{
-    [assetName: string]: { time: Date; value: number }[];
-  }> {
-    const averageFundingData = await DataSource.select({
+  ): Promise<any[]> {
+    const dataMap = new Map<string, any>();
+    const cacheEntries = [];
+
+    const cachedData = await DataSource.select({
+      date: sql`DATE_TRUNC('day', ${AverageFundingChartData.time})`.as("date"),
       coinName: Coins.name,
-      data: {
-        time: AverageFundingChartData.time,
-        value: AverageFundingChartData.value,
-      },
+      value: sql`AVG(${AverageFundingChartData.value}::numeric)`,
     })
       .from(AverageFundingChartData)
       .where(eq(AverageFundingChartData.etfId, etfId))
       .leftJoin(Coins, eq(AverageFundingChartData.coinId, Coins.id))
-      .orderBy(asc(AverageFundingChartData.time))
+      .groupBy(
+        sql`DATE_TRUNC('day', ${AverageFundingChartData.time}), Coins.name`
+      )
+      .orderBy(asc(sql`DATE_TRUNC('day', ${AverageFundingChartData.time})`))
       .execute();
 
-    if (averageFundingData?.length > 0) {
-      const cachedData = {} as {
-        [assetName: string]: { time: Date; value: number }[];
-      };
+    for (const row of cachedData) {
+      if (!row.date || !row.coinName) continue;
 
-      for (const asset of averageFundingData) {
-        if (!asset.coinName) continue;
+      const dateObj = new Date(row.date as string);
+      const dateStr = moment(dateObj).format("YYYY-MM-DD");
 
-        if (!cachedData[asset.coinName]) {
-          cachedData[asset.coinName] = [];
-        }
-        cachedData[asset.coinName].push({
-          time: asset.data.time,
-          value: Number(asset.data.value),
-        });
+      if (!dataMap.has(dateStr)) {
+        dataMap.set(dateStr, { date: dateObj });
       }
 
-      return cachedData;
+      dataMap.get(dateStr)![row.coinName] = Number(row.value);
     }
 
     const oldestRebalanceData = await DataSource.select({
@@ -61,21 +56,20 @@ export class FundingDataManager {
     })
       .from(Rebalance)
       .orderBy(asc(Rebalance.timestamp))
-      .limit(1);
+      .limit(1)
+      .execute();
 
     const latestRebalanceData = await DataSource.select({
       data: Rebalance.data,
     })
       .from(Rebalance)
       .orderBy(desc(Rebalance.timestamp))
-      .limit(1);
+      .limit(1)
+      .execute();
 
     if (oldestRebalanceData.length === 0 || latestRebalanceData.length === 0)
-      return {};
+      return Array.from(dataMap.values());
 
-    const data = {} as {
-      [assetName: string]: { time: Date; value: number }[];
-    };
     const coins = await DataSource.select({
       name: Coins.name,
       id: Coins.id,
@@ -92,7 +86,7 @@ export class FundingDataManager {
 
     for (const coin of coins) {
       const fundingRates = await DataSource.select({
-        time: sql`date_trunc('hour', ${Funding.timestamp})`,
+        date: sql`DATE_TRUNC('day', ${Funding.timestamp})`.as("date"),
         value: sql`AVG(${Funding.fundingRate}::numeric)`,
       })
         .from(Funding)
@@ -102,43 +96,38 @@ export class FundingDataManager {
             gte(Funding.timestamp, oldestRebalanceData[0].timestamp)
           )
         )
-        .groupBy(sql`date_trunc('hour', ${Funding.timestamp})`)
-        .orderBy(asc(sql`date_trunc('hour', ${Funding.timestamp})`));
+        .groupBy(sql`DATE_TRUNC('day', ${Funding.timestamp})`)
+        .orderBy(asc(sql`DATE_TRUNC('day', ${Funding.timestamp})`))
+        .execute();
 
-      const windowSize = 8; // 8 hours moving average
+      for (const { date, value } of fundingRates) {
+        if (!date) continue;
 
-      const movingAverageDb = [];
-      const movingAverageUI = [];
+        const dateObj = new Date(date as string);
+        const dateStr = moment(dateObj).format("YYYY-MM-DD");
 
-      for (let index = 0; index < fundingRates.length; index++) {
-        const rate = fundingRates[index];
+        if (!dataMap.has(dateStr)) {
+          dataMap.set(dateStr, { date: dateObj });
+        }
 
-        const start = Math.max(0, index - windowSize + 1);
-        const window = fundingRates.slice(start, index + 1);
-        const sum = window.reduce((acc, curr) => acc + Number(curr.value), 0);
+        dataMap.get(dateStr)![coin.name] = Number(value);
 
-        const time = new Date(rate.time as string);
-        const value = sum / window.length;
-
-        movingAverageUI.push({
-          time,
-          value,
-        });
-
-        movingAverageDb.push({
-          time,
-          value,
+        cacheEntries.push({
+          time: dateObj,
+          value: Number(value),
           etfId,
           coinId: coin.id,
         });
       }
-
-      await DataSource.insert(AverageFundingChartData).values(movingAverageDb);
-
-      data[coin.name] = movingAverageUI;
     }
 
-    return data;
+    if (cacheEntries.length > 0) {
+      await DataSource.insert(AverageFundingChartData).values(cacheEntries);
+    }
+
+    return Array.from(dataMap.values()).sort(
+      (a, b) => a.date.getTime() - b.date.getTime()
+    );
   }
 
   public static async getAverageYieldQuartalFundingRewardData(

@@ -45,3 +45,5 @@
 
     networks:
       - fund-maker-network
+
+    restart: always

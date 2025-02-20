@@ -1,14 +1,25 @@
-import { ChartDataType } from "app/types/ChartDataType";
-import { FC } from "react";
+import { getApyFundingReward } from "app/data/getApyFundingReward";
+import { FC, useEffect, useState } from "react";
 
 export const CurrentAPY: FC<{
-  data: ChartDataType[];
+  coinId: number;
   amountOfEntries: number;
-}> = (props) => {
-  const currentAPY =
-    props.data
-      .slice(-props.amountOfEntries)
-      .reduce((acc, apy) => acc + +apy.value, 0) / props.amountOfEntries;
+}> = ({ coinId, amountOfEntries }) => {
+  const [apy, setApy] = useState<number>(0);
 
-  return <div>Current APY: {currentAPY}</div>;
+  useEffect(() => {
+    const getApy = async () => {
+      const apy = await getApyFundingReward(coinId);
+      setApy(
+        apy
+          ? apy
+              .slice(-amountOfEntries)
+              .reduce((acc, apy) => acc + +apy.value, 0) / amountOfEntries
+          : 0
+      );
+    };
+    getApy();
+  }, [coinId]);
+
+  return <div>Current APY: {apy}</div>;
 };

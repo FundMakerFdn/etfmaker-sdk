@@ -104,9 +104,7 @@ export class DataProcessingService {
     return FundingDataManager.getAverageYieldQuartalFundingAssetData(coinId);
   }
 
-  getAverageFundingChartData(etfId: RebalanceConfig["etfId"]): Promise<{
-    [assetName: string]: { time: Date; value: number }[];
-  }> {
+  getAverageFundingChartData(etfId: RebalanceConfig["etfId"]): Promise<any[]> {
     return FundingDataManager.getAverageFundingChartData(etfId);
   }
 
