@@ -46,25 +46,6 @@ export default function Page() {
   const data = useWebsocket("/order-book", "unshift", { coinId: filter });
 
   useEffect(() => {
-    const getData = async () => {
-      const rebalanceAssets = await fetch(
-        `${NEXT_PUBLIC_SERVER_URL}/get-all-spot-usdt-pairs`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      ).then((res) => res.json());
-
-      if (rebalanceAssets?.data.length > 0) {
-        setFilter(rebalanceAssets.data[0].id);
-      }
-    };
-    getData();
-  }, []);
-
-  useEffect(() => {
     const spread = data.map((d) => ({
       value: d.spread,
       time: d.time,

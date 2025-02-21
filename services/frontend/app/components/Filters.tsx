@@ -15,7 +15,8 @@ export const FiltersByRebalanceAssets: FC<{
   useEffect(() => {
     const getAvailableAssets = async () => {
       const assets = await getAvailableAssetsToFilter();
-      setAvailableAssets([{ id: undefined, name: "All" }, ...assets]);
+      setAvailableAssets(assets);
+      setFilterToProcess(assets[0]?.id);
     };
     getAvailableAssets();
   }, []);
