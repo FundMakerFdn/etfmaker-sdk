@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FiltersByAssets } from "app/components/Filters";
+import { FiltersByRebalanceAssets } from "app/components/Filters";
 import { useWebsocket } from "app/hooks/useWebsocket";
 import { ChartDataType } from "app/types/ChartDataType";
 import { CoinType } from "app/types/CoinType";
@@ -37,9 +37,6 @@ const groupByTime = (data: any): any => {
 };
 
 export default function Page() {
-  const [availableAssetsToFilter, setAvailableAssetsToFilter] = useState<
-    CoinType[]
-  >([]);
   const [filter, setFilter] = useState<number>();
   const [spreadDepthPercentage, setSpreadDepthPercentage] = useState<number>();
   const [spreadData, setSpreadData] = useState<ChartDataType[]>([]);
@@ -61,7 +58,6 @@ export default function Page() {
       ).then((res) => res.json());
 
       if (rebalanceAssets?.data.length > 0) {
-        setAvailableAssetsToFilter(rebalanceAssets.data);
         setFilter(rebalanceAssets.data[0].id);
       }
     };
@@ -91,11 +87,7 @@ export default function Page() {
   return (
     <div>
       <h1>Market Data Charts</h1>
-      <FiltersByAssets
-        availableAssets={availableAssetsToFilter}
-        value={filter}
-        setFilterToProcess={setFilter}
-      />
+      <FiltersByRebalanceAssets value={filter} setFilterToProcess={setFilter} />
       <h3>
         Spread depth percentage:{" "}
         {!isNaN(spreadDepthPercentage) && spreadDepthPercentage}%

@@ -4,7 +4,10 @@ import React, { useState } from "react";
 import { IndexOhclChart } from "./components/IndexOhclChart";
 import { DownloadRebalanceDataCsv } from "./components/DownloadRebalanceCsv";
 import { CurrentAPY } from "./components/CurrentAPY";
-import { FiltersByAssets, FiltersByCategory } from "./components/Filters";
+import {
+  FiltersByRebalanceAssets,
+  FiltersByCategory,
+} from "./components/Filters";
 import { SystemBacking } from "./components/charts/SystemBacking";
 import { SUSDeApy } from "./components/charts/SUSDsAPY";
 import { AvgPerpetualYieldByQuarter } from "./components/charts/AvgPerpetualYieldByQ";
@@ -43,7 +46,7 @@ export default function Page() {
       <DownloadRebalanceDataCsv type="saved" />
       <DownloadRebalanceDataCsv type="simulation" />
 
-      <FiltersByAssets value={coinId} setFilterToProcess={setCoinId} />
+      <FiltersByRebalanceAssets value={coinId} setFilterToProcess={setCoinId} />
       <FiltersByCategory
         value={categoryFilter}
         setFilterToProcess={setCategoryFilter}

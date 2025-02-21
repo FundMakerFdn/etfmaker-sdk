@@ -73,6 +73,8 @@ export class ETFDataManager {
       : moment(firstCandleDataStart).add(1, "minute");
     const endTime = moment(startTime).add(1, "minute");
 
+    let price = +rebalanceData[0].price;
+
     while (endTime.isBefore(lastCandleDataLimit)) {
       const coinsWithPrices = await this.getCoinsPriceStartEndRecords(
         coinIds,
@@ -87,10 +89,9 @@ export class ETFDataManager {
           Number(rebalanceData[0].price)
         );
 
-        const etfCandle = this.getCloseETFPrice(
-          Number(rebalanceData[0].price),
-          amountPerContracts
-        );
+        const etfCandle = this.getCloseETFPrice(price, amountPerContracts);
+
+        price = etfCandle?.close ? Number(etfCandle.close) : price;
 
         if (
           [
