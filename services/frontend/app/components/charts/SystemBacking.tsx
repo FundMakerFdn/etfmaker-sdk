@@ -51,16 +51,21 @@ const generateChartConfig = (data) => {
   return config;
 };
 
-export const SystemBacking: FC<{ coinId: number }> = ({ coinId }) => {
+export const SystemBacking: FC<{
+  coinId?: number;
+  category?: string;
+  loaded?: () => void;
+}> = ({ coinId, category, loaded }) => {
   const [data, setData] = useState([]);
 
   useEffect(() => {
     const getData = async () => {
-      const data = await getBackingSystem(coinId);
+      const data = await getBackingSystem(coinId, category);
       setData(data);
+      loaded && loaded();
     };
     getData();
-  }, []);
+  }, [coinId, category, loaded]);
 
   const chartConfig = useMemo(() => generateChartConfig(data), [data]);
 

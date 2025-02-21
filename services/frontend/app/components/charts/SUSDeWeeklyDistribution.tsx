@@ -38,20 +38,23 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export const SUSDeAPYWeeklyDistribution: FC<{
-  coinId: number;
-}> = ({ coinId }) => {
+  coinId?: number;
+  category?: string;
+  loaded?: () => void;
+}> = ({ coinId, category, loaded }) => {
   const [data, setData] = useState([]);
 
   useEffect(() => {
     const getData = async () => {
-      const APYFundingRewardData = await getApyFundingReward(coinId);
+      const APYFundingRewardData = await getApyFundingReward(coinId, category);
       const sUSDeAPYWeeklyDistribution = APYFundingRewardData
         ? processAPYDataToWeekly(APYFundingRewardData)
         : [];
       setData(sUSDeAPYWeeklyDistribution);
+      loaded && loaded();
     };
     getData();
-  }, [coinId]);
+  }, [coinId, category, loaded]);
 
   return (
     <Card className="flex flex-col">

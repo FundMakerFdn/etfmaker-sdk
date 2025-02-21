@@ -29,19 +29,25 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export const FundingDaysDistribution: FC<{ coinId: number }> = ({ coinId }) => {
+export const FundingDaysDistribution: FC<{
+  coinId?: number;
+  category?: string;
+  loaded?: () => void;
+}> = ({ coinId, category, loaded }) => {
   const [chartData, setChartData] = useState([]);
   const [status, setStatus] = useState<"success" | "loading" | "error">(
     "loading"
   );
+  const [period, setPeriod] = useState<string>();
 
   useEffect(() => {
     const getData = async () => {
       try {
-        const response = await getFundingDaysDistributionData({
+        const response = await getFundingDaysDistributionData(
           coinId,
-          period: "year",
-        });
+          period,
+          category
+        );
         const chartData = [
           {
             quality: "positive",
@@ -60,10 +66,11 @@ export const FundingDaysDistribution: FC<{ coinId: number }> = ({ coinId }) => {
         console.error("Error fetching funding days distribution data:", error);
         setStatus("error");
       }
+      loaded && loaded();
     };
 
     getData();
-  }, [coinId]);
+  }, [coinId, category, period, loaded]);
 
   if (status === "loading") return <div>Loading...</div>;
   if (status === "error") return <div>Error fetching data</div>;

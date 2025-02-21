@@ -31,6 +31,7 @@ export class CoinGeckoService {
       headers: {
         accept: "application/json",
         "x-cg-pro-api-key": this.apiKey,
+        "Accept-Encoding": "gzip, deflate",
       },
       vs_currency: "usd",
       order: "market_cap_desc",

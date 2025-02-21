@@ -19,18 +19,23 @@ import { ChartContainer, ChartTooltip } from "app/shadcn/components/ui/chart";
 import moment from "moment";
 import { getApyFundingReward } from "app/data/getApyFundingReward";
 
-export const ApyFundingReward: FC<{ coinId: number }> = ({ coinId }) => {
+export const ApyFundingReward: FC<{
+  coinId: number;
+  category: string;
+  loaded?: () => void;
+}> = ({ coinId, category, loaded }) => {
   //   const [timeRange, setTimeRange] = useState("90d");
 
   const [data, setData] = useState([]);
 
   useEffect(() => {
     const getData = async () => {
-      const data = await getApyFundingReward(coinId);
+      const data = await getApyFundingReward(coinId, category);
       setData(data);
+      loaded && loaded();
     };
     getData();
-  }, []);
+  }, [coinId, category, loaded]);
 
   return (
     <Card>

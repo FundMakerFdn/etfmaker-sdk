@@ -11,16 +11,21 @@ import {
 import { ChartContainer, ChartTooltip } from "app/shadcn/components/ui/chart";
 import { getSUSDApyData } from "app/data/getSUSDApyData";
 
-export const SUSDeApy: FC<{ coinId: number }> = ({ coinId }) => {
+export const SUSDeApy: FC<{
+  coinId?: number;
+  category?: string;
+  loaded?: () => void;
+}> = ({ coinId, category, loaded }) => {
   const [data, setData] = useState([]);
 
   useEffect(() => {
     const getData = async () => {
-      const data = await getSUSDApyData(coinId);
+      const data = await getSUSDApyData(coinId, category);
       setData(data);
+      loaded && loaded();
     };
     getData();
-  }, []);
+  }, [coinId, category, loaded]);
 
   return (
     <Card>

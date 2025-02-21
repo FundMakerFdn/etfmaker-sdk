@@ -57,14 +57,21 @@ export class ETFDataManager {
         .limit(1)
     )?.[0];
 
+    const firstCandleDataStart =
+      (
+        await DataSource.select({
+          timestamp: Candles.timestamp,
+        })
+          .from(Candles)
+          .where(inArray(Candles.coinId, coinIds))
+          .orderBy(asc(Candles.timestamp))
+          .limit(1)
+      )?.[0]?.timestamp ?? moment();
+
     const startTime = lastETFPriceTimestamp?.timestamp
       ? moment(lastETFPriceTimestamp?.timestamp).add(1, "minute")
-      : moment(moment().subtract(60, "months").add(1, "minute"));
+      : moment(firstCandleDataStart).add(1, "minute");
     const endTime = moment(startTime).add(1, "minute");
-
-    let prevReward = lastETFPriceTimestamp?.close
-      ? Number(lastETFPriceTimestamp?.close)
-      : Number(rebalanceData[0].price);
 
     while (endTime.isBefore(lastCandleDataLimit)) {
       const coinsWithPrices = await this.getCoinsPriceStartEndRecords(
@@ -73,38 +80,37 @@ export class ETFDataManager {
         endTime.valueOf()
       );
 
-      if (coinsWithPrices.length === 0) {
-        throw new Error(
-          `No coins with prices found for period ${moment(
-            startTime
-          ).toISOString()} - ${moment(endTime).toISOString()}`
+      if (coinsWithPrices.length > 0) {
+        const assetsWithWeights = await this.setAssetWeights(coinsWithPrices);
+        const amountPerContracts = this.setAmountPerContracts(
+          assetsWithWeights,
+          Number(rebalanceData[0].price)
         );
+
+        const etfCandle = this.getCloseETFPrice(
+          Number(rebalanceData[0].price),
+          amountPerContracts
+        );
+
+        if (
+          [
+            etfCandle.open,
+            etfCandle.close,
+            etfCandle.high,
+            etfCandle.low,
+          ].every((value) => value !== "")
+        ) {
+          await DataSource.insert(EtfPrice).values({
+            etfId: etfId as string,
+            timestamp: startTime.toDate(),
+            open: etfCandle.open,
+            high: etfCandle.high,
+            low: etfCandle.low,
+            close: etfCandle.close,
+          });
+        }
       }
 
-      const assetsWithWeights = await this.setAssetWeights(coinsWithPrices);
-      const amountPerContracts = this.setAmountPerContracts(
-        assetsWithWeights,
-        Number(rebalanceData[0].price)
-      );
-
-      const etfCandle = this.getCloseETFPrice(prevReward, amountPerContracts);
-
-      prevReward = Number(etfCandle.close);
-
-      if (
-        [etfCandle.open, etfCandle.close, etfCandle.high, etfCandle.low].every(
-          (value) => value !== ""
-        )
-      ) {
-        await DataSource.insert(EtfPrice).values({
-          etfId: etfId as string,
-          timestamp: startTime.toDate(),
-          open: etfCandle.open,
-          high: etfCandle.high,
-          low: etfCandle.low,
-          close: etfCandle.close,
-        });
-      }
       startTime.add(1, "minute");
       endTime.add(1, "minute");
     }
@@ -113,9 +119,24 @@ export class ETFDataManager {
   public static async setYieldETFFundingReward(
     etfId: RebalanceConfig["etfId"]
   ): Promise<void> {
+    const lastRewardDate = (
+      await DataSource.select({
+        timestamp: EtfFundingReward.timestamp,
+      })
+        .from(EtfFundingReward)
+        .where(eq(EtfFundingReward.etfId, etfId))
+        .orderBy(desc(EtfFundingReward.timestamp))
+        .limit(1)
+    )?.[0]?.timestamp;
+
+    const whereParams = [eq(Rebalance.etfId, etfId)];
+    if (lastRewardDate) {
+      whereParams.push(gte(Rebalance.timestamp, lastRewardDate));
+    }
+
     const rebalanceData = await DataSource.select()
       .from(Rebalance)
-      .where(eq(Rebalance.etfId, etfId));
+      .where(and(...whereParams));
 
     if (rebalanceData.length === 0) {
       throw new Error("Rebalance data not found");
@@ -130,7 +151,7 @@ export class ETFDataManager {
           .where(
             and(
               eq(Funding.coinId, asset.coinId),
-              gte(Funding.timestamp, new Date(rebalance.timestamp))
+              gte(Funding.timestamp, rebalance.timestamp)
             )
           )
           .orderBy(desc(Funding.timestamp))
@@ -165,6 +186,7 @@ export class ETFDataManager {
     let pnlCloseSum = new Decimal(0);
 
     for (const asset of assetsAmountPerContracts) {
+      if (asset.startTime?.id === null || asset.endTime?.id === null) continue;
       const amount = new Decimal(asset.amountPerContracts);
 
       const baseline = new Decimal(asset.startTime.close);
@@ -218,6 +240,8 @@ export class ETFDataManager {
         .orderBy(desc(Candles.timestamp))
         .limit(1);
 
+      if (startRecord.length === 0) continue;
+
       // Fetch the closest record to endtime
       let endRecord = await DataSource.select()
         .from(Candles)
@@ -230,34 +254,7 @@ export class ETFDataManager {
         .orderBy(asc(Candles.timestamp))
         .limit(1);
 
-      if (startRecord.length === 0) {
-        startRecord = [
-          {
-            open: "0",
-            high: "0",
-            low: "0",
-            close: "0",
-            volume: "0",
-            timestamp: new Date(startTime),
-            coinId,
-            id: null as any,
-          },
-        ];
-      }
-      if (endRecord.length === 0) {
-        endRecord = [
-          {
-            open: "0",
-            high: "0",
-            low: "0",
-            close: "0",
-            volume: "0",
-            timestamp: new Date(endTime),
-            coinId,
-            id: null as any,
-          },
-        ];
-      }
+      if (endRecord.length === 0) continue;
 
       result.push({
         coinId,
@@ -355,7 +352,6 @@ export class ETFDataManager {
       }
 
       if (!price) continue;
-
       result.push({
         ...asset,
         amountPerContracts: Decimal(etfPrice)

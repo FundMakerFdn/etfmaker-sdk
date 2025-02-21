@@ -1,13 +1,12 @@
 import appConfig from "app/app.config";
+import { createQueryParamsStr } from "app/helpers/createQueryParamsStr";
 
 export const getsUSDeSpreadVsTreasury = async (
   coinId?: number,
-  period?: string
+  period?: string,
+  category?: string
 ) => {
-  let filter = "";
-  if (coinId) filter = `?coinId=${coinId}`;
-
-  if (period !== "All") filter = `?period=${period}`;
+  const filter = createQueryParamsStr({ coinId, period, category });
 
   try {
     const sUSDeSpreadVs3mTreasuryData = await fetch(

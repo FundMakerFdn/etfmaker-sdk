@@ -132,44 +132,38 @@ export class RebalanceDataManager {
         endTime
       );
 
-      if (coinsWithPrices.length === 0) {
-        throw new Error(
-          `No coins with prices found for period ${moment(
-            startTime
-          ).toISOString()} - ${moment(endTime).toISOString()}`
+      if (coinsWithPrices.length > 0) {
+        const assetsWithWeights = await ETFDataManager.setAssetWeights(
+          coinsWithPrices
         );
+        const amountPerContracts = ETFDataManager.setAmountPerContracts(
+          assetsWithWeights,
+          config.initialPrice
+        );
+
+        const etfCandle = ETFDataManager.getCloseETFPrice(
+          price,
+          amountPerContracts
+        );
+
+        price =
+          Number(etfCandle?.close ?? price) > 0
+            ? Number(etfCandle?.close ?? price)
+            : 0;
+        if (price > 0) {
+          const data = {
+            etfId: config.etfId,
+            timestamp: new Date(startTime),
+            price: price.toString(),
+            data: amountPerContracts,
+            coinCategory: config?.category,
+          } satisfies Omit<RebalanceDto, "id">;
+
+          if (config?.category) data.coinCategory = config.category;
+
+          await DataSource.insert(Rebalance).values([data]);
+        }
       }
-
-      const assetsWithWeights = await ETFDataManager.setAssetWeights(
-        coinsWithPrices
-      );
-      const amountPerContracts = ETFDataManager.setAmountPerContracts(
-        assetsWithWeights,
-        config.initialPrice
-      );
-
-      const etfCandle = ETFDataManager.getCloseETFPrice(
-        price,
-        amountPerContracts
-      );
-
-      price =
-        Number(etfCandle?.close ?? price) > 0
-          ? Number(etfCandle?.close ?? price)
-          : 0;
-
-      const data = {
-        etfId: config.etfId,
-        timestamp: new Date(startTime),
-        price: price.toString(),
-        data: amountPerContracts,
-        coinCategory: config?.category,
-      } satisfies Omit<RebalanceDto, "id">;
-
-      if (config?.category) data.coinCategory = config.category;
-
-      await DataSource.insert(Rebalance).values([data]);
-
       startTime = endTime;
       endTime = moment(endTime).add(rebalancePeriodMs).valueOf();
       if (moment(endTime).isAfter(today)) break;

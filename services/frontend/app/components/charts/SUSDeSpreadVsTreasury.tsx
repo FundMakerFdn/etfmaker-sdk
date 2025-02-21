@@ -23,7 +23,11 @@ import {
 import { ChartContainer, ChartTooltip } from "app/shadcn/components/ui/chart";
 import { getsUSDeSpreadVsTreasury } from "app/data/getsUSDeSpreadVsTreasury";
 
-export const SUSDeSpreadVsTreasury: FC<{ coinId: number }> = ({ coinId }) => {
+export const SUSDeSpreadVsTreasury: FC<{
+  coinId?: number;
+  category?: string;
+  loaded?: () => void;
+}> = ({ coinId, category, loaded }) => {
   const [period, setPeriod] = useState<string>("week");
   const [data, setData] = useState<any[]>([]);
 
@@ -31,14 +35,16 @@ export const SUSDeSpreadVsTreasury: FC<{ coinId: number }> = ({ coinId }) => {
     const getData = async () => {
       const sUSDeSpreadVs3mTreasuryData = await getsUSDeSpreadVsTreasury(
         coinId,
-        period
+        period,
+        category
       );
 
       setData(sUSDeSpreadVs3mTreasuryData);
+      loaded && loaded();
     };
 
     getData();
-  }, [coinId, period]);
+  }, [coinId, period, category, loaded]);
 
   return (
     <Card>

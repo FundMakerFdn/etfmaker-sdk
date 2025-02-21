@@ -14,7 +14,7 @@ export const FiltersByAssets: FC<{
   useEffect(() => {
     const getAvailableAssets = async () => {
       const assets = await getAvailableAssetsToFilter();
-      setAvailableAssets(assets);
+      setAvailableAssets([{ id: undefined, name: "All" }, ...assets]);
     };
     getAvailableAssets();
   }, []);
@@ -25,8 +25,8 @@ export const FiltersByAssets: FC<{
         onChange={(e) => setFilterToProcess(+e.target.value)}
         value={value}
       >
-        {availableAssets.map((asset) => (
-          <option key={asset.id} value={asset.id}>
+        {availableAssets.map((asset, id) => (
+          <option key={asset?.id + id} value={asset.id}>
             {[asset.name, asset.symbol, asset.source].join(" ")}
           </option>
         ))}
@@ -44,7 +44,7 @@ export const FiltersByCategory: FC<{
   useEffect(() => {
     const getAvailableAssets = async () => {
       const categories = await getAvailableCategoriesToFilter();
-      setAvailableCategories(categories);
+      setAvailableCategories(["All", ...categories]);
     };
     getAvailableAssets();
   }, []);
@@ -52,7 +52,11 @@ export const FiltersByCategory: FC<{
   return (
     <div>
       <select
-        onChange={(e) => setFilterToProcess(e.target.value)}
+        onChange={(e) =>
+          setFilterToProcess(
+            e.target.value === "All" ? undefined : e.target.value
+          )
+        }
         value={value}
       >
         {availableCategories.map((category) => (

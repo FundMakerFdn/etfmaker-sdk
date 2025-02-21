@@ -23,23 +23,29 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export const AvgPerpetualYieldByQuarter: FC<{ coinId: number }> = ({
-  coinId,
-}) => {
+export const AvgPerpetualYieldByQuarter: FC<{
+  coinId?: number;
+  category?: string;
+  loaded?: () => void;
+}> = ({ coinId, category, loaded }) => {
   const [data, setData] = useState([]);
 
   useEffect(() => {
     const getData = async () => {
-      const data = await getAverageYieldQuartalFundingRewardData(coinId);
+      const data = await getAverageYieldQuartalFundingRewardData(
+        coinId,
+        category
+      );
       setData(
         data.map((item) => ({
           ...item,
           quarter: "Q" + item.quarter,
         }))
       );
+      loaded && loaded();
     };
     getData();
-  }, [coinId]);
+  }, [coinId, category, loaded]);
 
   return (
     <Card>

@@ -1,9 +1,10 @@
+import { createQueryParamsStr } from "app/helpers/createQueryParamsStr";
 import appConfig from "../app.config";
 
 const NEXT_PUBLIC_SERVER_URL = appConfig.NEXT_PUBLIC_SERVER_URL;
 
-export const getBackingSystem = async (coinId?: number) => {
-  const filter = coinId ? `?coinId=${coinId}` : "";
+export const getBackingSystem = async (coinId?: number, category?: string) => {
+  const filter = createQueryParamsStr({ coinId, category });
   try {
     const backingSystem = await fetch(
       `${NEXT_PUBLIC_SERVER_URL}/get-backing-system${filter}`,

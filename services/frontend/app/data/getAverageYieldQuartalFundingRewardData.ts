@@ -1,11 +1,13 @@
 import appConfig from "app/app.config";
+import { createQueryParamsStr } from "app/helpers/createQueryParamsStr";
 
 const NEXT_PUBLIC_SERVER_URL = appConfig.NEXT_PUBLIC_SERVER_URL;
 
 export const getAverageYieldQuartalFundingRewardData = async (
-  coinId?: number
+  coinId?: number,
+  category?: string
 ) => {
-  const filter = coinId ? `?coinId=${coinId}` : "";
+  const filter = createQueryParamsStr({ coinId, category });
   try {
     const averageYieldQuartalFundingRewardData = await fetch(
       `${NEXT_PUBLIC_SERVER_URL}/get-average-yield-quartal-funding-reward-data${filter}`,

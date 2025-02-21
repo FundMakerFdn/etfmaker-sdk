@@ -58,18 +58,23 @@ const generateChartConfig = (data) => {
   return config;
 };
 
-export const AverageFundingChart: FC<{ coinId: number }> = ({ coinId }) => {
+export const AverageFundingChart: FC<{
+  coinId?: number;
+  category?: string;
+  loaded?: () => void;
+}> = ({ coinId, category, loaded }) => {
   //   const [timeRange, setTimeRange] = useState("90d");
 
   const [data, setData] = useState([]);
 
   useEffect(() => {
     const getData = async () => {
-      const data = await getAverageFundingChartData(coinId);
+      const data = await getAverageFundingChartData(coinId, category);
       setData(data);
+      loaded && loaded();
     };
     getData();
-  }, []);
+  }, [coinId, category, loaded]);
 
   const chartConfig = useMemo(() => generateChartConfig(data), [data]);
 

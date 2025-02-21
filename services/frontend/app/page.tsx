@@ -14,9 +14,22 @@ import { SUSDeAPYWeeklyDistribution } from "./components/charts/SUSDeWeeklyDistr
 import { ApyFundingReward } from "./components/charts/ApyFundingReward";
 import { AverageFundingChart } from "./components/charts/AverageFundingChart";
 
+const AMOUNT_OF_LOADING_ENTRIES = 8;
+
 export default function Page() {
   const [coinId, setCoinId] = useState<number>();
-  const [categoryFilter, setCategoryFilter] = useState<string>("All");
+  const [categoryFilter, setCategoryFilter] = useState<string>();
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const loadedDataCallback = (() => {
+    let amountOfLoaded = 0;
+    return () => {
+      amountOfLoaded++;
+      if (amountOfLoaded === AMOUNT_OF_LOADING_ENTRIES) {
+        setIsLoading(false);
+      }
+    };
+  })();
 
   return (
     <div
@@ -31,13 +44,18 @@ export default function Page() {
       <DownloadRebalanceDataCsv type="simulation" />
 
       <FiltersByAssets value={coinId} setFilterToProcess={setCoinId} />
-
       <FiltersByCategory
         value={categoryFilter}
         setFilterToProcess={setCategoryFilter}
       />
 
-      <IndexOhclChart coinId={coinId} />
+      {isLoading && <div>Loading...</div>}
+
+      <IndexOhclChart
+        coinId={coinId}
+        category={categoryFilter}
+        loaded={loadedDataCallback}
+      />
 
       <div
         style={{
@@ -46,22 +64,61 @@ export default function Page() {
           gap: "2rem",
         }}
       >
-        <ApyFundingReward coinId={coinId} />
-        <CurrentAPY coinId={coinId} amountOfEntries={7} />
+        <div>
+          <ApyFundingReward
+            coinId={coinId}
+            category={categoryFilter}
+            loaded={loadedDataCallback}
+          />
+          <CurrentAPY
+            coinId={coinId}
+            amountOfEntries={7}
+            category={categoryFilter}
+            loaded={loadedDataCallback}
+          />
+        </div>
 
-        <SystemBacking coinId={coinId} />
+        <SystemBacking
+          coinId={coinId}
+          category={categoryFilter}
+          loaded={loadedDataCallback}
+        />
 
-        <AverageFundingChart coinId={coinId} />
+        <AverageFundingChart
+          coinId={coinId}
+          category={categoryFilter}
+          loaded={loadedDataCallback}
+        />
 
-        <SUSDeApy coinId={coinId} />
+        <SUSDeApy
+          coinId={coinId}
+          category={categoryFilter}
+          loaded={loadedDataCallback}
+        />
 
-        <AvgPerpetualYieldByQuarter coinId={coinId} />
+        <AvgPerpetualYieldByQuarter
+          coinId={coinId}
+          category={categoryFilter}
+          loaded={loadedDataCallback}
+        />
 
-        <FundingDaysDistribution coinId={coinId} />
+        <FundingDaysDistribution
+          coinId={coinId}
+          category={categoryFilter}
+          loaded={loadedDataCallback}
+        />
 
-        <SUSDeSpreadVsTreasury coinId={coinId} />
+        <SUSDeSpreadVsTreasury
+          coinId={coinId}
+          category={categoryFilter}
+          loaded={loadedDataCallback}
+        />
 
-        <SUSDeAPYWeeklyDistribution coinId={coinId} />
+        <SUSDeAPYWeeklyDistribution
+          coinId={coinId}
+          category={categoryFilter}
+          loaded={loadedDataCallback}
+        />
       </div>
     </div>
   );
