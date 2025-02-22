@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FiltersByRebalanceAssets } from "app/components/Filters";
+import {
+  FiltersByAllSpotUSDTPairsAssets,
+  FiltersByRebalanceAssets,
+} from "app/components/Filters";
 import { useWebsocket } from "app/hooks/useWebsocket";
 import { ChartDataType } from "app/types/ChartDataType";
 import { CoinType } from "app/types/CoinType";
@@ -68,7 +71,10 @@ export default function Page() {
   return (
     <div>
       <h1>Market Data Charts</h1>
-      <FiltersByRebalanceAssets value={filter} setFilterToProcess={setFilter} />
+      <FiltersByAllSpotUSDTPairsAssets
+        value={filter}
+        setFilterToProcess={setFilter}
+      />
       <h3>
         Spread depth percentage:{" "}
         {!isNaN(spreadDepthPercentage) && spreadDepthPercentage}%

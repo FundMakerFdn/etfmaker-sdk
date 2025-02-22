@@ -15,8 +15,7 @@ export const FiltersByRebalanceAssets: FC<{
   useEffect(() => {
     const getAvailableAssets = async () => {
       const assets = await getAvailableAssetsToFilter();
-      setAvailableAssets(assets);
-      setFilterToProcess(assets[0]?.id);
+      setAvailableAssets([{ id: undefined, name: "All" }, ...assets]);
     };
     getAvailableAssets();
   }, []);
@@ -46,7 +45,8 @@ export const FiltersByAllSpotUSDTPairsAssets: FC<{
   useEffect(() => {
     const getAvailableAssets = async () => {
       const assets = await getAvailableUsdtPairsToFilter();
-      setAvailableAssets([{ id: undefined, name: "All" }, ...assets]);
+      setAvailableAssets(assets);
+      setFilterToProcess(assets[0]?.id);
     };
     getAvailableAssets();
   }, []);

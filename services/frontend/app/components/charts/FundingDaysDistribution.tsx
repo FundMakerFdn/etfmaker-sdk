@@ -5,7 +5,6 @@ import { Pie, PieChart } from "recharts";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "../../shadcn/components/ui/card";
@@ -79,7 +78,6 @@ export const FundingDaysDistribution: FC<{
     <Card className="flex flex-col">
       <CardHeader className="items-center pb-0">
         <CardTitle>Funding Days Distribution</CardTitle>
-        <CardDescription>January - June 2024</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 pb-0">
         <ChartContainer
