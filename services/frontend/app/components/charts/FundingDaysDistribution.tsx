@@ -51,12 +51,12 @@ export const FundingDaysDistribution: FC<{
         const chartData = [
           {
             quality: "positive",
-            days: response?.data?.positive ?? 0,
+            days: response?.positive ?? 0,
             fill: "var(--color-positive)",
           },
           {
             quality: "negative",
-            days: response?.data?.negative ?? 0,
+            days: response?.negative ?? 0,
             fill: "var(--color-negative)",
           },
         ];

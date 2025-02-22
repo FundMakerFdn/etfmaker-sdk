@@ -24,13 +24,15 @@ export class DataProcessingService {
       await DataSource.selectDistinctOn([EtfPrice.timestamp])
         .from(EtfPrice)
         .orderBy(asc(EtfPrice.timestamp))
-    ).map((etfPrice) => ({
-      time: etfPrice.timestamp.getTime() / 1000,
-      open: etfPrice.open,
-      high: etfPrice.high,
-      low: etfPrice.low,
-      close: etfPrice.close,
-    }));
+        .limit(60 * 24 * 30 * 3)
+    ) // 3 months
+      .map((etfPrice) => ({
+        time: etfPrice.timestamp.getTime() / 1000,
+        open: etfPrice.open,
+        high: etfPrice.high,
+        low: etfPrice.low,
+        close: etfPrice.close,
+      }));
   }
 
   async getAllSpotUsdtPairs(): Promise<CoinInterface[]> {

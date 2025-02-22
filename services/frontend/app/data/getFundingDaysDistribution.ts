@@ -18,9 +18,9 @@ export const getFundingDaysDistributionData = async (
       }
     ).then((res) => res.json());
 
-    return fundingDaysDistribution?.data ?? [];
+    return fundingDaysDistribution?.data ?? { positive: 0, negative: 0 };
   } catch (error) {
     console.error(error);
-    return [];
+    return { positive: 0, negative: 0 };
   }
 };
