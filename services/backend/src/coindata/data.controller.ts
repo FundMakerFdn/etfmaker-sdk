@@ -38,6 +38,7 @@ export const getETFPrices = async (req: FastifyRequest, res: FastifyReply) => {
     const data = await dataProcessingService.getETFPrices();
     res.send({ data });
   } catch (error) {
+    console.log(error);
     res.send({ error: "Can't get ETF Prices data" });
   }
 };

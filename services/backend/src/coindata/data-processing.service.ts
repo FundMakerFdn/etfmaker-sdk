@@ -7,7 +7,7 @@ import { ApyDataManager } from "./managers/apy-data.manager";
 import { FundingDataManager } from "./managers/funding-data.manager";
 import { ChartDataManager } from "./managers/charts-data.manager";
 import { ETFDataManager } from "./managers/etf-data.manager";
-import { asc, eq, and, gte, sql } from "drizzle-orm";
+import { asc, eq, and, gte, sql, desc } from "drizzle-orm";
 import { CoinInterface } from "../interfaces/Coin.interface";
 import { CoinSourceEnum } from "../enums/CoinSource.enum";
 import { CoinStatusEnum } from "../enums/CoinStatus.enum";
@@ -20,19 +20,24 @@ export class DataProcessingService {
   async getETFPrices(): Promise<
     { time: number; open: string; high: string; low: string; close: string }[]
   > {
-    return (
-      await DataSource.selectDistinctOn([EtfPrice.timestamp])
-        .from(EtfPrice)
-        .orderBy(asc(EtfPrice.timestamp))
-        .limit(60 * 24 * 30 * 3)
-    ) // 3 months
-      .map((etfPrice) => ({
-        time: etfPrice.timestamp.getTime() / 1000,
+    return DataSource.execute(
+      sql`
+      SELECT * FROM (
+        SELECT * FROM etf_price 
+        ORDER BY timestamp DESC
+        LIMIT 60 * 24 * 30 * 3 -- 3 months
+      ) sub
+      ORDER BY timestamp ASC
+    `
+    ).then((etfPrices: any) => {
+      return etfPrices.rows.map((etfPrice: any) => ({
+        time: new Date(etfPrice.timestamp).getTime() / 1000,
         open: etfPrice.open,
         high: etfPrice.high,
         low: etfPrice.low,
         close: etfPrice.close,
       }));
+    });
   }
 
   async getAllSpotUsdtPairs(): Promise<CoinInterface[]> {
