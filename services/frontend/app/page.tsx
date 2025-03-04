@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { IndexOhclChart } from "./components/IndexOhclChart";
+import { IndexOhclChart } from "./components/charts/IndexOhclChart";
 import { DownloadRebalanceDataCsv } from "./components/DownloadRebalanceCsv";
 import { CurrentAPY } from "./components/CurrentAPY";
 import {

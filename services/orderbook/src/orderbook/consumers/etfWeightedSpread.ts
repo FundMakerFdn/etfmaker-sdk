@@ -1,5 +1,5 @@
 import WebSocket from "ws";
-import { RebalanceDataManager } from "../../rebalance/managers/rebalance-data.manager";
+import { RebalanceDataManager } from "../../rebalance/rebalance-data.manager";
 import kafkaService from "../../kafka/kafka.service";
 import orderBookConsumerService from "./orderbook";
 

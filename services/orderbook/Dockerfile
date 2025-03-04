@@ -1,7 +1,5 @@
 # Use a Node.js base image
 FROM node:18-alpine
-# Install curl
-RUN apk add --no-cache curl
 
 # Set working directory
 WORKDIR /app
@@ -14,7 +12,4 @@ RUN npm install
 COPY . .
 
 # Expose the backend port
-EXPOSE 3001
-
-HEALTHCHECK --interval=10s --timeout=2s --start-period=15s \  
-    CMD node /healthcheck.js
+EXPOSE 3005

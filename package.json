@@ -2,7 +2,8 @@
   "name": "fund-maker",
   "workspaces": [
     "services/backend",
-    "services/frontend"
+    "services/frontend",
+    "services/orderbook"
   ],
   "version": "1.0.0",
   "description": "",

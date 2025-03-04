@@ -7,7 +7,7 @@ import { ApyDataManager } from "./managers/apy-data.manager";
 import { FundingDataManager } from "./managers/funding-data.manager";
 import { ChartDataManager } from "./managers/charts-data.manager";
 import { ETFDataManager } from "./managers/etf-data.manager";
-import { asc, eq, and, gte, sql, desc } from "drizzle-orm";
+import { asc, eq, and, gte, sql } from "drizzle-orm";
 import { CoinInterface } from "../interfaces/Coin.interface";
 import { CoinSourceEnum } from "../enums/CoinSource.enum";
 import { CoinStatusEnum } from "../enums/CoinStatus.enum";
@@ -17,27 +17,42 @@ import { FilterInterface } from "../interfaces/FilterInterface";
 const binanceService = new BinanceService();
 
 export class DataProcessingService {
-  async getETFPrices(): Promise<
+  async getETFPrices(
+    timeRange: string
+  ): Promise<
     { time: number; open: string; high: string; low: string; close: string }[]
   > {
-    return DataSource.execute(
-      sql`
-      SELECT * FROM (
-        SELECT * FROM etf_price 
-        ORDER BY timestamp DESC
-        LIMIT 60 * 24 * 30 * 3 -- 3 months
-      ) sub
-      ORDER BY timestamp ASC
-    `
-    ).then((etfPrices: any) => {
-      return etfPrices.rows.map((etfPrice: any) => ({
-        time: new Date(etfPrice.timestamp).getTime() / 1000,
-        open: etfPrice.open,
-        high: etfPrice.high,
-        low: etfPrice.low,
-        close: etfPrice.close,
-      }));
-    });
+    let startDate = 0;
+    switch (timeRange) {
+      case "week":
+        startDate = Date.now() - 1000 * 60 * 60 * 24 * 7;
+        break;
+      case "month":
+        startDate = Date.now() - 1000 * 60 * 60 * 24 * 30;
+        break;
+      case "year":
+        startDate = Date.now() - 1000 * 60 * 60 * 24 * 365;
+        break;
+    }
+
+    return (
+      await DataSource.selectDistinctOn([EtfPrice.timestamp], {
+        time: EtfPrice.timestamp,
+        open: EtfPrice.open,
+        high: EtfPrice.high,
+        low: EtfPrice.low,
+        close: EtfPrice.close,
+      })
+        .from(EtfPrice)
+        .where(gte(EtfPrice.timestamp, new Date(startDate)))
+        .orderBy(asc(EtfPrice.timestamp))
+    ).map((price) => ({
+      time: price.time.getTime() / 1000,
+      open: price.open,
+      high: price.high,
+      low: price.low,
+      close: price.close,
+    }));
   }
 
   async getAllSpotUsdtPairs(): Promise<CoinInterface[]> {

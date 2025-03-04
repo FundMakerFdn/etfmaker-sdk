@@ -11,17 +11,21 @@ export const IndexOhclChart: FC<{
   loaded?: () => void;
 }> = ({ coinId, category, loaded }) => {
   const [ohclData, setOhclData] = useState<OhclChartDataType[]>([]);
+  const [timeRange, setTimeRange] = useState<"all" | "week" | "month" | "year">(
+    "week"
+  );
+  const ohclChartRef = useRef(null);
+  const chartInstanceRef = useRef<any>(null);
+  const candlestickSeriesRef = useRef<any>(null);
 
   useEffect(() => {
     const getOhclData = async () => {
-      const data = await getOHCLDataInfo(coinId, category);
+      const data = await getOHCLDataInfo(timeRange, coinId, category);
       setOhclData(data);
       loaded && loaded();
     };
     getOhclData();
-  }, [coinId, category, loaded]);
-
-  const ohclChartRef = useRef(null);
+  }, [coinId, category, loaded, timeRange]);
 
   useEffect(() => {
     if (!ohclChartRef.current) return;
@@ -54,6 +58,8 @@ export const IndexOhclChart: FC<{
       },
     });
 
+    chartInstanceRef.current = ohclChart;
+
     const candlestickSeries = ohclChart.addSeries(CandlestickSeries, {
       upColor: "#26a69a",
       downColor: "#ef5350",
@@ -61,6 +67,8 @@ export const IndexOhclChart: FC<{
       wickUpColor: "#26a69a",
       wickDownColor: "#ef5350",
     });
+
+    candlestickSeriesRef.current = candlestickSeries;
 
     candlestickSeries.setData(
       ohclData.map((item) => ({
@@ -71,16 +79,31 @@ export const IndexOhclChart: FC<{
         close: +item.close,
       }))
     );
+
     ohclChart.timeScale().fitContent();
 
     return () => {
       ohclChart.remove();
     };
-  }, [ohclData]);
+  }, [ohclData.length]);
 
   return (
     <div>
       <h1>Index OHLC Chart</h1>
+      <div className="mb-4 flex gap-2">
+        <button className="border-1 p-1" onClick={() => setTimeRange("week")}>
+          Last Week
+        </button>
+        <button className="border-1 p-1" onClick={() => setTimeRange("month")}>
+          Last Month
+        </button>
+        <button className="border-1 p-1" onClick={() => setTimeRange("year")}>
+          Last Year
+        </button>
+        <button className="border-1 p-1" onClick={() => setTimeRange("all")}>
+          All Data
+        </button>
+      </div>
       <div
         ref={ohclChartRef}
         style={{ position: "relative", height: "400px" }}

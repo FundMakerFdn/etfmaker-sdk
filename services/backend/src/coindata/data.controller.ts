@@ -34,8 +34,11 @@ export const getAllSpotUsdtPairs = async (
 };
 
 export const getETFPrices = async (req: FastifyRequest, res: FastifyReply) => {
+  const queryParams = req.query as { timeRange: string };
+  const timeRange = queryParams.timeRange;
   try {
-    const data = await dataProcessingService.getETFPrices();
+    const data = await dataProcessingService.getETFPrices(timeRange);
+    console.log({ data });
     res.send({ data });
   } catch (error) {
     console.log(error);

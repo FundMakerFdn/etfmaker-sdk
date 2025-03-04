@@ -8,6 +8,7 @@ export const streamOrderBook = async (
   request: FastifyRequest
 ) => {
   const coinId = Number((request.query as { coinId: string }).coinId);
+  console.log("COIN ID", coinId);
 
   if (!coinId || isNaN(coinId)) {
     socket.close();

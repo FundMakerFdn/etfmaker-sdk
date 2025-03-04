@@ -1,0 +1,42 @@
+ services:
+  orderbook:
+    volumes:
+      - .:/app
+      - /app/node_modules
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      kafka:
+        condition: service_healthy
+      db:
+        condition: service_started
+      kafdrop:
+        condition: service_started
+      zookeeper:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - ORDERBOOK_PORT=${ORDERBOOK_PORT}
+      - APP_HOST=${APP_HOST}
+      - DATABASE_HOST=${DATABASE_HOST}
+      - DATABASE_PORT=${DATABASE_PORT}
+      - DATABASE_NAME=${DATABASE_NAME}
+      - DATABASE_USER=${DATABASE_USER}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - CHOKIDAR_USEPOLLING=true
+      - FRONTEND_URL=${FRONTEND_URL}
+      - KAFKA_URL=${KAFKA_URL}
+      - WEBSOCKET_URL=${WEBSOCKET_URL}
+
+    ports: 
+      - "3005:3005"
+    command: >
+      sh -c 'npm run dev'
+
+    networks:
+      - fund-maker-network
+
+    restart: always

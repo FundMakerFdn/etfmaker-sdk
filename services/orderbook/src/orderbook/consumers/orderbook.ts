@@ -2,7 +2,7 @@ import WebSocket from "ws";
 import kafkaService from "../../kafka/kafka.service";
 import { OrderBookInterface } from "../../interfaces/OrderBook.interface";
 import moment from "moment";
-import { RebalanceDataManager } from "../../rebalance/managers/rebalance-data.manager";
+import { RebalanceDataManager } from "../../rebalance/rebalance-data.manager";
 
 class OrderBookConsumerService {
   private readonly orderBookByCoinClients: Set<{
@@ -36,6 +36,7 @@ class OrderBookConsumerService {
 
       const onMessage = (orderBookUpdate: any) => {
         if (!orderBookUpdate.b.length || !orderBookUpdate.a.length) return;
+
         const bestBid = parseFloat(orderBookUpdate.b[0][0]);
         const bestAsk = parseFloat(orderBookUpdate.a[0][0]);
         const spread = ((bestAsk - bestBid) / bestAsk) * 100;

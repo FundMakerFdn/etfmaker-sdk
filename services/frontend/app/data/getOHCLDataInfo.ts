@@ -3,12 +3,26 @@ import GlobalConfig from "../app.config";
 
 const NEXT_PUBLIC_SERVER_URL = GlobalConfig.NEXT_PUBLIC_SERVER_URL;
 
-export const getOHCLDataInfo = async (coinId?: number, category?: string) => {
-  const filter = createQueryParamsStr({ coinId, category });
+const dataCache = new Map<string, any>();
+
+export const getOHCLDataInfo = async (
+  timeRange: "week" | "month" | "year" | "all",
+  coinId?: number,
+  category?: string
+) => {
+  const filter = createQueryParamsStr({ coinId, category, timeRange });
+
+  if (dataCache.has(filter)) {
+    console.log({ filter, dataCache });
+    return dataCache.get(filter);
+  }
+
   try {
     const ohclData = await fetch(
       `${NEXT_PUBLIC_SERVER_URL}/${
-        filter === "" ? "get-etf-prices" : `get-coin-ohcl${filter}`
+        coinId && category
+          ? `get-coin-ohcl${filter}`
+          : `get-etf-prices${filter}`
       }`,
       {
         method: "GET",
@@ -18,7 +32,9 @@ export const getOHCLDataInfo = async (coinId?: number, category?: string) => {
       }
     ).then((res) => res.json());
 
-    return ohclData?.data ?? [];
+    const data = ohclData?.data ?? [];
+    dataCache.set(filter, data);
+    return data;
   } catch (error) {
     console.error(error);
     return [];

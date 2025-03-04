@@ -3,9 +3,6 @@ import fastifyCors from "@fastify/cors";
 import { CoinGeckoRoutes } from "./routes/coingecko";
 import { CoinDataRoutes } from "./routes/coindata";
 import { ProcessingStatusService } from "./processing-status/processing-status.service";
-import { OrderbookRoutes } from "./routes/orderbook";
-import orderBookProducerService from "./orderbook/orderbook.producer.service";
-import kafkaService from "./kafka/kafka.service";
 import fastifyWebsocket from "@fastify/websocket";
 import fastifySchedulePlugin from "@fastify/schedule";
 import { CoinDataActualizationCronJob } from "./actualization/actualization.cron.service";
@@ -51,29 +48,34 @@ const bootstrap = async () => {
     });
   }
 
-  // Register the websocket plugin
-  await fastify.register(fastifyWebsocket);
-
   // Register the schedule plugin
   await fastify.register(fastifySchedulePlugin);
 
   try {
     CoinGeckoRoutes.forEach((route) => fastify.route(route));
     CoinDataRoutes.forEach((route) => fastify.route(route));
-    OrderbookRoutes.forEach((route) => fastify.route(route));
     ActualizationRoutes.forEach((route) => fastify.route(route));
     RebalanceRoutes.forEach((route) => fastify.route(route));
+
+    fastify.get("/health", async (request, reply) => {
+      const healthcheck = {
+        uptime: process.uptime(),
+        message: "OK",
+        timestamp: Date.now(),
+      };
+      try {
+        reply.send(healthcheck);
+      } catch (error) {
+        healthcheck.message = error as string;
+        reply.status(503).send();
+      }
+    });
 
     console.log("Registered Routes:");
     console.log(fastify.printRoutes({ commonPrefix: false }));
 
     // Fail all processing statuses on server start
     await ProcessingStatusService.failAll();
-
-    // Connect Kafka producer
-    await kafkaService.connectKafka(fastify);
-    // Run stream order book Binance wss to kafka
-    await orderBookProducerService.openStreamOrderBook();
 
     await fastify.listen({ port: APP_PORT, host: APP_HOST });
     fastify.log.info(`Server is running at http://${APP_HOST}:${APP_PORT}`);
