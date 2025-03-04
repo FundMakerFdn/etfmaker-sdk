@@ -6,14 +6,14 @@ const NEXT_PUBLIC_SERVER_URL = GlobalConfig.NEXT_PUBLIC_SERVER_URL;
 const dataCache = new Map<string, any>();
 
 export const getOHCLDataInfo = async (
-  timeRange: "week" | "month" | "year" | "all",
+  from?: string,
+  to?: string,
   coinId?: number,
   category?: string
 ) => {
-  const filter = createQueryParamsStr({ coinId, category, timeRange });
+  const filter = createQueryParamsStr({ coinId, category, from, to });
 
   if (dataCache.has(filter)) {
-    console.log({ filter, dataCache });
     return dataCache.get(filter);
   }
 

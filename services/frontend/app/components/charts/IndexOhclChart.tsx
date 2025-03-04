@@ -3,7 +3,27 @@
 import { getOHCLDataInfo } from "app/data/getOHCLDataInfo";
 import { OhclChartDataType } from "app/types/OhclChartDataType";
 import { CandlestickSeries, ColorType, createChart } from "lightweight-charts";
-import { useRef, useEffect, FC, useState } from "react";
+import { useRef, useEffect, FC, useState, useMemo } from "react";
+import debounce from "lodash/debounce";
+
+const fetchtOhclData = (
+  setOhclData: (data: OhclChartDataType[]) => void,
+  setIsLoading: (isLoading: boolean) => void,
+  coinId: number,
+  category: string
+) => {
+  return async (isLoading: boolean, from?: string, to?: string) => {
+    if (isLoading) return;
+    setIsLoading(true);
+    try {
+      const data = await getOHCLDataInfo(from, to, coinId, category);
+      setOhclData(data);
+    } catch (error) {
+      console.error(error);
+    }
+    setIsLoading(false);
+  };
+};
 
 export const IndexOhclChart: FC<{
   coinId: number;
@@ -11,66 +31,67 @@ export const IndexOhclChart: FC<{
   loaded?: () => void;
 }> = ({ coinId, category, loaded }) => {
   const [ohclData, setOhclData] = useState<OhclChartDataType[]>([]);
-  const [timeRange, setTimeRange] = useState<"all" | "week" | "month" | "year">(
-    "week"
-  );
   const ohclChartRef = useRef(null);
   const chartInstanceRef = useRef<any>(null);
   const candlestickSeriesRef = useRef<any>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const getOhclData = useMemo(
+    () => fetchtOhclData(setOhclData, setIsLoading, coinId, category),
+    [coinId, category, setOhclData, setIsLoading]
+  );
 
   useEffect(() => {
-    const getOhclData = async () => {
-      const data = await getOHCLDataInfo(timeRange, coinId, category);
-      setOhclData(data);
-      loaded && loaded();
-    };
-    getOhclData();
-  }, [coinId, category, loaded, timeRange]);
+    getOhclData(isLoading);
+  }, [coinId, category, loaded]);
 
   useEffect(() => {
     if (!ohclChartRef.current) return;
 
-    const ohclChart = createChart(ohclChartRef.current, {
-      width: ohclChartRef.current.clientWidth,
-      height: 400,
-      layout: {
-        background: { type: ColorType.Solid, color: "#fff" },
-        textColor: "#333",
-      },
-      grid: {
-        vertLines: { color: "#eee" },
-        horzLines: { color: "#eee" },
-      },
-      rightPriceScale: {
-        borderColor: "#ccc",
-      },
-      timeScale: {
-        borderColor: "#ccc",
-        timeVisible: true,
-        secondsVisible: false,
-        tickMarkFormatter: (time: number) => {
-          const date = new Date(time * 1000);
-          return date.toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-          });
+    if (!chartInstanceRef.current) {
+      const ohclChart = createChart(ohclChartRef.current, {
+        width: ohclChartRef.current.clientWidth,
+        height: 400,
+        layout: {
+          background: { type: ColorType.Solid, color: "#fff" },
+          textColor: "#333",
         },
-      },
-    });
+        grid: {
+          vertLines: { color: "#eee" },
+          horzLines: { color: "#eee" },
+        },
+        rightPriceScale: {
+          borderColor: "#ccc",
+        },
+        timeScale: {
+          borderColor: "#ccc",
+          timeVisible: true,
+          secondsVisible: false,
+          tickMarkFormatter: (time: number) => {
+            const date = new Date(time * 1000);
+            return date.toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            });
+          },
+        },
+      });
 
-    chartInstanceRef.current = ohclChart;
+      chartInstanceRef.current = ohclChart;
 
-    const candlestickSeries = ohclChart.addSeries(CandlestickSeries, {
-      upColor: "#26a69a",
-      downColor: "#ef5350",
-      borderVisible: false,
-      wickUpColor: "#26a69a",
-      wickDownColor: "#ef5350",
-    });
+      const candlestickSeries = ohclChart.addSeries(CandlestickSeries, {
+        upColor: "#26a69a",
+        downColor: "#ef5350",
+        borderVisible: false,
+        wickUpColor: "#26a69a",
+        wickDownColor: "#ef5350",
+      });
 
-    candlestickSeriesRef.current = candlestickSeries;
+      candlestickSeriesRef.current = candlestickSeries;
+      ohclChart.timeScale().fitContent();
+    }
 
-    candlestickSeries.setData(
+    candlestickSeriesRef.current.setData(
       ohclData.map((item) => ({
         time: item.time,
         open: +item.open,
@@ -80,30 +101,57 @@ export const IndexOhclChart: FC<{
       }))
     );
 
-    ohclChart.timeScale().fitContent();
+    const prevRange = {
+      from: +ohclData[0]?.time,
+      to: +ohclData[ohclData.length - 1]?.time,
+    };
+    let defaultRange = prevRange.to - prevRange.from;
+
+    const chartTimeRangeChangeHandler = debounce((newVisibleRange) => {
+      if (!newVisibleRange) return;
+
+      const newRange = { from: prevRange.from, to: prevRange.to };
+
+      // If the user scrolls to the left (earlier time)
+      if (newVisibleRange.from < prevRange.from) {
+        newRange.from = newVisibleRange.from - defaultRange * 0.1; // Expand the range by 10%
+      }
+
+      // If the user scrolls to the right (later time)
+      if (newVisibleRange.to > prevRange.to) {
+        newRange.to = newVisibleRange.to + defaultRange * 0.1; // Expand the range by 10%
+      }
+
+      // Ensure the range doesn't shrink below the default range
+      if (newRange.to - newRange.from < defaultRange) {
+        newRange.from = newRange.to - defaultRange;
+      }
+
+      // Update the previous range
+      prevRange.from = newRange.from;
+      prevRange.to = newRange.to;
+
+      // Fetch new data based on the expanded range
+      getOhclData(isLoading, newRange.from.toString(), newRange.to.toString());
+    }, 500);
+
+    chartInstanceRef.current
+      ?.timeScale()
+      .subscribeVisibleTimeRangeChange(chartTimeRangeChangeHandler);
 
     return () => {
-      ohclChart.remove();
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current
+          ?.timeScale()
+          .unsubscribeVisibleTimeRangeChange(chartTimeRangeChangeHandler);
+      }
     };
   }, [ohclData.length]);
 
   return (
     <div>
       <h1>Index OHLC Chart</h1>
-      <div className="mb-4 flex gap-2">
-        <button className="border-1 p-1" onClick={() => setTimeRange("week")}>
-          Last Week
-        </button>
-        <button className="border-1 p-1" onClick={() => setTimeRange("month")}>
-          Last Month
-        </button>
-        <button className="border-1 p-1" onClick={() => setTimeRange("year")}>
-          Last Year
-        </button>
-        <button className="border-1 p-1" onClick={() => setTimeRange("all")}>
-          All Data
-        </button>
-      </div>
+      {isLoading && <div>Loading...</div>}
       <div
         ref={ohclChartRef}
         style={{ position: "relative", height: "400px" }}

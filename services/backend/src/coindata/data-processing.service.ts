@@ -7,7 +7,7 @@ import { ApyDataManager } from "./managers/apy-data.manager";
 import { FundingDataManager } from "./managers/funding-data.manager";
 import { ChartDataManager } from "./managers/charts-data.manager";
 import { ETFDataManager } from "./managers/etf-data.manager";
-import { asc, eq, and, gte, sql } from "drizzle-orm";
+import { asc, eq, and, gte, sql, lte } from "drizzle-orm";
 import { CoinInterface } from "../interfaces/Coin.interface";
 import { CoinSourceEnum } from "../enums/CoinSource.enum";
 import { CoinStatusEnum } from "../enums/CoinStatus.enum";
@@ -18,40 +18,48 @@ const binanceService = new BinanceService();
 
 export class DataProcessingService {
   async getETFPrices(
-    timeRange: string
+    from?: string,
+    to?: string
   ): Promise<
     { time: number; open: string; high: string; low: string; close: string }[]
   > {
-    let startDate = 0;
-    switch (timeRange) {
-      case "week":
-        startDate = Date.now() - 1000 * 60 * 60 * 24 * 7;
-        break;
-      case "month":
-        startDate = Date.now() - 1000 * 60 * 60 * 24 * 30;
-        break;
-      case "year":
-        startDate = Date.now() - 1000 * 60 * 60 * 24 * 365;
-        break;
+    let data;
+    if (from && to) {
+      const startDate = new Date(+from * 1000).getTime();
+      const endDate = new Date(+to * 1000).getTime();
+
+      data = await DataSource.selectDistinctOn([EtfPrice.timestamp])
+        .from(EtfPrice)
+        .where(
+          and(
+            gte(EtfPrice.timestamp, new Date(startDate)),
+            lte(EtfPrice.timestamp, new Date(endDate))
+          )
+        )
+        .orderBy(asc(EtfPrice.timestamp));
     }
 
-    return (
-      await DataSource.selectDistinctOn([EtfPrice.timestamp], {
-        time: EtfPrice.timestamp,
-        open: EtfPrice.open,
-        high: EtfPrice.high,
-        low: EtfPrice.low,
-        close: EtfPrice.close,
-      })
-        .from(EtfPrice)
-        .where(gte(EtfPrice.timestamp, new Date(startDate)))
-        .orderBy(asc(EtfPrice.timestamp))
-    ).map((price) => ({
-      time: price.time.getTime() / 1000,
-      open: price.open,
-      high: price.high,
-      low: price.low,
-      close: price.close,
+    if (!data || data.length === 0) {
+      data = (
+        await DataSource.execute(
+          sql`
+        SELECT * FROM (
+          SELECT * FROM etf_price 
+          ORDER BY timestamp DESC
+          LIMIT 1000
+        ) sub
+        ORDER BY timestamp ASC
+      `
+        )
+      ).rows;
+    }
+
+    return data.map((price) => ({
+      time: new Date(price.timestamp as string).getTime() / 1000,
+      open: price.open as string,
+      high: price.high as string,
+      low: price.low as string,
+      close: price.close as string,
     }));
   }
 
