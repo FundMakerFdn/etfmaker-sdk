@@ -119,41 +119,23 @@ export class ApyDataManager {
   public static async sUSDeApy(
     etfId: RebalanceConfig["etfId"]
   ): Promise<SUSDApyReturnDto[]> {
-    const sUSDeApyDataCached = await DataSource.select({
-      etfId: sUSDeApy.etfId,
-      time: sUSDeApy.time,
-      value: sUSDeApy.value,
+    const lastCachedTimestamp = await DataSource.select({
+      latestTime: sql`MAX(${sUSDeApy.time})`.as("latestTime"),
     })
       .from(sUSDeApy)
       .where(eq(sUSDeApy.etfId, etfId))
-      .orderBy(asc(sUSDeApy.time));
+      .then((res) => res[0]?.latestTime ?? new Date(0)); // Default to epoch if no cache
 
-    const lastCachedTimestamp =
-      sUSDeApyDataCached.length > 0
-        ? moment(sUSDeApyDataCached[sUSDeApyDataCached.length - 1].time)
-        : moment(0);
-
-    const apy = [] as {
-      time: Date;
-      value: number;
-      etfId: RebalanceConfig["etfId"];
-    }[];
-
-    const eventEveryMinute = new Decimal(1).div(new Decimal(365 * 24 * 60));
-
-    const etfPriceData = await DataSource.selectDistinctOn(
-      [EtfPrice.timestamp],
-      {
-        open: EtfPrice.open,
-        close: EtfPrice.close,
-        timestamp: EtfPrice.timestamp,
-      }
-    )
+    const etfPriceData = await DataSource.select({
+      open: EtfPrice.open,
+      close: EtfPrice.close,
+      timestamp: EtfPrice.timestamp,
+    })
       .from(EtfPrice)
       .where(
         and(
           eq(EtfPrice.etfId, etfId),
-          gt(EtfPrice.timestamp, lastCachedTimestamp.toDate())
+          gt(EtfPrice.timestamp, new Date(lastCachedTimestamp as string))
         )
       )
       .orderBy(asc(EtfPrice.timestamp))
@@ -161,27 +143,35 @@ export class ApyDataManager {
 
     if (etfPriceData.length === 0) return [];
 
+    const apy: {
+      time: Date;
+      value: number;
+      etfId: RebalanceConfig["etfId"];
+    }[] = [];
+    const eventEveryMinute = 1 / (365 * 24 * 60); // Precompute fraction
+
     for (const etfPrice of etfPriceData) {
-      const closeDecimal = new Decimal(etfPrice.close);
-      const openDecimal = new Decimal(etfPrice.open);
-      const division = closeDecimal.div(openDecimal);
+      const { open, close, timestamp } = etfPrice;
 
-      const power = division.abs().pow(eventEveryMinute);
-      const sub = power.sub(1);
+      const openNum = Number(open);
+      const closeNum = Number(close);
 
-      // Restore sign: If close < open, make APY negative
-      const value = closeDecimal.gte(openDecimal)
-        ? sub.toNumber()
-        : sub.neg().toNumber();
+      if (openNum === 0) continue; // Prevent division by zero
+
+      const ratio = closeNum / openNum;
+      const power = Math.pow(Math.abs(ratio), eventEveryMinute) - 1;
 
       apy.push({
         etfId,
-        time: etfPrice.timestamp,
-        value: Number(value),
+        time: timestamp,
+        value: closeNum >= openNum ? power : -power,
       });
     }
 
-    await DataSource.insert(sUSDeApy).values(apy);
+    const chunkSize = 500; // Adjust for DB performance
+    for (let i = 0; i < apy.length; i += chunkSize) {
+      await DataSource.insert(sUSDeApy).values(apy.slice(i, i + chunkSize));
+    }
 
     return DataSource.select({
       date: sql`TO_CHAR(DATE_TRUNC('day', ${sUSDeApy.time}), 'MM/DD/YYYY')`.as(
@@ -191,8 +181,8 @@ export class ApyDataManager {
     })
       .from(sUSDeApy)
       .where(eq(sUSDeApy.etfId, etfId))
-      .groupBy(sql`date_trunc('day', ${sUSDeApy.time})`)
-      .orderBy(asc(sql`date_trunc('day', ${sUSDeApy.time})`)) as Promise<
+      .groupBy(sql`DATE_TRUNC('day', ${sUSDeApy.time})`)
+      .orderBy(asc(sql`DATE_TRUNC('day', ${sUSDeApy.time})`)) as Promise<
       SUSDApyReturnDto[]
     >;
   }
