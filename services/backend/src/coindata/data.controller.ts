@@ -34,11 +34,18 @@ export const getAllSpotUsdtPairs = async (
 };
 
 export const getETFPrices = async (req: FastifyRequest, res: FastifyReply) => {
-  const queryParams = req.query as { from?: string; to?: string };
+  const queryParams = req.query as {
+    groupBy?: string;
+    from?: string;
+    to?: string;
+  };
+
+  const groupBy = queryParams?.groupBy;
   const from = queryParams?.from;
   const to = queryParams?.to;
+
   try {
-    const data = await dataProcessingService.getETFPrices(from, to);
+    const data = await dataProcessingService.getETFPrices(groupBy, from, to);
     res.send({ data });
   } catch (error) {
     console.log(error);

@@ -3,25 +3,41 @@
 import { getOHCLDataInfo } from "app/data/getOHCLDataInfo";
 import { OhclChartDataType } from "app/types/OhclChartDataType";
 import { CandlestickSeries, ColorType, createChart } from "lightweight-charts";
-import { useRef, useEffect, FC, useState, useMemo } from "react";
-import debounce from "lodash/debounce";
+import { useRef, useEffect, FC, useMemo, useState, useCallback } from "react";
+import throttle from "lodash/throttle";
+import {
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectGroup,
+  SelectLabel,
+  SelectItem,
+  Select,
+} from "app/shadcn/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "app/shadcn/components/ui/card";
 
-const fetchtOhclData = (
-  setOhclData: (data: OhclChartDataType[]) => void,
-  setIsLoading: (isLoading: boolean) => void,
-  coinId: number,
-  category: string
-) => {
-  return async (isLoading: boolean, from?: string, to?: string) => {
+const fetchtOhclData = (coinId: number, category: string) => {
+  let isLoading = false;
+  return async (
+    groupBy: string,
+    from?: string,
+    to?: string
+  ): Promise<OhclChartDataType[]> => {
     if (isLoading) return;
-    setIsLoading(true);
+    isLoading = true;
     try {
-      const data = await getOHCLDataInfo(from, to, coinId, category);
-      setOhclData(data);
+      const data = await getOHCLDataInfo(groupBy, from, to, coinId, category);
+      isLoading = false;
+      return data;
     } catch (error) {
       console.error(error);
     }
-    setIsLoading(false);
+    isLoading = false;
   };
 };
 
@@ -30,25 +46,126 @@ export const IndexOhclChart: FC<{
   category: string;
   loaded?: () => void;
 }> = ({ coinId, category, loaded }) => {
-  const [ohclData, setOhclData] = useState<OhclChartDataType[]>([]);
   const ohclChartRef = useRef(null);
   const chartInstanceRef = useRef<any>(null);
   const candlestickSeriesRef = useRef<any>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [groupBy, setGroupBy] = useState<string>("minutes");
+  const groupByRef = useRef<string>("minutes");
+  groupByRef.current = groupBy;
+  const currentRange = useRef<{ from: string; to: string }>(null!);
 
   const getOhclData = useMemo(
-    () => fetchtOhclData(setOhclData, setIsLoading, coinId, category),
-    [coinId, category, setOhclData, setIsLoading]
+    () => fetchtOhclData(coinId, category),
+    [coinId, category]
+  );
+
+  const chartTimeRangeChangeHandler = throttle(
+    async (newVisibleRange, prevFrom, prevTo) => {
+      if (!newVisibleRange) return;
+
+      let defaultRange = prevTo - prevFrom;
+
+      if (groupByRef.current === "day") {
+        defaultRange = 24 * 60 * 60 * 30; // 30 days
+      } else if (groupByRef.current === "week") {
+        defaultRange = 24 * 60 * 60 * 7 * 30; // 30 weeks
+      } else if (groupByRef.current === "month") {
+        defaultRange = 24 * 60 * 60 * 30 * 30; // 30 months
+      } else if (groupByRef.current === "year") {
+        defaultRange = 24 * 60 * 60 * 30 * 12 * 5; // 5 years
+      }
+
+      if (currentRange.current) {
+        prevFrom = currentRange.current.from;
+        prevTo = currentRange.current.to;
+      }
+
+      const newRange = { from: prevFrom, to: prevTo };
+
+      // If the user scrolls to the left (earlier time)
+      if (+newVisibleRange.to < prevTo) {
+        const scrollPercent =
+          (prevTo - newVisibleRange.to) / defaultRange + 0.5;
+        newRange.from =
+          +newVisibleRange.from - Math.round(defaultRange * scrollPercent);
+      }
+
+      // If the user scrolls to the right (later time)
+      if (+newVisibleRange.from > prevFrom) {
+        const scrollPercent =
+          (newVisibleRange.from - prevFrom) / defaultRange + 0.5;
+        newRange.to =
+          +newVisibleRange.to + Math.round(defaultRange * scrollPercent);
+      }
+
+      if (newRange.from < 0) {
+        newRange.from = 0;
+      }
+
+      // Ensure the range doesn't shrink below the default range
+      if (newRange.to - newRange.from < defaultRange) {
+        newRange.from = +newRange.to - defaultRange;
+      }
+
+      // Fetch new data using the updated groupBy
+      const data = await getOhclData(
+        groupByRef.current,
+        newRange.from.toString(),
+        newRange.to.toString()
+      );
+
+      if (!data?.length) return;
+
+      currentRange.current = newRange;
+
+      candlestickSeriesRef.current.setData(
+        data.map((item) => ({
+          time: item.time,
+          open: +item.open,
+          high: +item.high,
+          low: +item.low,
+          close: +item.close,
+        }))
+      );
+    },
+    1000
   );
 
   useEffect(() => {
-    getOhclData(isLoading);
-  }, [coinId, category, loaded]);
+    if (!chartInstanceRef.current || !currentRange.current) return;
+
+    updateChartdata();
+  }, [groupBy]); // Rerun effect when groupBy changes
+
+  const updateChartdata = useCallback(async () => {
+    let from, to;
+    if (currentRange.current) {
+      from = currentRange.current.from;
+      to = currentRange.current.to;
+    }
+    const data = await getOhclData(from, to);
+
+    if (!data) return;
+
+    candlestickSeriesRef.current.setData(
+      data.map((item) => ({
+        time: item.time,
+        open: +item.open,
+        high: +item.high,
+        low: +item.low,
+        close: +item.close,
+      }))
+    );
+
+    return data;
+  }, []);
 
   useEffect(() => {
     if (!ohclChartRef.current) return;
 
-    if (!chartInstanceRef.current) {
+    let scrollHandler: any;
+
+    const initChart = async () => {
       const ohclChart = createChart(ohclChartRef.current, {
         width: ohclChartRef.current.clientWidth,
         height: 400,
@@ -89,73 +206,71 @@ export const IndexOhclChart: FC<{
 
       candlestickSeriesRef.current = candlestickSeries;
       ohclChart.timeScale().fitContent();
-    }
 
-    candlestickSeriesRef.current.setData(
-      ohclData.map((item) => ({
-        time: item.time,
-        open: +item.open,
-        high: +item.high,
-        low: +item.low,
-        close: +item.close,
-      }))
-    );
+      const data = await updateChartdata();
 
-    const prevRange = {
-      from: +ohclData[0]?.time,
-      to: +ohclData[ohclData.length - 1]?.time,
+      currentRange.current = {
+        from: data[0].time,
+        to: data[data.length - 1].time,
+      };
+
+      scrollHandler = (newRange) =>
+        chartTimeRangeChangeHandler(
+          newRange,
+          currentRange.current.from,
+          currentRange.current.to
+        );
+
+      chartInstanceRef.current
+        ?.timeScale()
+        .subscribeVisibleTimeRangeChange(scrollHandler);
     };
-    let defaultRange = prevRange.to - prevRange.from;
 
-    const chartTimeRangeChangeHandler = debounce((newVisibleRange) => {
-      if (!newVisibleRange) return;
-
-      const newRange = { from: prevRange.from, to: prevRange.to };
-
-      // If the user scrolls to the left (earlier time)
-      if (newVisibleRange.from < prevRange.from) {
-        newRange.from = newVisibleRange.from - defaultRange * 0.1; // Expand the range by 10%
-      }
-
-      // If the user scrolls to the right (later time)
-      if (newVisibleRange.to > prevRange.to) {
-        newRange.to = newVisibleRange.to + defaultRange * 0.1; // Expand the range by 10%
-      }
-
-      // Ensure the range doesn't shrink below the default range
-      if (newRange.to - newRange.from < defaultRange) {
-        newRange.from = newRange.to - defaultRange;
-      }
-
-      // Update the previous range
-      prevRange.from = newRange.from;
-      prevRange.to = newRange.to;
-
-      // Fetch new data based on the expanded range
-      getOhclData(isLoading, newRange.from.toString(), newRange.to.toString());
-    }, 500);
-
-    chartInstanceRef.current
-      ?.timeScale()
-      .subscribeVisibleTimeRangeChange(chartTimeRangeChangeHandler);
+    !chartInstanceRef.current && initChart();
 
     return () => {
       if (chartInstanceRef.current) {
-        chartInstanceRef.current
-          ?.timeScale()
-          .unsubscribeVisibleTimeRangeChange(chartTimeRangeChangeHandler);
+        // chartInstanceRef.current
+        //   ?.timeScale()
+        //   .unsubscribeVisibleTimeRangeChange(scrollHandler);
       }
     };
-  }, [ohclData.length]);
+  }, [coinId, category, loaded]);
 
   return (
-    <div>
-      <h1>Index OHLC Chart</h1>
-      {isLoading && <div>Loading...</div>}
-      <div
-        ref={ohclChartRef}
-        style={{ position: "relative", height: "400px" }}
-      />
-    </div>
+    <Card>
+      <CardHeader className="flex items-center gap-2 space-y-0 border-b py-5 sm:flex-row">
+        <div className="grid flex-1 gap-1 text-center sm:text-left">
+          <CardTitle>Index OHLC Chart</CardTitle>
+        </div>
+
+        <Select
+          onValueChange={(value) => {
+            setGroupBy(value);
+            groupByRef.current = value;
+          }}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder={groupBy ?? "minutes"} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectLabel>Group by: </SelectLabel>
+              <SelectItem value="minute">Minutes</SelectItem>
+              <SelectItem value="day">Days</SelectItem>
+              <SelectItem value="week">Weeks</SelectItem>
+              <SelectItem value="month">Months</SelectItem>
+              <SelectItem value="year">Years</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </CardHeader>
+      <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
+        <div
+          ref={ohclChartRef}
+          style={{ position: "relative", height: "400px" }}
+        />
+      </CardContent>
+    </Card>
   );
 };

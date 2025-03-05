@@ -18,25 +18,50 @@ const binanceService = new BinanceService();
 
 export class DataProcessingService {
   async getETFPrices(
+    groupBy?: string,
     from?: string,
     to?: string
   ): Promise<
     { time: number; open: string; high: string; low: string; close: string }[]
   > {
     let data;
+
     if (from && to) {
       const startDate = new Date(+from * 1000).getTime();
       const endDate = new Date(+to * 1000).getTime();
 
-      data = await DataSource.selectDistinctOn([EtfPrice.timestamp])
-        .from(EtfPrice)
-        .where(
-          and(
-            gte(EtfPrice.timestamp, new Date(startDate)),
-            lte(EtfPrice.timestamp, new Date(endDate))
-          )
+      data = (
+        await DataSource.execute(sql`
+        WITH grouped_data AS (
+          SELECT DISTINCT ON (DATE_TRUNC(${groupBy}, ${EtfPrice.timestamp}))
+            DATE_TRUNC(${groupBy}, ${EtfPrice.timestamp}) AS timestamp,
+            FIRST_VALUE(${
+              EtfPrice.open
+            }) OVER (PARTITION BY DATE_TRUNC(${groupBy}, ${
+          EtfPrice.timestamp
+        }) ORDER BY ${EtfPrice.timestamp} ASC) AS open,
+            MAX(${EtfPrice.high}) OVER (PARTITION BY DATE_TRUNC(${groupBy}, ${
+          EtfPrice.timestamp
+        })) AS high,
+            MIN(${EtfPrice.low}) OVER (PARTITION BY DATE_TRUNC(${groupBy}, ${
+          EtfPrice.timestamp
+        })) AS low,
+            LAST_VALUE(${
+              EtfPrice.close
+            }) OVER (PARTITION BY DATE_TRUNC(${groupBy}, ${
+          EtfPrice.timestamp
+        }) ORDER BY ${
+          EtfPrice.timestamp
+        } ASC RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS close
+          FROM ${EtfPrice}
+          WHERE ${EtfPrice.timestamp} >= ${new Date(startDate)} AND ${
+          EtfPrice.timestamp
+        } <= ${new Date(endDate)}
         )
-        .orderBy(asc(EtfPrice.timestamp));
+        SELECT * FROM grouped_data
+        ORDER BY timestamp ASC
+      `)
+      ).rows;
     }
 
     if (!data || data.length === 0) {
