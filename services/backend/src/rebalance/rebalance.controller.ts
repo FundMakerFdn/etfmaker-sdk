@@ -1,11 +1,12 @@
 import { FastifyRequest, FastifyReply } from "fastify";
-import { indexConfig } from "../index.config";
+import { indexDefaultConfig } from "../index.config";
 import { RebalanceService } from "./rebalance.service";
 import moment from "moment";
 import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
 import { CoinGeckoService } from "../coingecko/coingecko.service";
 import { DataProcessingService } from "../coindata/data-processing.service";
 import { ActualizationService } from "../actualization/actualization.service";
+import { validateEtfIndexConfig } from "../helpers/EtfIndexConfigValidator";
 
 const dataProcessingService = new DataProcessingService();
 const coingeckoService = new CoinGeckoService();
@@ -24,8 +25,29 @@ export const generateRebalanceData = async (
   req: FastifyRequest,
   res: FastifyReply
 ) => {
-  await rebalanceService.generateRebalanceData(indexConfig);
-  res.send({ message: "Rebalance data generated" });
+  const indexConfigInput = req.body as RebalanceConfig;
+
+  const indexConfig = indexConfigInput
+    ? { ...indexConfigInput, startDate: new Date(indexConfigInput?.startDate) }
+    : indexDefaultConfig;
+
+  const validatorResult = validateEtfIndexConfig(indexConfig);
+
+  if (!validatorResult.valid) {
+    res.send({
+      error: validatorResult.message,
+      example: validatorResult.example,
+    });
+    return;
+  }
+
+  try {
+    await rebalanceService.generateRebalanceData(indexDefaultConfig);
+    res.send({ message: "Rebalance data generated" });
+  } catch (error) {
+    console.error(error);
+    res.send({ error: "Can't generate ETF price data" });
+  }
 };
 
 export const getRebalanceDataCsv = async (
@@ -45,7 +67,9 @@ export const getSimulatedRebalanceDataCsv = async (
   req: FastifyRequest,
   res: FastifyReply
 ) => {
-  const data = await rebalanceService.simulateRebalanceDataCSV(indexConfig);
+  const data = await rebalanceService.simulateRebalanceDataCSV(
+    indexDefaultConfig
+  );
   res.header("Content-Type", "text/csv");
   res.header(
     "Content-Disposition",

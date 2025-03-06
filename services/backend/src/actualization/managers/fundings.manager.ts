@@ -13,10 +13,12 @@ const binanceService = new BinanceService();
 export const setFundingsData = async (
   coins: CoinInterface[]
 ): Promise<void> => {
-  const lastCoinId = coins[coins.length - 1].id;
   console.log("Fetching fundings data...");
 
-  for (const { symbol, id: coinId, source, futuresType, status } of coins) {
+  const coinsLength = coins.length;
+
+  for (let i = 0; i < coinsLength; i++) {
+    const { symbol, id: coinId, source, futuresType, status } = coins[i];
     if (
       !symbol ||
       !coinId ||
@@ -45,7 +47,7 @@ export const setFundingsData = async (
 
     try {
       await binanceService.setAllFunding(coinId, symbol, startTime);
-      const percent = (coinId / lastCoinId) * 100;
+      const percent = (i / coinsLength) * 100;
       console.log("Fetching fundings data..." + percent.toFixed(2) + "%");
     } catch (error) {
       console.error(`Error processing symbol ${symbol}:`, error);

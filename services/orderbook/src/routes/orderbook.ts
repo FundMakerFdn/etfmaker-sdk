@@ -15,7 +15,6 @@ export const OrderbookRoutes = [
       reply.send("This endpoint supports WebSocket connections only.");
     },
     wsHandler: (connection: WebSocket, request: FastifyRequest) => {
-      console.log("Connection established 11111");
       streamOrderBook(connection, request);
     },
   },

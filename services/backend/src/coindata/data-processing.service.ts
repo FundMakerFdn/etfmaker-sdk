@@ -26,42 +26,40 @@ export class DataProcessingService {
   > {
     let data;
 
-    if (from && to) {
+    if (groupBy && groupBy !== "minute") {
+      data = (
+        await DataSource.execute(sql`
+          SELECT DISTINCT
+            DATE_TRUNC(${groupBy}, timestamp) AS date,
+            FIRST_VALUE(timestamp) OVER w AS timestamp,
+            FIRST_VALUE(open) OVER w AS open,
+            MAX(high) OVER w AS high,
+            MIN(low) OVER w AS low,
+            LAST_VALUE(close) OVER w AS close
+          FROM ${EtfPrice}
+          WINDOW w AS (
+            PARTITION BY DATE_TRUNC(${groupBy}, timestamp)
+            ORDER BY timestamp
+            RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+          )
+          ORDER BY date
+        `)
+      ).rows;
+    }
+
+    if (from && to && (!data || data.length === 0)) {
       const startDate = new Date(+from * 1000).getTime();
       const endDate = new Date(+to * 1000).getTime();
 
-      data = (
-        await DataSource.execute(sql`
-        WITH grouped_data AS (
-          SELECT DISTINCT ON (DATE_TRUNC(${groupBy}, ${EtfPrice.timestamp}))
-            DATE_TRUNC(${groupBy}, ${EtfPrice.timestamp}) AS timestamp,
-            FIRST_VALUE(${
-              EtfPrice.open
-            }) OVER (PARTITION BY DATE_TRUNC(${groupBy}, ${
-          EtfPrice.timestamp
-        }) ORDER BY ${EtfPrice.timestamp} ASC) AS open,
-            MAX(${EtfPrice.high}) OVER (PARTITION BY DATE_TRUNC(${groupBy}, ${
-          EtfPrice.timestamp
-        })) AS high,
-            MIN(${EtfPrice.low}) OVER (PARTITION BY DATE_TRUNC(${groupBy}, ${
-          EtfPrice.timestamp
-        })) AS low,
-            LAST_VALUE(${
-              EtfPrice.close
-            }) OVER (PARTITION BY DATE_TRUNC(${groupBy}, ${
-          EtfPrice.timestamp
-        }) ORDER BY ${
-          EtfPrice.timestamp
-        } ASC RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS close
-          FROM ${EtfPrice}
-          WHERE ${EtfPrice.timestamp} >= ${new Date(startDate)} AND ${
-          EtfPrice.timestamp
-        } <= ${new Date(endDate)}
+      data = await DataSource.selectDistinctOn([EtfPrice.timestamp])
+        .from(EtfPrice)
+        .where(
+          and(
+            gte(EtfPrice.timestamp, new Date(startDate)),
+            lte(EtfPrice.timestamp, new Date(endDate))
+          )
         )
-        SELECT * FROM grouped_data
-        ORDER BY timestamp ASC
-      `)
-      ).rows;
+        .orderBy(asc(EtfPrice.timestamp));
     }
 
     if (!data || data.length === 0) {
@@ -77,6 +75,10 @@ export class DataProcessingService {
       `
         )
       ).rows;
+    }
+
+    if (!data) {
+      return [];
     }
 
     return data.map((price) => ({

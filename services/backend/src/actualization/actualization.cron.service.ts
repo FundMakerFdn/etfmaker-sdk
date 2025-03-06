@@ -1,13 +1,13 @@
 import { AsyncTask, CronJob } from "toad-scheduler";
 import { ActualizationService } from "./actualization.service";
-import { indexConfig } from "../index.config";
+import { indexDefaultConfig } from "../index.config";
 
 const actializationService = new ActualizationService();
 
 const CoinDataActualization = new AsyncTask(
   "Actualizing coin data",
   async () => {
-    await actializationService.actualizeData(indexConfig);
+    await actializationService.actualizeData(indexDefaultConfig);
   }
 );
 

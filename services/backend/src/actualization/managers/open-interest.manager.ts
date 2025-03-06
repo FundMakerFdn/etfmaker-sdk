@@ -11,10 +11,11 @@ const binanceService = new BinanceService();
 export const setOpenInterestData = async (
   coins: CoinInterface[]
 ): Promise<void> => {
-  const lastCoinId = coins[coins.length - 1].id;
   console.log("Fetching open interest data...");
 
-  for (const { symbol, id: coinId, source, pair } of coins) {
+  const coinsLength = coins.length;
+  for (let i = 0; i < coinsLength; i++) {
+    const { symbol, id: coinId, source } = coins[i];
     if (!symbol || !coinId || source === CoinSourceEnum.SPOT) continue;
 
     const lastOpenInterest = (
@@ -40,7 +41,7 @@ export const setOpenInterestData = async (
     try {
       await binanceService.setAllOpenInterest(coinId, symbol, startTime);
 
-      const percent = (coinId / lastCoinId) * 100;
+      const percent = (i / coinsLength) * 100;
       console.log("Fetching open interest data..." + percent.toFixed(2) + "%");
     } catch (error) {
       console.error(`Error processing symbol ${symbol}:`, error);

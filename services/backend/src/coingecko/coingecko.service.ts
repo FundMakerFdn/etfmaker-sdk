@@ -27,16 +27,17 @@ export class CoinGeckoService {
     category?: RebalanceConfig["category"]
   ): Promise<Record<string, any>[]> {
     const fetchQueue = [];
+
+    const headers = {
+      accept: "application/json",
+      "x-cg-pro-api-key": this.apiKey,
+    };
+
     const params = {
-      headers: {
-        accept: "application/json",
-        "x-cg-pro-api-key": this.apiKey,
-        "Accept-Encoding": "gzip, deflate",
-      },
       vs_currency: "usd",
       order: "market_cap_desc",
       per_page: "250",
-    } as { headers: Record<string, string>; category?: string };
+    } as { category?: string };
 
     if (category) {
       params["category"] = category;
@@ -46,6 +47,7 @@ export class CoinGeckoService {
       // 40 pages * 250 coins = 10000 coins
       fetchQueue.push(
         axios.get(`${this.apiUrl}/coins/markets`, {
+          headers,
           params: {
             ...params,
             page: page.toString(),

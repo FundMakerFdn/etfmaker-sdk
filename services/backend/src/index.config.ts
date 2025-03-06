@@ -1,5 +1,5 @@
 import { RebalanceConfig } from "./interfaces/RebalanceConfig.interface";
-export const indexConfig = {
+export const indexDefaultConfig = {
   etfId: "top20IndexHourly",
   startDate: new Date(1735290283000),
   initialPrice: 100,

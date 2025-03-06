@@ -11,11 +11,12 @@ const coingeckoService = new CoinGeckoService();
 export const setMarketCapData = async (
   coins: CoinInterface[]
 ): Promise<void> => {
-  const lastCoinId = coins[coins.length - 1].id;
   console.log("Fetching market cap data...");
   const tasks = [];
 
-  for (const { assetId, id: coinId, source } of coins) {
+  const coinsLength = coins.length;
+  for (let i = 0; i < coinsLength; i++) {
+    const { assetId, id: coinId, source } = coins[i];
     if (!coinId || !assetId || source !== CoinSourceEnum.SPOT) continue;
 
     const lastMarketCap = (
@@ -41,7 +42,7 @@ export const setMarketCapData = async (
       (async () => {
         try {
           await coingeckoService.setCoinMarketCap(assetId, coinId, days);
-          const percent = (coinId / lastCoinId) * 100;
+          const percent = (i / coinsLength) * 100;
           console.log("Fetching market cap data..." + percent.toFixed(2) + "%");
         } catch (error) {
           console.error(`Error processing coinId ${coinId}:`, error);

@@ -1,7 +1,9 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { DataProcessingService } from "./data-processing.service";
-import { indexConfig } from "../index.config";
+import { indexDefaultConfig } from "../index.config";
 import { FilterInterface } from "../interfaces/FilterInterface";
+import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
+import { validateEtfIndexConfig } from "../helpers/EtfIndexConfigValidator";
 
 const dataProcessingService = new DataProcessingService();
 
@@ -9,16 +11,60 @@ export const generateETFPriceData = async (
   req: FastifyRequest,
   res: FastifyReply
 ) => {
-  await dataProcessingService.generateETFPrice(indexConfig.etfId);
-  res.send({ message: "ETF price data generated" });
+  const indexConfigInput = req.body as RebalanceConfig;
+
+  const indexConfig = indexConfigInput
+    ? { ...indexConfigInput, startDate: new Date(indexConfigInput?.startDate) }
+    : indexDefaultConfig;
+
+  const validatorResult = validateEtfIndexConfig(indexConfig);
+
+  if (!validatorResult.valid) {
+    res.send({
+      error: validatorResult.message,
+      example: validatorResult.example,
+    });
+    return;
+  }
+
+  try {
+    await dataProcessingService.generateETFPrice(indexConfig.etfId);
+    res.send({ message: "ETF price data generated" });
+  } catch (error) {
+    console.error(error);
+    res.send({ error: "Can't generate ETF price data" });
+  }
 };
 
 export const generateEtfFundingRewardData = async (
   req: FastifyRequest,
   res: FastifyReply
 ) => {
-  await dataProcessingService.setYieldETFFundingReward(indexConfig.etfId);
-  res.send({ message: "ETF funding reward data generated" });
+  const indexConfigInput = req.body as RebalanceConfig;
+
+  const indexConfig = indexConfigInput
+    ? { ...indexConfigInput, startDate: new Date(indexConfigInput?.startDate) }
+    : indexDefaultConfig;
+
+  const validatorResult = validateEtfIndexConfig(indexConfig);
+
+  if (!validatorResult.valid) {
+    res.send({
+      error: validatorResult.message,
+      example: validatorResult.example,
+    });
+    return;
+  }
+
+  try {
+    await dataProcessingService.setYieldETFFundingReward(
+      indexDefaultConfig.etfId
+    );
+    res.send({ message: "ETF funding reward data generated" });
+  } catch (error) {
+    console.error(error);
+    res.send({ error: "Can't generate ETF price data" });
+  }
 };
 
 export const getAllSpotUsdtPairs = async (
@@ -80,7 +126,7 @@ export const getAPYFundingRate = async (
       res.send({ data });
     } else {
       const data = await dataProcessingService.fundingRewardAPY(
-        indexConfig.etfId
+        indexDefaultConfig.etfId
       );
       res.send({ data });
     }
@@ -90,7 +136,7 @@ export const getAPYFundingRate = async (
 };
 
 export const getSUSDeApy = async (req: FastifyRequest, res: FastifyReply) => {
-  const data = await dataProcessingService.sUSDeApy(indexConfig.etfId);
+  const data = await dataProcessingService.sUSDeApy(indexDefaultConfig.etfId);
   res.send({ data });
 };
 
@@ -126,7 +172,7 @@ export const getAverageFundingChartData = async (
       res.send({ data });
     } else {
       const data = await dataProcessingService.getAverageFundingChartData(
-        indexConfig.etfId
+        indexDefaultConfig.etfId
       );
       res.send({ data });
     }
@@ -152,7 +198,7 @@ export const getAverageYieldQuartalFundingData = async (
     } else {
       const data =
         await dataProcessingService.getAverageYieldQuartalFundingRewardData(
-          indexConfig.etfId
+          indexDefaultConfig.etfId
         );
       res.send({ data });
     }
@@ -209,14 +255,14 @@ export const getSUSDeSpreadVs3mTreasury = async (
   try {
     if (coinId && typeof coinId === "number" && !isNaN(coinId)) {
       const data = await dataProcessingService.getSUSDeSpreadVs3mTreasury(
-        indexConfig.etfId,
+        indexDefaultConfig.etfId,
         coinId,
         period
       );
       res.send({ data });
     } else {
       const data = await dataProcessingService.getSUSDeSpreadVs3mTreasury(
-        indexConfig.etfId,
+        indexDefaultConfig.etfId,
         undefined,
         period
       );

@@ -14,9 +14,9 @@ export const setCandlesData = async (coins: CoinInterface[]): Promise<void> => {
 
   const tasks = [];
 
-  const lastCoinId = coins[coins.length - 1].id;
-
-  for (const { symbol, id: coinId, source, status } of coins) {
+  const coinsLength = coins.length;
+  for (let i = 0; i < coinsLength; i++) {
+    const { symbol, id: coinId, source, status } = coins[i];
     if (!symbol || !coinId || status === CoinStatusEnum.DELISTED) continue;
 
     const lastCandle = (
@@ -47,7 +47,7 @@ export const setCandlesData = async (coins: CoinInterface[]): Promise<void> => {
             startTime
           );
 
-          const percent = (coinId / lastCoinId) * 100;
+          const percent = (i / coinsLength) * 100;
           console.log("Fetching candles data..." + percent.toFixed(2) + "%");
         } catch (error) {
           console.error(`Error processing symbol ${symbol}:`, error);

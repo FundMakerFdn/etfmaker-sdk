@@ -34,7 +34,7 @@ export const getOHCLDataInfo = async (
     ).then((res) => res.json());
 
     const data = ohclData?.data ?? [];
-    dataCache.set(filter, data);
+    data?.length > 0 && dataCache.set(filter, data);
     return data;
   } catch (error) {
     console.error(error);

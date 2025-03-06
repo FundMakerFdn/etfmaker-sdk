@@ -3,7 +3,7 @@
 import { getOHCLDataInfo } from "app/data/getOHCLDataInfo";
 import { OhclChartDataType } from "app/types/OhclChartDataType";
 import { CandlestickSeries, ColorType, createChart } from "lightweight-charts";
-import { useRef, useEffect, FC, useMemo, useState, useCallback } from "react";
+import { useRef, useEffect, FC, useMemo, useCallback } from "react";
 import throttle from "lodash/throttle";
 import {
   SelectTrigger,
@@ -49,9 +49,8 @@ export const IndexOhclChart: FC<{
   const ohclChartRef = useRef(null);
   const chartInstanceRef = useRef<any>(null);
   const candlestickSeriesRef = useRef<any>(null);
-  const [groupBy, setGroupBy] = useState<string>("minutes");
-  const groupByRef = useRef<string>("minutes");
-  groupByRef.current = groupBy;
+
+  const groupByRef = useRef<string>("minute");
   const currentRange = useRef<{ from: string; to: string }>(null!);
 
   const getOhclData = useMemo(
@@ -59,91 +58,80 @@ export const IndexOhclChart: FC<{
     [coinId, category]
   );
 
-  const chartTimeRangeChangeHandler = throttle(
-    async (newVisibleRange, prevFrom, prevTo) => {
-      if (!newVisibleRange) return;
+  const chartTimeRangeScrollHandler = useMemo(
+    () =>
+      throttle(async (newVisibleRange, prevFrom, prevTo) => {
+        if (!newVisibleRange) return;
 
-      let defaultRange = prevTo - prevFrom;
+        let defaultRange = prevTo - prevFrom;
 
-      if (groupByRef.current === "day") {
-        defaultRange = 24 * 60 * 60 * 30; // 30 days
-      } else if (groupByRef.current === "week") {
-        defaultRange = 24 * 60 * 60 * 7 * 30; // 30 weeks
-      } else if (groupByRef.current === "month") {
-        defaultRange = 24 * 60 * 60 * 30 * 30; // 30 months
-      } else if (groupByRef.current === "year") {
-        defaultRange = 24 * 60 * 60 * 30 * 12 * 5; // 5 years
-      }
+        if (currentRange.current) {
+          prevFrom = currentRange.current.from;
+          prevTo = currentRange.current.to;
+        }
 
-      if (currentRange.current) {
-        prevFrom = currentRange.current.from;
-        prevTo = currentRange.current.to;
-      }
+        const newRange = { from: prevFrom, to: prevTo };
 
-      const newRange = { from: prevFrom, to: prevTo };
+        // If the user scrolls to the left (earlier time)
+        if (+newVisibleRange.to < prevTo) {
+          const scrollPercent =
+            (prevTo - newVisibleRange.to) / defaultRange + 0.5;
+          newRange.from =
+            +newVisibleRange.from - Math.round(defaultRange * scrollPercent);
+        }
 
-      // If the user scrolls to the left (earlier time)
-      if (+newVisibleRange.to < prevTo) {
-        const scrollPercent =
-          (prevTo - newVisibleRange.to) / defaultRange + 0.5;
-        newRange.from =
-          +newVisibleRange.from - Math.round(defaultRange * scrollPercent);
-      }
+        // If the user scrolls to the right (later time)
+        if (+newVisibleRange.from > prevFrom) {
+          const scrollPercent =
+            (newVisibleRange.from - prevFrom) / defaultRange + 0.5;
+          newRange.to =
+            +newVisibleRange.to + Math.round(defaultRange * scrollPercent);
+        }
 
-      // If the user scrolls to the right (later time)
-      if (+newVisibleRange.from > prevFrom) {
-        const scrollPercent =
-          (newVisibleRange.from - prevFrom) / defaultRange + 0.5;
-        newRange.to =
-          +newVisibleRange.to + Math.round(defaultRange * scrollPercent);
-      }
+        if (newRange.from < 0) {
+          newRange.from = 0;
+        }
 
-      if (newRange.from < 0) {
-        newRange.from = 0;
-      }
+        // Ensure the range doesn't shrink below the default range
+        if (newRange.to - newRange.from < defaultRange) {
+          newRange.from = +newRange.to - defaultRange;
+        }
 
-      // Ensure the range doesn't shrink below the default range
-      if (newRange.to - newRange.from < defaultRange) {
-        newRange.from = +newRange.to - defaultRange;
-      }
+        let data;
+        if (groupByRef.current === "minute") {
+          data = await getOhclData(
+            groupByRef.current,
+            newRange.from.toString(),
+            newRange.to.toString()
+          );
+        } else {
+          data = await getOhclData(groupByRef.current);
+        }
 
-      // Fetch new data using the updated groupBy
-      const data = await getOhclData(
-        groupByRef.current,
-        newRange.from.toString(),
-        newRange.to.toString()
-      );
+        if (!data?.length) return;
 
-      if (!data?.length) return;
+        currentRange.current = newRange;
 
-      currentRange.current = newRange;
-
-      candlestickSeriesRef.current.setData(
-        data.map((item) => ({
-          time: item.time,
-          open: +item.open,
-          high: +item.high,
-          low: +item.low,
-          close: +item.close,
-        }))
-      );
-    },
-    1000
+        candlestickSeriesRef.current.setData(
+          data.map((item) => ({
+            time: item.time,
+            open: +item.open,
+            high: +item.high,
+            low: +item.low,
+            close: +item.close,
+          }))
+        );
+      }, 1000),
+    [groupByRef, getOhclData]
   );
 
-  useEffect(() => {
-    if (!chartInstanceRef.current || !currentRange.current) return;
-
-    updateChartdata();
-  }, [groupBy]); // Rerun effect when groupBy changes
-
-  const updateChartdata = useCallback(async () => {
+  const updateChartData = useCallback(async () => {
     let from, to;
-    if (currentRange.current) {
+    if (currentRange.current && groupByRef.current === "minute") {
       from = currentRange.current.from;
       to = currentRange.current.to;
     }
-    const data = await getOhclData(from, to);
+    const data = await getOhclData(groupByRef.current, from, to);
 
     if (!data) return;
 
@@ -166,56 +154,60 @@ export const IndexOhclChart: FC<{
     let scrollHandler: any;
 
     const initChart = async () => {
-      const ohclChart = createChart(ohclChartRef.current, {
-        width: ohclChartRef.current.clientWidth,
-        height: 400,
-        layout: {
-          background: { type: ColorType.Solid, color: "#fff" },
-          textColor: "#333",
-        },
-        grid: {
-          vertLines: { color: "#eee" },
-          horzLines: { color: "#eee" },
-        },
-        rightPriceScale: {
-          borderColor: "#ccc",
-        },
-        timeScale: {
-          borderColor: "#ccc",
-          timeVisible: true,
-          secondsVisible: false,
-          tickMarkFormatter: (time: number) => {
-            const date = new Date(time * 1000);
-            return date.toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-            });
+      if (!candlestickSeriesRef.current) {
+        const ohclChart = createChart(ohclChartRef.current, {
+          width: ohclChartRef.current.clientWidth,
+          height: 400,
+          layout: {
+            background: { type: ColorType.Solid, color: "#fff" },
+            textColor: "#333",
           },
-        },
-      });
+          grid: {
+            vertLines: { color: "#eee" },
+            horzLines: { color: "#eee" },
+          },
+          rightPriceScale: {
+            borderColor: "#ccc",
+          },
+          timeScale: {
+            borderColor: "#ccc",
+            timeVisible: true,
+            secondsVisible: false,
+            tickMarkFormatter: (time: number) => {
+              const date = new Date(time * 1000);
+              return date.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              });
+            },
+          },
+        });
 
-      chartInstanceRef.current = ohclChart;
+        chartInstanceRef.current = ohclChart;
 
-      const candlestickSeries = ohclChart.addSeries(CandlestickSeries, {
-        upColor: "#26a69a",
-        downColor: "#ef5350",
-        borderVisible: false,
-        wickUpColor: "#26a69a",
-        wickDownColor: "#ef5350",
-      });
+        const candlestickSeries = ohclChart.addSeries(CandlestickSeries, {
+          upColor: "#26a69a",
+          downColor: "#ef5350",
+          borderVisible: false,
+          wickUpColor: "#26a69a",
+          wickDownColor: "#ef5350",
+        });
 
-      candlestickSeriesRef.current = candlestickSeries;
-      ohclChart.timeScale().fitContent();
+        candlestickSeriesRef.current = candlestickSeries;
+        ohclChart.timeScale().fitContent();
+      }
 
-      const data = await updateChartdata();
+      const data = await updateChartData();
 
-      currentRange.current = {
-        from: data[0].time,
-        to: data[data.length - 1].time,
-      };
+      if (data) {
+        currentRange.current = {
+          from: data[0].time,
+          to: data[data.length - 1].time,
+        };
+      }
 
       scrollHandler = (newRange) =>
-        chartTimeRangeChangeHandler(
+        chartTimeRangeScrollHandler(
           newRange,
           currentRange.current.from,
           currentRange.current.to
@@ -226,16 +218,24 @@ export const IndexOhclChart: FC<{
         .subscribeVisibleTimeRangeChange(scrollHandler);
     };
 
-    !chartInstanceRef.current && initChart();
+    initChart();
 
     return () => {
       if (chartInstanceRef.current) {
-        // chartInstanceRef.current
-        //   ?.timeScale()
-        //   .unsubscribeVisibleTimeRangeChange(scrollHandler);
+        chartInstanceRef.current
+          ?.timeScale()
+          .unsubscribeVisibleTimeRangeChange(scrollHandler);
       }
     };
   }, [coinId, category, loaded]);
+
+  const groupBySelectorHandler = useCallback(
+    (value: string) => {
+      groupByRef.current = value;
+      updateChartData();
+    },
+    [updateChartData, groupByRef]
+  );
 
   return (
     <Card>
@@ -244,14 +244,9 @@ export const IndexOhclChart: FC<{
           <CardTitle>Index OHLC Chart</CardTitle>
         </div>
 
-        <Select
-          onValueChange={(value) => {
-            setGroupBy(value);
-            groupByRef.current = value;
-          }}
-        >
+        <Select onValueChange={groupBySelectorHandler}>
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder={groupBy ?? "minutes"} />
+            <SelectValue placeholder={groupByRef.current ?? "minutes"} />
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
