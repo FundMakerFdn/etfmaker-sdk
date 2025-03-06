@@ -4,6 +4,6 @@ export const etfIdTypeCheck = (id: any): id is RebalanceConfig["etfId"] => {
   if (typeof id !== "string") {
     return false;
   }
-  const regex = /^top\d+Index(?:Yearly|Monthly|Weekly|Daily|Hourly)\w+$/;
+  const regex = /^top\d+Index(?:Yearly|Monthly|Weekly|Daily|Hourly)$/;
   return regex.test(id);
 };
