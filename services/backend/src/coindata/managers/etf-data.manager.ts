@@ -86,7 +86,7 @@ export class ETFDataManager {
         const assetsWithWeights = await this.setAssetWeights(coinsWithPrices);
         const amountPerContracts = this.setAmountPerContracts(
           assetsWithWeights,
-          Number(rebalanceData[0].price)
+          price
         );
 
         const etfCandle = this.getCloseETFPrice(price, amountPerContracts);
@@ -181,37 +181,45 @@ export class ETFDataManager {
     assetsAmountPerContracts: AmountPerContracts[]
   ): CloseETFPrices {
     const previousPrice = new Decimal(previousETFPrice);
-    let pnlOpenSum = new Decimal(0);
-    let pnlHighSum = new Decimal(0);
-    let pnlLowSum = new Decimal(0);
-    let pnlCloseSum = new Decimal(0);
+    let weightedReturnOpen = new Decimal(0);
+    let weightedReturnHigh = new Decimal(0);
+    let weightedReturnLow = new Decimal(0);
+    let weightedReturnClose = new Decimal(0);
 
     for (const asset of assetsAmountPerContracts) {
-      if (asset.startTime?.id === null || asset.endTime?.id === null) continue;
-      const amount = new Decimal(asset.amountPerContracts);
+      // Skip if candle data is missing.
+      if (
+        !asset.startTime ||
+        !asset.endTime ||
+        asset.startTime.id == null ||
+        asset.endTime.id == null
+      ) {
+        continue;
+      }
 
+      // Use asset.weight for weighted return.
+      const weight = new Decimal(asset.weight);
+      // Use startTime.close as the baseline.
       const baseline = new Decimal(asset.startTime.close);
-      const pnlOpen = new Decimal(asset.startTime.open)
-        .sub(baseline)
-        .mul(amount);
-      const pnlHigh = new Decimal(asset.startTime.high)
-        .sub(baseline)
-        .mul(amount);
-      const pnlLow = new Decimal(asset.startTime.low).sub(baseline).mul(amount);
-      const pnlClose = new Decimal(asset.endTime.close)
-        .sub(baseline)
-        .mul(amount);
 
-      pnlOpenSum = pnlOpenSum.add(pnlOpen);
-      pnlHighSum = pnlHighSum.add(pnlHigh);
-      pnlLowSum = pnlLowSum.add(pnlLow);
-      pnlCloseSum = pnlCloseSum.add(pnlClose);
+      // Calculate relative returns for each field.
+      const rOpen = new Decimal(asset.startTime.open).div(baseline).sub(1);
+      const rHigh = new Decimal(asset.startTime.high).div(baseline).sub(1);
+      const rLow = new Decimal(asset.startTime.low).div(baseline).sub(1);
+      const rClose = new Decimal(asset.endTime.close).div(baseline).sub(1);
+
+      // Accumulate weighted returns.
+      weightedReturnOpen = weightedReturnOpen.add(weight.mul(rOpen));
+      weightedReturnHigh = weightedReturnHigh.add(weight.mul(rHigh));
+      weightedReturnLow = weightedReturnLow.add(weight.mul(rLow));
+      weightedReturnClose = weightedReturnClose.add(weight.mul(rClose));
     }
 
-    const open = previousPrice.add(pnlOpenSum);
-    const close = previousPrice.add(pnlCloseSum);
-    const high = previousPrice.add(pnlHighSum);
-    const low = previousPrice.add(pnlLowSum);
+    // Apply the weighted returns multiplicatively.
+    const open = previousPrice.mul(new Decimal(1).add(weightedReturnOpen));
+    const high = previousPrice.mul(new Decimal(1).add(weightedReturnHigh));
+    const low = previousPrice.mul(new Decimal(1).add(weightedReturnLow));
+    const close = previousPrice.mul(new Decimal(1).add(weightedReturnClose));
 
     return {
       open: open.isNaN() ? "" : open.toString(),
