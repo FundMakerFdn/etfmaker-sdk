@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { eq, and, gte, desc, inArray, asc, lte } from "drizzle-orm";
+import { eq, and, gte, desc, inArray, asc, lte, gt, lt } from "drizzle-orm";
 import moment from "moment";
 import { DataSource } from "../../db/DataSource";
 import {
@@ -181,45 +181,59 @@ export class ETFDataManager {
     assetsAmountPerContracts: AmountPerContracts[]
   ): CloseETFPrices {
     const previousPrice = new Decimal(previousETFPrice);
-    let weightedReturnOpen = new Decimal(0);
-    let weightedReturnHigh = new Decimal(0);
-    let weightedReturnLow = new Decimal(0);
-    let weightedReturnClose = new Decimal(0);
+    let weightedReturnSum = new Decimal(0);
+    let validAssetCount = 0;
 
     for (const asset of assetsAmountPerContracts) {
-      // Skip if candle data is missing.
       if (
         !asset.startTime ||
         !asset.endTime ||
         asset.startTime.id == null ||
-        asset.endTime.id == null
+        asset.endTime.id == null ||
+        asset.startTime.close == null ||
+        asset.endTime.close == null
       ) {
         continue;
       }
 
-      // Use asset.weight for weighted return.
+      if (asset.startTime.timestamp === asset.endTime.timestamp) {
+        continue;
+      }
+
+      let startClose: Decimal, endClose: Decimal;
+      try {
+        startClose = new Decimal(asset.startTime.close);
+        endClose = new Decimal(asset.endTime.close);
+      } catch (e) {
+        continue;
+      }
+
+      if (!startClose.isFinite() || startClose.eq(0) || !endClose.isFinite()) {
+        continue;
+      }
+
       const weight = new Decimal(asset.weight);
-      // Use startTime.close as the baseline.
-      const baseline = new Decimal(asset.startTime.close);
 
-      // Calculate relative returns for each field.
-      const rOpen = new Decimal(asset.startTime.open).div(baseline).sub(1);
-      const rHigh = new Decimal(asset.startTime.high).div(baseline).sub(1);
-      const rLow = new Decimal(asset.startTime.low).div(baseline).sub(1);
-      const rClose = new Decimal(asset.endTime.close).div(baseline).sub(1);
+      const r = endClose.div(startClose).sub(1);
+      weightedReturnSum = weightedReturnSum.add(weight.mul(r));
 
-      // Accumulate weighted returns.
-      weightedReturnOpen = weightedReturnOpen.add(weight.mul(rOpen));
-      weightedReturnHigh = weightedReturnHigh.add(weight.mul(rHigh));
-      weightedReturnLow = weightedReturnLow.add(weight.mul(rLow));
-      weightedReturnClose = weightedReturnClose.add(weight.mul(rClose));
+      validAssetCount++;
     }
 
-    // Apply the weighted returns multiplicatively.
-    const open = previousPrice.mul(new Decimal(1).add(weightedReturnOpen));
-    const high = previousPrice.mul(new Decimal(1).add(weightedReturnHigh));
-    const low = previousPrice.mul(new Decimal(1).add(weightedReturnLow));
-    const close = previousPrice.mul(new Decimal(1).add(weightedReturnClose));
+    if (validAssetCount === 0) {
+      return {
+        open: previousPrice.toString(),
+        high: previousPrice.toString(),
+        low: previousPrice.toString(),
+        close: previousPrice.toString(),
+      };
+    }
+
+    const newPrice = previousPrice.mul(new Decimal(1).add(weightedReturnSum));
+    const open = previousPrice;
+    const close = newPrice;
+    const high = Decimal.max(open, close);
+    const low = Decimal.min(open, close);
 
     return {
       open: open.isNaN() ? "" : open.toString(),
@@ -243,7 +257,11 @@ export class ETFDataManager {
         .where(
           and(
             eq(Candles.coinId, coinId),
-            lte(Candles.timestamp, new Date(startTime))
+            lte(Candles.timestamp, new Date(startTime)),
+            gt(
+              Candles.timestamp,
+              new Date(new Date(startTime).getTime() - 2 * 60 * 1000)
+            )
           )
         )
         .orderBy(desc(Candles.timestamp))
@@ -251,13 +269,16 @@ export class ETFDataManager {
 
       if (startRecord.length === 0) continue;
 
-      // Fetch the closest record to endtime
       let endRecord = await DataSource.select()
         .from(Candles)
         .where(
           and(
             eq(Candles.coinId, coinId),
-            gte(Candles.timestamp, new Date(endTime))
+            gte(Candles.timestamp, new Date(endTime)),
+            lt(
+              Candles.timestamp,
+              new Date(new Date(endTime).getTime() + 2 * 60 * 1000)
+            )
           )
         )
         .orderBy(asc(Candles.timestamp))
