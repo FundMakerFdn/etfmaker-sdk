@@ -187,11 +187,13 @@ export class DataProcessingService {
   }
 
   generateETFPrice(etfId: RebalanceConfig["etfId"]): Promise<void> {
-    return ETFDataManager.generateETFPrice(etfId);
+    const etfDataManager = new ETFDataManager(etfId);
+    return etfDataManager.generateETFPrice(etfId);
   }
 
   setYieldETFFundingReward(etfId: RebalanceConfig["etfId"]): Promise<void> {
-    return ETFDataManager.setYieldETFFundingReward(etfId);
+    const etfDataManager = new ETFDataManager(etfId);
+    return etfDataManager.setYieldETFFundingReward(etfId);
   }
 
   getSUSDeSpreadVs3mTreasury(

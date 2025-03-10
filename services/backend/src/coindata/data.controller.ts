@@ -43,7 +43,6 @@ export const generateETFPriceData = async (
     res.send({ message: "ETF price data generated" });
   } catch (error) {
     console.error(error);
-    await ProcessingStatusService.setError(ProcessingKeysEnum.etfPrice);
     res.send({ error: "Can't generate ETF price data" });
   }
 };

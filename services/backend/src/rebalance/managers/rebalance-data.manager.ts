@@ -125,23 +125,25 @@ export class RebalanceDataManager {
 
     let price = config.initialPrice;
 
+    const etfDataManager = new ETFDataManager();
+
     while (startTime < endTime) {
-      const coinsWithPrices = await ETFDataManager.getCoinsPriceStartEndRecords(
+      const coinsWithPrices = await etfDataManager.getCoinsPriceStartEndRecords(
         coins.map((coin) => coin.id),
         startTime,
         endTime
       );
 
       if (coinsWithPrices.length > 0) {
-        const assetsWithWeights = await ETFDataManager.setAssetWeights(
+        const assetsWithWeights = await etfDataManager.setAssetWeights(
           coinsWithPrices
         );
-        const amountPerContracts = ETFDataManager.setAmountPerContracts(
+        const amountPerContracts = etfDataManager.setAmountPerContracts(
           assetsWithWeights,
           config.initialPrice
         );
 
-        const etfCandle = ETFDataManager.getCloseETFPrice(
+        const etfCandle = etfDataManager.getCloseETFPrice(
           price,
           amountPerContracts
         );
@@ -269,7 +271,9 @@ export class RebalanceDataManager {
         });
       }
 
-      const etfCandle = ETFDataManager.getCloseETFPrice(price, result);
+      const etfDataManager = new ETFDataManager();
+
+      const etfCandle = etfDataManager.getCloseETFPrice(price, result);
 
       price = Number(etfCandle?.close ?? price);
 

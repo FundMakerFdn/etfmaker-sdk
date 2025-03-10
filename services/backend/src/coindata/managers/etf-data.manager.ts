@@ -19,7 +19,15 @@ import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
 import { CloseETFPrices } from "../dto/CloseETFPricesFutures.dto";
 
 export class ETFDataManager {
-  public static async generateETFPrice(
+  etf_price: number;
+  etfId: RebalanceConfig["etfId"] | null;
+
+  constructor(etfId: RebalanceConfig["etfId"] | null = null) {
+    this.etf_price = 0;
+    this.etfId = etfId;
+  }
+
+  public async generateETFPrice(
     etfId: RebalanceConfig["etfId"]
   ): Promise<void> {
     const rebalanceData = await DataSource.select()
@@ -37,9 +45,7 @@ export class ETFDataManager {
 
     const lastCandleDataLimit =
       (
-        await DataSource.select({
-          timestamp: Candles.timestamp,
-        })
+        await DataSource.select({ timestamp: Candles.timestamp })
           .from(Candles)
           .where(inArray(Candles.coinId, coinIds))
           .orderBy(desc(Candles.timestamp))
@@ -69,14 +75,17 @@ export class ETFDataManager {
       )?.[0]?.timestamp ?? moment();
 
     const startTime = lastETFPriceTimestamp?.timestamp
-      ? moment(lastETFPriceTimestamp?.timestamp).add(1, "minute")
+      ? moment(lastETFPriceTimestamp.timestamp).add(1, "minute")
       : moment(firstCandleDataStart).add(1, "minute");
+
     const endTime = moment(startTime).add(1, "minute");
 
-    let price = +rebalanceData[0].price;
+    this.etf_price = +rebalanceData[0].price;
 
-    const amountPerContractsTasks = [];
-
+    const amountPerContractsTasks: Promise<{
+      amountPerContracts: AmountPerContracts[];
+      timestamp: Date;
+    }>[] = [];
     const totalMinutes = Math.abs(endTime.diff(lastCandleDataLimit, "minutes"));
     let amountOfMinutesLeft = totalMinutes;
 
@@ -85,69 +94,37 @@ export class ETFDataManager {
 
       const timestamp = startTime.toDate();
       amountPerContractsTasks.push(
-        (async () => {
-          const coinsWithPrices = await this.getCoinsPriceStartEndRecords(
-            coinIds,
-            startTime.valueOf(),
-            endTime.valueOf()
-          );
-
-          if (coinsWithPrices.length > 0) {
-            const assetsWithWeights = await this.setAssetWeights(
-              coinsWithPrices
-            );
-            const amountPerContracts = this.setAmountPerContracts(
-              assetsWithWeights,
-              +rebalanceData[0].price
-            );
-
-            return { amountPerContracts, timestamp };
-          }
-          return { amountPerContracts: [], timestamp };
-        })()
+        this.processMinuteData(
+          coinIds,
+          startTime,
+          endTime,
+          +rebalanceData[0].price,
+          timestamp
+        )
       );
+
+      console.log("Processing minute data", timestamp);
 
       if (
         amountPerContractsTasks.length >= 100_000 ||
         amountOfMinutesLeft === 0
       ) {
+        console.time("Processing Batch");
         const amountPerContractsData = await Promise.all(
           amountPerContractsTasks
         );
 
-        for (const {
-          amountPerContracts,
-          timestamp,
-        } of amountPerContractsData) {
-          const etfCandle = this.getCloseETFPrice(price, amountPerContracts);
+        await this.bulkInsertAmountsPerContracts(amountPerContractsData);
 
-          price = etfCandle?.close ? Number(etfCandle.close) : price;
-
-          if (
-            [
-              etfCandle.open,
-              etfCandle.close,
-              etfCandle.high,
-              etfCandle.low,
-            ].every((value) => value !== "")
-          ) {
-            await DataSource.insert(EtfPrice).values({
-              etfId: etfId as string,
-              timestamp,
-              open: etfCandle.open,
-              high: etfCandle.high,
-              low: etfCandle.low,
-              close: etfCandle.close,
-            });
-          }
-        }
+        console.timeEnd("Processing Batch");
         console.log(
-          "ETF price index" +
-            (amountOfMinutesLeft / totalMinutes) * 100 +
-            "%" +
-            " done"
+          `ETF price index ${(
+            100 -
+            (amountOfMinutesLeft / totalMinutes) * 100
+          ).toFixed(2)}% done`
         );
-        amountPerContractsTasks.length = 0;
+
+        amountPerContractsTasks.length = 0; // Clear batch
       }
 
       startTime.add(1, "minute");
@@ -155,7 +132,7 @@ export class ETFDataManager {
     }
   }
 
-  public static async setYieldETFFundingReward(
+  public async setYieldETFFundingReward(
     etfId: RebalanceConfig["etfId"]
   ): Promise<void> {
     const lastRewardDate = (
@@ -214,7 +191,7 @@ export class ETFDataManager {
     }
   }
 
-  public static getCloseETFPrice(
+  public getCloseETFPrice(
     previousETFPrice: number,
     assetsAmountPerContracts: AmountPerContracts[]
   ): CloseETFPrices {
@@ -281,7 +258,7 @@ export class ETFDataManager {
     };
   }
 
-  public static async getCoinsPriceStartEndRecords(
+  public async getCoinsPriceStartEndRecords(
     coinIds: number[],
     startTime: number,
     endTime: number
@@ -334,7 +311,7 @@ export class ETFDataManager {
     return result;
   }
 
-  public static async setAssetWeights(
+  public async setAssetWeights(
     assetsList: PricesDto[]
   ): Promise<AssetWeights[]> {
     const coinIds = assetsList.map((asset) => asset.coinId);
@@ -401,7 +378,7 @@ export class ETFDataManager {
     return finalWeights;
   }
 
-  public static setAmountPerContracts(
+  public setAmountPerContracts(
     assetsListWithWeights: AssetWeights[],
     etfPrice: number
   ): AmountPerContracts[] {
@@ -430,5 +407,64 @@ export class ETFDataManager {
     }
 
     return result;
+  }
+
+  private async processMinuteData(
+    coinIds: number[],
+    startTime: moment.Moment,
+    endTime: moment.Moment,
+    price: number,
+    timestamp: Date
+  ) {
+    const coinsWithPrices = await this.getCoinsPriceStartEndRecords(
+      coinIds,
+      startTime.valueOf(),
+      endTime.valueOf()
+    );
+
+    if (coinsWithPrices.length > 0) {
+      const assetsWithWeights = await this.setAssetWeights(coinsWithPrices);
+      const amountPerContracts = this.setAmountPerContracts(
+        assetsWithWeights,
+        price
+      );
+
+      return { amountPerContracts, timestamp };
+    }
+
+    return { amountPerContracts: [], timestamp };
+  }
+
+  private async bulkInsertAmountsPerContracts(
+    amountPerContractsData: {
+      amountPerContracts: AmountPerContracts[];
+      timestamp: Date;
+    }[]
+  ): Promise<void> {
+    for (const { amountPerContracts, timestamp } of amountPerContractsData) {
+      const etfCandle = this.getCloseETFPrice(
+        this.etf_price,
+        amountPerContracts
+      );
+
+      this.etf_price = etfCandle?.close
+        ? Number(etfCandle.close)
+        : this.etf_price;
+
+      if (
+        [etfCandle.open, etfCandle.close, etfCandle.high, etfCandle.low].every(
+          (value) => value !== ""
+        )
+      ) {
+        await DataSource.insert(EtfPrice).values({
+          etfId: this.etfId as string,
+          timestamp,
+          open: etfCandle.open,
+          high: etfCandle.high,
+          low: etfCandle.low,
+          close: etfCandle.close,
+        });
+      }
+    }
   }
 }

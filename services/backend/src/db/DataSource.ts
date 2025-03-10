@@ -9,6 +9,7 @@ const pool = new Pool({
   password: process.env.DATABASE_PASSWORD,
   database: process.env.DATABASE_NAME,
   // ssl: true, // Uncomment if SSL is required
+  max: 100,
 });
 
 export const DataSource = drizzle(pool, { schema });
