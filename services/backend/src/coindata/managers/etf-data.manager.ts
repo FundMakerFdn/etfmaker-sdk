@@ -75,45 +75,58 @@ export class ETFDataManager {
 
     let price = +rebalanceData[0].price;
 
+    const amountPerContractsTasks = [];
+
     while (endTime.isBefore(lastCandleDataLimit)) {
-      const coinsWithPrices = await this.getCoinsPriceStartEndRecords(
-        coinIds,
-        startTime.valueOf(),
-        endTime.valueOf()
+      const timestamp = startTime.toDate();
+      amountPerContractsTasks.push(
+        (async () => {
+          const coinsWithPrices = await this.getCoinsPriceStartEndRecords(
+            coinIds,
+            startTime.valueOf(),
+            endTime.valueOf()
+          );
+
+          if (coinsWithPrices.length > 0) {
+            const assetsWithWeights = await this.setAssetWeights(
+              coinsWithPrices
+            );
+            const amountPerContracts = this.setAmountPerContracts(
+              assetsWithWeights,
+              +rebalanceData[0].price
+            );
+
+            return { amountPerContracts, timestamp };
+          }
+          return { amountPerContracts: [], timestamp };
+        })()
       );
-
-      if (coinsWithPrices.length > 0) {
-        const assetsWithWeights = await this.setAssetWeights(coinsWithPrices);
-        const amountPerContracts = this.setAmountPerContracts(
-          assetsWithWeights,
-          price
-        );
-
-        const etfCandle = this.getCloseETFPrice(price, amountPerContracts);
-
-        price = etfCandle?.close ? Number(etfCandle.close) : price;
-
-        if (
-          [
-            etfCandle.open,
-            etfCandle.close,
-            etfCandle.high,
-            etfCandle.low,
-          ].every((value) => value !== "")
-        ) {
-          await DataSource.insert(EtfPrice).values({
-            etfId: etfId as string,
-            timestamp: startTime.toDate(),
-            open: etfCandle.open,
-            high: etfCandle.high,
-            low: etfCandle.low,
-            close: etfCandle.close,
-          });
-        }
-      }
 
       startTime.add(1, "minute");
       endTime.add(1, "minute");
+    }
+
+    const amountPerContractsData = await Promise.all(amountPerContractsTasks);
+
+    for (const { amountPerContracts, timestamp } of amountPerContractsData) {
+      const etfCandle = this.getCloseETFPrice(price, amountPerContracts);
+
+      price = etfCandle?.close ? Number(etfCandle.close) : price;
+
+      if (
+        [etfCandle.open, etfCandle.close, etfCandle.high, etfCandle.low].every(
+          (value) => value !== ""
+        )
+      ) {
+        await DataSource.insert(EtfPrice).values({
+          etfId: etfId as string,
+          timestamp,
+          open: etfCandle.open,
+          high: etfCandle.high,
+          low: etfCandle.low,
+          close: etfCandle.close,
+        });
+      }
     }
   }
 

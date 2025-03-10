@@ -92,6 +92,13 @@
       "when": 1739972610132,
       "tag": "0012_new_dark_beast",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1741621798126,
+      "tag": "0013_pale_talisman",
+      "breakpoints": true
     }
   ]
 }

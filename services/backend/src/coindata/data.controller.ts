@@ -4,6 +4,8 @@ import { indexDefaultConfig } from "../index.config";
 import { FilterInterface } from "../interfaces/FilterInterface";
 import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
 import { validateEtfIndexConfig } from "../helpers/EtfIndexConfigValidator";
+import { ProcessingStatusService } from "../processing-status/processing-status.service";
+import { ProcessingKeysEnum } from "../enums/Processing.enum";
 
 const dataProcessingService = new DataProcessingService();
 
@@ -28,10 +30,20 @@ export const generateETFPriceData = async (
   }
 
   try {
+    if (
+      await ProcessingStatusService.isProcessing(ProcessingKeysEnum.etfPrice)
+    ) {
+      throw new Error("Already processing ETF price data");
+    }
+
+    await ProcessingStatusService.setProcessing(ProcessingKeysEnum.etfPrice);
     await dataProcessingService.generateETFPrice(indexConfig.etfId);
+    await ProcessingStatusService.setSuccess(ProcessingKeysEnum.etfPrice);
+
     res.send({ message: "ETF price data generated" });
   } catch (error) {
     console.error(error);
+    await ProcessingStatusService.setError(ProcessingKeysEnum.etfPrice);
     res.send({ error: "Can't generate ETF price data" });
   }
 };

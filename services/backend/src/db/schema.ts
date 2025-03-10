@@ -13,10 +13,7 @@ import { enumToPgEnum } from "../helpers/EnumToPg";
 import { FuturesType } from "../enums/FuturesType.enum";
 import { CoinStatusEnum } from "../enums/CoinStatus.enum";
 import { CoinSourceEnum } from "../enums/CoinSource.enum";
-import {
-  ProcessingKeysEnum,
-  ProcessingStatusEnum,
-} from "../enums/Processing.enum";
+import { ProcessingStatusEnum } from "../enums/Processing.enum";
 
 export const CoinSourceTableEnum = enumToPgEnum(
   "coin_source_enum",
@@ -30,10 +27,6 @@ export const CoinStatusTableEnum = enumToPgEnum(
 
 export const FuturesTypeEnum = enumToPgEnum("futures_type_enum", FuturesType);
 
-export const ProcessingKeysEnumPg = enumToPgEnum(
-  "processing_keys_enum",
-  ProcessingKeysEnum
-);
 export const ProcessingStatusEnumPg = enumToPgEnum(
   "processing_status_enum",
   ProcessingStatusEnum
@@ -252,7 +245,7 @@ export const EtfFundingReward = pgTable(
 
 export const ProcessingStatus = pgTable("processing_status", {
   id: serial("id").primaryKey(),
-  key: ProcessingKeysEnumPg("key").notNull(),
+  key: text("key").notNull(),
   status: ProcessingStatusEnumPg("status").notNull(),
   timestamp: timestamp("timestamp").notNull().defaultNow(),
 });
