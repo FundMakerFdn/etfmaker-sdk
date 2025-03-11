@@ -38,7 +38,7 @@
     ports: 
       - "3001:3001"
     command: >
-      sh -c "npx drizzle-kit migrate --config=drizzle.config.ts && npm run build && node dist/index.js"
+      sh -c "npx drizzle-kit migrate --config=drizzle.config.ts && npm run build && npm run start"
 
     networks:
       - fund-maker-network

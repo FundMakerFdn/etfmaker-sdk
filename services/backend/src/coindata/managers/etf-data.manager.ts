@@ -17,6 +17,8 @@ import {
 } from "../../interfaces/Rebalance.interface";
 import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
 import { CloseETFPrices } from "../dto/CloseETFPricesFutures.dto";
+import path from "path";
+import { WorkerPool } from "../../helpers/WorkerPool";
 
 export class ETFDataManager {
   etf_price: number;
@@ -82,54 +84,49 @@ export class ETFDataManager {
 
     this.etf_price = +rebalanceData[0].price;
 
-    const amountPerContractsTasks: Promise<{
-      amountPerContracts: AmountPerContracts[];
-      timestamp: Date;
-    }>[] = [];
     const totalMinutes = Math.abs(endTime.diff(lastCandleDataLimit, "minutes"));
-    let amountOfMinutesLeft = totalMinutes;
 
-    while (amountOfMinutesLeft > 0) {
-      amountOfMinutesLeft -= 1;
+    const pool = new WorkerPool(
+      path.resolve(__dirname, "../workers/etf-price/etf-price.processing.js"),
+      12,
+      128
+    );
 
-      const timestamp = startTime.toDate();
-      amountPerContractsTasks.push(
-        this.processMinuteData(
-          coinIds,
-          startTime,
-          endTime,
-          +rebalanceData[0].price,
-          timestamp
-        )
-      );
+    // Submit one task per minute slice.
+    const tasks = [];
+    for (let i = 0; i < totalMinutes; i++) {
+      const taskData = {
+        coinIds,
+        startTime: startTime.valueOf(),
+        endTime: endTime.valueOf(),
+        price: +rebalanceData[0].price,
+        timestamp: startTime.toDate(),
+        etfId: this.etfId,
+      };
 
-      console.log("Processing minute data", timestamp);
-
-      if (
-        amountPerContractsTasks.length >= 100_000 ||
-        amountOfMinutesLeft === 0
-      ) {
-        console.time("Processing Batch");
-        const amountPerContractsData = await Promise.all(
-          amountPerContractsTasks
-        );
-
-        await this.bulkInsertAmountsPerContracts(amountPerContractsData);
-
-        console.timeEnd("Processing Batch");
-        console.log(
-          `ETF price index ${(
-            100 -
-            (amountOfMinutesLeft / totalMinutes) * 100
-          ).toFixed(2)}% done`
-        );
-
-        amountPerContractsTasks.length = 0; // Clear batch
-      }
-
+      tasks.push(pool.runTask(taskData));
       startTime.add(1, "minute");
       endTime.add(1, "minute");
     }
+    const results = await Promise.allSettled(tasks);
+
+    // Type guard: filter to only PromiseFulfilledResult
+    const fulfilledResults = results.filter(
+      (r): r is PromiseFulfilledResult<any> => r.status === "fulfilled"
+    );
+
+    // Now filter out any results with errors or missing fields.
+    const successfulResults = fulfilledResults
+      .filter((r) => r.value && !r.value.error && r.value.result)
+      .map((r) => r.value.result);
+
+    // Process the results (for example, bulk insert into the database).
+    await this.bulkInsertAmountsPerContracts(successfulResults);
+
+    // Clean up the worker pool.
+    await pool.destroy();
+
+    // Continue further data computations if needed...
   }
 
   public async setYieldETFFundingReward(
