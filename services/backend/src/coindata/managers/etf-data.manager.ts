@@ -20,6 +20,8 @@ import { CloseETFPrices } from "../dto/CloseETFPricesFutures.dto";
 import path from "path";
 import { WorkerPool } from "../../helpers/WorkerPool";
 
+const IS_DEV = process.env.NODE_ENV === "development";
+
 export class ETFDataManager {
   etf_price: number;
   etfId: RebalanceConfig["etfId"] | null;
@@ -86,11 +88,14 @@ export class ETFDataManager {
 
     const totalMinutes = Math.abs(endTime.diff(lastCandleDataLimit, "minutes"));
 
-    const pool = new WorkerPool(
-      path.resolve(__dirname, "../workers/etf-price/etf-price.processing.js"),
-      12,
-      128
-    );
+    const workerFilePath = IS_DEV
+      ? path.resolve(
+          __dirname,
+          "../workers/etf-price/etf-price.processing.bootstrap.mjs"
+        )
+      : path.resolve(__dirname, "../workers/etf-price/etf-price.processing.js");
+
+    const pool = new WorkerPool(workerFilePath, 72, 256);
 
     // Submit one task per minute slice.
     const tasks = [];
@@ -106,22 +111,20 @@ export class ETFDataManager {
 
       tasks.push(pool.runTask(taskData));
 
-      if (i > 1000 || i === totalMinutes - 1) {
-        const results = await Promise.allSettled(tasks);
+      const results = await Promise.allSettled(tasks);
 
-        // Type guard: filter to only PromiseFulfilledResult
-        const fulfilledResults = results.filter(
-          (r): r is PromiseFulfilledResult<any> => r.status === "fulfilled"
-        );
+      // Type guard: filter to only PromiseFulfilledResult
+      const fulfilledResults = results.filter(
+        (r): r is PromiseFulfilledResult<any> => r.status === "fulfilled"
+      );
 
-        // Now filter out any results with errors or missing fields.
-        const successfulResults = fulfilledResults
-          .filter((r) => r.value && !r.value.error && r.value.result)
-          .map((r) => r.value.result);
+      // Now filter out any results with errors or missing fields.
+      const successfulResults = fulfilledResults
+        .filter((r) => r.value && !r.value.error && r.value.result)
+        .map((r) => r.value.result);
 
-        // Process the results (for example, bulk insert into the database).
-        await this.bulkInsertAmountsPerContracts(successfulResults);
-      }
+      // Process the results (for example, bulk insert into the database).
+      await this.bulkInsertAmountsPerContracts(successfulResults);
 
       startTime.add(1, "minute");
       endTime.add(1, "minute");

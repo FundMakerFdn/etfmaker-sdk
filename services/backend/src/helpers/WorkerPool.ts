@@ -1,4 +1,4 @@
-import { URL } from "url";
+import { pathToFileURL } from "url";
 import { Worker } from "worker_threads";
 import os from "os";
 
@@ -13,8 +13,10 @@ interface ExtendedWorker extends Worker {
   currentTaskReject?: (reason?: any) => void;
 }
 
+const IS_DEV = process.env.NODE_ENV === "development";
+
 export class WorkerPool {
-  workerFile: string | URL;
+  workerFile: string;
   workers: ExtendedWorker[];
   idleWorkers: ExtendedWorker[];
   taskQueue: Task[];
@@ -26,7 +28,7 @@ export class WorkerPool {
   monitorInterval?: NodeJS.Timeout;
 
   constructor(
-    workerFile: string | URL,
+    workerFile: string,
     minWorkers: number,
     maxWorkers: number,
     monitorIntervalMs = 5000
@@ -52,7 +54,22 @@ export class WorkerPool {
   }
 
   private _createWorker(): ExtendedWorker {
-    const worker = new Worker(this.workerFile) as ExtendedWorker;
+    const workerParams = IS_DEV
+      ? {
+          execArgv: [
+            "--loader",
+            "tsx",
+            "--experimental-specifier-resolution=node",
+            "-r",
+            "tsconfig-paths/register",
+          ],
+        }
+      : {};
+
+    const worker = new Worker(
+      pathToFileURL(this.workerFile),
+      workerParams
+    ) as ExtendedWorker;
     worker.on("message", (msg) => {
       if (worker.currentTaskResolve) {
         worker.currentTaskResolve(msg);
@@ -63,6 +80,7 @@ export class WorkerPool {
       this._processQueue();
     });
     worker.on("error", (err) => {
+      console.error("Worker error:", err);
       if (worker.currentTaskReject) {
         worker.currentTaskReject(err);
       }
@@ -145,6 +163,7 @@ export class WorkerPool {
     ) {
       console.log("System underloaded: adding a worker");
       this._addWorker();
+      return;
     }
 
     // Determine if system is overloaded.
