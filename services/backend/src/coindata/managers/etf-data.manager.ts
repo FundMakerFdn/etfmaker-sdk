@@ -96,9 +96,13 @@ export class ETFDataManager {
       : path.resolve(__dirname, "../workers/etf-price/etf-price.processing.js");
 
     const pool = new WorkerPool(workerFilePath, 72, 256);
+    let completedTasks = 0;
+    const resultsAccumulator: any[] = [];
+    let finishAll: (value?: unknown) => void;
+    const allTasksDone = new Promise((resolve) => {
+      finishAll = resolve;
+    });
 
-    // Submit one task per minute slice.
-    const tasks = [];
     for (let i = 0; i < totalMinutes; i++) {
       const taskData = {
         coinIds,
@@ -109,25 +113,47 @@ export class ETFDataManager {
         etfId: this.etfId,
       };
 
-      tasks.push(pool.runTask(taskData));
+      pool
+        .runTask(taskData)
+        .then((result) => {
+          // Only accumulate if the result is valid.
+          if (result && !result.error && result.result) {
+            resultsAccumulator.push(result.result);
+          }
+        })
+        .catch((error) => {
+          // Optionally log or handle individual task errors.
+          console.error("Task error:", error);
+        })
+        .finally(() => {
+          completedTasks++;
 
-      const results = await Promise.allSettled(tasks);
+          // If the accumulator has reached the threshold, flush it.
+          if (resultsAccumulator.length >= 50_000) {
+            // Note: You can trigger this without blocking the loop.
+            this.bulkInsertAmountsPerContracts(resultsAccumulator).catch(
+              (err) => console.error("Bulk insert error:", err)
+            );
+            resultsAccumulator.length = 0; // Clear the accumulator.
+          }
 
-      // Type guard: filter to only PromiseFulfilledResult
-      const fulfilledResults = results.filter(
-        (r): r is PromiseFulfilledResult<any> => r.status === "fulfilled"
-      );
+          // When all tasks are complete, resolve the promise.
+          if (completedTasks === totalMinutes) {
+            finishAll();
+          }
+        });
 
-      // Now filter out any results with errors or missing fields.
-      const successfulResults = fulfilledResults
-        .filter((r) => r.value && !r.value.error && r.value.result)
-        .map((r) => r.value.result);
-
-      // Process the results (for example, bulk insert into the database).
-      await this.bulkInsertAmountsPerContracts(successfulResults);
-
+      // Update times for the next iteration.
       startTime.add(1, "minute");
       endTime.add(1, "minute");
+    }
+
+    // Wait until every task is finished.
+    await allTasksDone;
+
+    // Process any leftover results.
+    if (resultsAccumulator.length > 0) {
+      await this.bulkInsertAmountsPerContracts(resultsAccumulator);
     }
 
     // Clean up the worker pool.
@@ -443,7 +469,9 @@ export class ETFDataManager {
       timestamp: Date;
     }[]
   ): Promise<void> {
-    for (const { amountPerContracts, timestamp } of amountPerContractsData) {
+    const data = [];
+    for (let i = 0; i < amountPerContractsData.length; i++) {
+      const { amountPerContracts, timestamp } = amountPerContractsData[i];
       const etfCandle = this.getCloseETFPrice(
         this.etf_price,
         amountPerContracts
@@ -458,7 +486,7 @@ export class ETFDataManager {
           (value) => value !== ""
         )
       ) {
-        await DataSource.insert(EtfPrice).values({
+        data.push({
           etfId: this.etfId as string,
           timestamp,
           open: etfCandle.open,
@@ -466,6 +494,11 @@ export class ETFDataManager {
           low: etfCandle.low,
           close: etfCandle.close,
         });
+      }
+
+      if (i >= 10_000 || i >= amountPerContractsData.length - 1) {
+        await DataSource.insert(EtfPrice).values(data);
+        data.length = 0;
       }
     }
   }
