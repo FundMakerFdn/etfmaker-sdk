@@ -105,28 +105,30 @@ export class ETFDataManager {
       };
 
       tasks.push(pool.runTask(taskData));
+
+      if (i > 1000 || i === totalMinutes - 1) {
+        const results = await Promise.allSettled(tasks);
+
+        // Type guard: filter to only PromiseFulfilledResult
+        const fulfilledResults = results.filter(
+          (r): r is PromiseFulfilledResult<any> => r.status === "fulfilled"
+        );
+
+        // Now filter out any results with errors or missing fields.
+        const successfulResults = fulfilledResults
+          .filter((r) => r.value && !r.value.error && r.value.result)
+          .map((r) => r.value.result);
+
+        // Process the results (for example, bulk insert into the database).
+        await this.bulkInsertAmountsPerContracts(successfulResults);
+      }
+
       startTime.add(1, "minute");
       endTime.add(1, "minute");
     }
-    const results = await Promise.allSettled(tasks);
-
-    // Type guard: filter to only PromiseFulfilledResult
-    const fulfilledResults = results.filter(
-      (r): r is PromiseFulfilledResult<any> => r.status === "fulfilled"
-    );
-
-    // Now filter out any results with errors or missing fields.
-    const successfulResults = fulfilledResults
-      .filter((r) => r.value && !r.value.error && r.value.result)
-      .map((r) => r.value.result);
-
-    // Process the results (for example, bulk insert into the database).
-    await this.bulkInsertAmountsPerContracts(successfulResults);
 
     // Clean up the worker pool.
     await pool.destroy();
-
-    // Continue further data computations if needed...
   }
 
   public async setYieldETFFundingReward(
