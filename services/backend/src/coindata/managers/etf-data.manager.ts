@@ -95,7 +95,7 @@ export class ETFDataManager {
         )
       : path.resolve(__dirname, "../workers/etf-price/etf-price.processing.js");
 
-    const pool = new WorkerPool(workerFilePath, 72, 256);
+    const pool = new WorkerPool(workerFilePath, 256, 512);
     let completedTasks = 0;
     const resultsAccumulator: any[] = [];
     let finishAll: (value?: unknown) => void;

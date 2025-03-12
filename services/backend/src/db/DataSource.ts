@@ -9,7 +9,12 @@ const pool = new Pool({
   password: process.env.DATABASE_PASSWORD,
   database: process.env.DATABASE_NAME,
   // ssl: true, // Uncomment if SSL is required
-  max: 100,
+  max: 550,
+  idleTimeoutMillis: 20000,
+  connectionTimeoutMillis: 25000,
+  maxUses: 5000,
+  allowExitOnIdle: true,
+  application_name: "fund_maker_backend", // For monitoring
 });
 
 export const DataSource = drizzle(pool, { schema });

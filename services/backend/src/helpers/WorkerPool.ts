@@ -97,13 +97,11 @@ export class WorkerPool {
     const worker = this._createWorker();
     this.workers.push(worker);
     this.idleWorkers.push(worker);
-    console.log("Added worker. Total workers:", this.workers.length);
   }
 
   private _replaceWorker(oldWorker: ExtendedWorker): void {
     this.workers = this.workers.filter((w) => w !== oldWorker);
     this.idleWorkers = this.idleWorkers.filter((w) => w !== oldWorker);
-    console.log("Replacing worker. Total workers:", this.workers.length);
     this._addWorker();
   }
 
@@ -133,25 +131,12 @@ export class WorkerPool {
     const freeMemRatio = freeMem / totalMem;
     const cpuCount = os.cpus().length;
 
-    console.log(
-      "System Load:",
-      loadAvg,
-      "Free Memory Ratio:",
-      freeMemRatio,
-      "Cpu Count:",
-      cpuCount
-    );
-
     // Define thresholds (you can tune these values)
     const loadThreshold = cpuCount * 1.0; // e.g., if load is below the number of cores
     const freeMemThreshold = 0.2; // require at least 20% free memory
 
     console.log(
-      `System Load: ${loadAvg.toFixed(
-        2
-      )}, Free Memory Ratio: ${freeMemRatio.toFixed(2)}, Workers: ${
-        this.workers.length
-      }, Queue: ${this.taskQueue.length}`
+      `Workers: ${this.workers.length}, Queue: ${this.taskQueue.length}`
     );
 
     // If the system is underloaded and there are tasks waiting, add a worker if below maxWorkers.
@@ -161,7 +146,6 @@ export class WorkerPool {
       this.taskQueue.length > 0 &&
       this.workers.length < this.maxWorkers
     ) {
-      console.log("System underloaded: adding a worker");
       this._addWorker();
       return;
     }
@@ -177,7 +161,6 @@ export class WorkerPool {
     ) {
       const workerToRemove = this.idleWorkers.shift();
       if (workerToRemove) {
-        console.log("System overloaded: terminating one idle worker");
         workerToRemove.terminate();
         this.workers = this.workers.filter((w) => w !== workerToRemove);
       }
