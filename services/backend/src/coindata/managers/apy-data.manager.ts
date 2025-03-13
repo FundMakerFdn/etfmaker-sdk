@@ -3,15 +3,15 @@ import { asc, eq, and, gt, sql } from "drizzle-orm";
 import { DataSource } from "../../db/DataSource";
 import {
   EtfFundingReward,
-  EtfPrice,
   Funding,
   FundingRewardApy,
   sUSDeApy,
-} from "../../db/schema";
+} from "../../db/schema/schema";
 import moment from "moment";
 import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
 import { FundingRewardApyReturnDto } from "../dto/FundingRewardApy.dto";
 import { SUSDApyReturnDto } from "../dto/SUSDApy.dto";
+import { EtfPrice } from "../../db/schema/etfPrice";
 
 export class ApyDataManager {
   public static async fundingRewardAPY(

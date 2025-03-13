@@ -9,11 +9,11 @@ import {
   index,
   doublePrecision,
 } from "drizzle-orm/pg-core";
-import { enumToPgEnum } from "../helpers/EnumToPg";
-import { FuturesType } from "../enums/FuturesType.enum";
-import { CoinStatusEnum } from "../enums/CoinStatus.enum";
-import { CoinSourceEnum } from "../enums/CoinSource.enum";
-import { ProcessingStatusEnum } from "../enums/Processing.enum";
+import { enumToPgEnum } from "../../helpers/EnumToPg";
+import { FuturesType } from "../../enums/FuturesType.enum";
+import { CoinStatusEnum } from "../../enums/CoinStatus.enum";
+import { CoinSourceEnum } from "../../enums/CoinSource.enum";
+import { ProcessingStatusEnum } from "../../enums/Processing.enum";
 
 export const CoinSourceTableEnum = enumToPgEnum(
   "coin_source_enum",
@@ -195,28 +195,6 @@ export const Rebalance = pgTable(
     return {
       // Composite index on etfId and timestamp
       etfIdTimestampIdx: index("rebalance_etf_id_timestamp_idx").on(
-        table.etfId,
-        table.timestamp
-      ),
-    };
-  }
-);
-
-export const EtfPrice = pgTable(
-  "etf_price",
-  {
-    id: serial("id").primaryKey(),
-    etfId: text("etf_id").notNull(),
-    timestamp: timestamp("timestamp").notNull(),
-    open: text("open").notNull(),
-    high: text("high").notNull(),
-    low: text("low").notNull(),
-    close: text("close").notNull(),
-  },
-  (table) => {
-    return {
-      // Composite index on etfId and timestamp
-      etfIdTimestampIdx: index("etf_price_etf_id_timestamp_idx").on(
         table.etfId,
         table.timestamp
       ),

@@ -5,7 +5,7 @@ import {
   EtfFundingReward,
   Funding,
   Rebalance,
-} from "../../db/schema";
+} from "../../db/schema/schema";
 import { DataSource } from "../../db/DataSource";
 import {
   AmountPerContracts,

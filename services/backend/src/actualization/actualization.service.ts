@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { BinanceService } from "../binance/binance.service";
 import { CoinGeckoService } from "../coingecko/coingecko.service";
 import { DataSource } from "../db/DataSource";
-import { Coins } from "../db/schema";
+import { Coins } from "../db/schema/schema";
 import { CoinSourceEnum } from "../enums/CoinSource.enum";
 import { BinanceCoinsDataDto } from "../binance/dto/BinanceCoinsData.dto";
 import { CoinInterface } from "../interfaces/Coin.interface";

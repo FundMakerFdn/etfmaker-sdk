@@ -1,6 +1,6 @@
 import { BinanceService } from "../binance/binance.service";
 import { DataSource } from "../db/DataSource";
-import { Candles, Coins, EtfPrice } from "../db/schema";
+import { Candles, Coins } from "../db/schema/schema";
 import { CoinInfoDto } from "./dto/CoinInfo.dto";
 import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
 import { ApyDataManager } from "./managers/apy-data.manager";
@@ -13,6 +13,7 @@ import { CoinSourceEnum } from "../enums/CoinSource.enum";
 import { CoinStatusEnum } from "../enums/CoinStatus.enum";
 import { SUSDApyReturnDto } from "./dto/SUSDApy.dto";
 import { FilterInterface } from "../interfaces/FilterInterface";
+import { EtfPrice } from "../db/schema/etfPrice";
 
 const binanceService = new BinanceService();
 

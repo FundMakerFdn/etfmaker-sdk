@@ -8,7 +8,6 @@ export POSTGRES_DB=${POSTGRES_DB}
 
 # Ensure PostgreSQL uses the correct config file
 echo "Applying PostgreSQL configuration..."
-cp /etc/postgresql/postgresql.conf /var/lib/postgresql/data/postgresql.conf
 
 # Start PostgreSQL normally with default entrypoint
-exec docker-entrypoint.sh postgres -c config_file=/var/lib/postgresql/data/postgresql.conf
+exec docker-entrypoint.sh postgres -c config_file=/etc/postgresql/postgresql.conf

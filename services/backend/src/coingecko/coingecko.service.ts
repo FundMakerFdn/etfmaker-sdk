@@ -4,7 +4,7 @@ import { GetMarketCapLimiter } from "./limiters";
 import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
 import { CoinCategory } from "../interfaces/CoinCategory.interface";
 import { DataSource } from "../db/DataSource";
-import { MarketCap } from "../db/schema";
+import { MarketCap } from "../db/schema/schema";
 import categoryWhiteList from "../config/category-whitelist.json";
 
 export class CoinGeckoService {

@@ -1,6 +1,6 @@
 import { stringify } from "csv-stringify";
 import { DataSource } from "../../db/DataSource";
-import { Coins, Rebalance } from "../../db/schema";
+import { Coins, Rebalance } from "../../db/schema/schema";
 import { RebalanceDto } from "../../interfaces/Rebalance.interface";
 import { desc, inArray } from "drizzle-orm";
 import { RebalanceDataManager } from "./rebalance-data.manager";

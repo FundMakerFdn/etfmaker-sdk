@@ -4,12 +4,11 @@ import moment from "moment";
 import { DataSource } from "../../db/DataSource";
 import {
   Rebalance,
-  EtfPrice,
   Funding,
   EtfFundingReward,
   Candles,
   MarketCap,
-} from "../../db/schema";
+} from "../../db/schema/schema";
 import {
   AmountPerContracts,
   AssetWeights,
@@ -19,6 +18,7 @@ import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
 import { CloseETFPrices } from "../dto/CloseETFPricesFutures.dto";
 import path from "path";
 import { WorkerPool } from "../../helpers/WorkerPool";
+import { EtfPrice } from "../../db/schema/etfPrice";
 
 const IS_DEV = process.env.NODE_ENV === "development";
 

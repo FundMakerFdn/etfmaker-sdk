@@ -1,7 +1,7 @@
 import { eq, desc } from "drizzle-orm";
 import moment from "moment";
 import { DataSource } from "../../db/DataSource";
-import { MarketCap } from "../../db/schema";
+import { MarketCap } from "../../db/schema/schema";
 import { CoinSourceEnum } from "../../enums/CoinSource.enum";
 import { CoinInterface } from "../../interfaces/Coin.interface";
 import { CoinGeckoService } from "../../coingecko/coingecko.service";

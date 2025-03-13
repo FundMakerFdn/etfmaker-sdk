@@ -16,7 +16,7 @@ import { BinanceFundingDto } from "./dto/BinanceFunding.dto";
 import { FuturesType } from "../enums/FuturesType.enum";
 import moment from "moment";
 import { DataSource } from "../db/DataSource";
-import { Candles, Funding, OpenInterest } from "../db/schema";
+import { Candles, Funding, OpenInterest } from "../db/schema/schema";
 
 export class BinanceService {
   private readonly apiUrl: string;

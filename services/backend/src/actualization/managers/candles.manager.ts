@@ -1,7 +1,7 @@
 import { eq, desc } from "drizzle-orm";
 import moment from "moment";
 import { DataSource } from "../../db/DataSource";
-import { Candles } from "../../db/schema";
+import { Candles } from "../../db/schema/schema";
 import { CoinStatusEnum } from "../../enums/CoinStatus.enum";
 import { CoinInterface } from "../../interfaces/Coin.interface";
 import { BinanceService } from "../../binance/binance.service";
