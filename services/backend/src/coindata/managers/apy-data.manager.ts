@@ -1,17 +1,17 @@
 import Decimal from "decimal.js";
 import { asc, eq, and, gt, sql } from "drizzle-orm";
 import { DataSource } from "../../db/DataSource";
-import {
-  EtfFundingReward,
-  Funding,
-  FundingRewardApy,
-  sUSDeApy,
-} from "../../db/schema/schema";
 import moment from "moment";
 import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
 import { FundingRewardApyReturnDto } from "../dto/FundingRewardApy.dto";
 import { SUSDApyReturnDto } from "../dto/SUSDApy.dto";
 import { EtfPrice } from "../../db/schema/etfPrice";
+import {
+  FundingRewardApy,
+  EtfFundingReward,
+  Funding,
+  sUSDeApy,
+} from "../../db/schema";
 
 export class ApyDataManager {
   public static async fundingRewardAPY(

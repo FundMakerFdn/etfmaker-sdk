@@ -1,6 +1,6 @@
 import { RebalanceDataManager } from "./managers/rebalance-data.manager";
 import { DataSource } from "../db/DataSource";
-import { Rebalance } from "../db/schema/schema";
+import { Rebalance } from "../db/schema/rebalance";
 import { ProcessingKeysEnum } from "../enums/Processing.enum";
 import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
 import { ProcessingStatusService } from "../processing-status/processing-status.service";

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon",
     "build": "tsc",
-    "start": "node --max-old-space-size=30720 dist/index.js"
+    "start": "node --max-old-space-size=24576 dist/index.js"
   },
   "author": "",
   "license": "ISC",

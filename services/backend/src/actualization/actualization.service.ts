@@ -2,7 +2,6 @@ import { eq } from "drizzle-orm";
 import { BinanceService } from "../binance/binance.service";
 import { CoinGeckoService } from "../coingecko/coingecko.service";
 import { DataSource } from "../db/DataSource";
-import { Coins } from "../db/schema/schema";
 import { CoinSourceEnum } from "../enums/CoinSource.enum";
 import { BinanceCoinsDataDto } from "../binance/dto/BinanceCoinsData.dto";
 import { CoinInterface } from "../interfaces/Coin.interface";
@@ -14,6 +13,7 @@ import { setCandlesData } from "./managers/candles.manager";
 import { setFundingsData } from "./managers/fundings.manager";
 import { setMarketCapData } from "./managers/market-cap.manager";
 import { setOpenInterestData } from "./managers/open-interest.manager";
+import { Coins } from "../db/schema/coins";
 
 const coingeckoService = new CoinGeckoService();
 const binanceService = new BinanceService();

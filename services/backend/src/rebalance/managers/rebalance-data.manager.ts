@@ -11,7 +11,6 @@ import {
 } from "drizzle-orm";
 import moment from "moment";
 import { DataSource } from "../../db/DataSource";
-import { Coins, Rebalance, MarketCap } from "../../db/schema/schema";
 import { getRebalanceIntervalMs } from "../../helpers/GetRebalanceIntervalMs";
 import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
 import { ETFDataManager } from "../../coindata/managers/etf-data.manager";
@@ -23,6 +22,7 @@ import {
 import blacklistCoins from "../../config/blacklist.json";
 import Decimal from "decimal.js";
 import { CoinSourceEnum } from "../../enums/CoinSource.enum";
+import { Rebalance, Coins, MarketCap } from "../../db/schema";
 
 export class RebalanceDataManager {
   public static async getRebalanceAssets(): Promise<CoinInterface[]> {

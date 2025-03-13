@@ -1,7 +1,6 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "./schema"; // Import all schema definitions
-import { sql } from "drizzle-orm";
 
 const pool = new Pool({
   host: process.env.DATABASE_HOST,
@@ -10,12 +9,12 @@ const pool = new Pool({
   password: process.env.DATABASE_PASSWORD,
   database: process.env.DATABASE_NAME,
   // ssl: true, // Uncomment if SSL is required
-  max: 550,
+  max: 250,
   idleTimeoutMillis: 20000,
   connectionTimeoutMillis: 25000,
   maxUses: 5000,
   allowExitOnIdle: true,
-  application_name: "fund_maker_backend", // For monitoring
+  application_name: "fund_maker_backend",
 });
 
 export const DataSource = drizzle(pool, { schema });

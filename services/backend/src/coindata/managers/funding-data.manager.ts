@@ -1,11 +1,4 @@
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
-import {
-  AverageFundingChartData,
-  Coins,
-  EtfFundingReward,
-  Funding,
-  Rebalance,
-} from "../../db/schema/schema";
 import { DataSource } from "../../db/DataSource";
 import {
   AmountPerContracts,
@@ -16,6 +9,11 @@ import Decimal from "decimal.js";
 import { FuturesType } from "../../enums/FuturesType.enum";
 import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
 import { FilterInterface } from "../../interfaces/FilterInterface";
+import { AverageFundingChartData } from "../../db/schema";
+import { Coins } from "../../db/schema/coins";
+import { EtfFundingReward } from "../../db/schema/eftFundingReward";
+import { Funding } from "../../db/schema/funding";
+import { Rebalance } from "../../db/schema/rebalance";
 
 export class FundingDataManager {
   public static async getAverageFundingChartData(

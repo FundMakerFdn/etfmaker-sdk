@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { DataSource } from "../db/DataSource";
-import { ProcessingStatus } from "../db/schema/schema";
+import { ProcessingStatus } from "../db/schema/processingStatus";
 import {
   ProcessingKeysEnum,
   ProcessingStatusEnum,

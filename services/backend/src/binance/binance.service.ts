@@ -4,7 +4,6 @@ import { CandleInterface } from "../interfaces/Candle.interface";
 import { CoinSourceEnum } from "../enums/CoinSource.enum";
 import { BinanceCoinsDataDto } from "./dto/BinanceCoinsData.dto";
 import {
-  CoinMFuturesSymbolsLimiter,
   FundingRateLimiter,
   HistoricalCandlesLimiter,
   HistoricalCandlesLimiterBinanceVision,
@@ -16,7 +15,7 @@ import { BinanceFundingDto } from "./dto/BinanceFunding.dto";
 import { FuturesType } from "../enums/FuturesType.enum";
 import moment from "moment";
 import { DataSource } from "../db/DataSource";
-import { Candles, Funding, OpenInterest } from "../db/schema/schema";
+import { Candles, Funding, OpenInterest } from "../db/schema";
 
 export class BinanceService {
   private readonly apiUrl: string;

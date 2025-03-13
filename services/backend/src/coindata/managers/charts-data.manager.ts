@@ -1,19 +1,19 @@
 import Decimal from "decimal.js";
 import { and, asc, desc, eq, gt, gte, inArray, sql } from "drizzle-orm";
 import { DataSource } from "../../db/DataSource";
-import {
-  Coins,
-  Funding,
-  MarketCap,
-  Rebalance,
-  sUSDeSpreadVs3mTreasury,
-} from "../../db/schema/schema";
 import { AmountPerContracts } from "../../interfaces/Rebalance.interface";
 import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
 import { FuturesType } from "../../enums/FuturesType.enum";
 import moment from "moment";
 import { CoinSourceEnum } from "../../enums/CoinSource.enum";
 import { EtfPrice } from "../../db/schema/etfPrice";
+import {
+  sUSDeSpreadVs3mTreasury,
+  Rebalance,
+  Coins,
+  Funding,
+  MarketCap,
+} from "../../db/schema";
 
 export class ChartDataManager {
   public static async getSUSDeSpreadVs3mTreasury(

@@ -3,13 +3,6 @@ import { eq, and, gte, desc, inArray, asc, lte, gt, lt } from "drizzle-orm";
 import moment from "moment";
 import { DataSource } from "../../db/DataSource";
 import {
-  Rebalance,
-  Funding,
-  EtfFundingReward,
-  Candles,
-  MarketCap,
-} from "../../db/schema/schema";
-import {
   AmountPerContracts,
   AssetWeights,
   PricesDto,
@@ -19,6 +12,13 @@ import { CloseETFPrices } from "../dto/CloseETFPricesFutures.dto";
 import path from "path";
 import { WorkerPool } from "../../helpers/WorkerPool";
 import { EtfPrice } from "../../db/schema/etfPrice";
+import {
+  Rebalance,
+  Candles,
+  EtfFundingReward,
+  Funding,
+  MarketCap,
+} from "../../db/schema";
 
 const IS_DEV = process.env.NODE_ENV === "development";
 
@@ -95,7 +95,7 @@ export class ETFDataManager {
         )
       : path.resolve(__dirname, "../workers/etf-price/etf-price.processing.js");
 
-    const pool = new WorkerPool(workerFilePath, 256, 512);
+    const pool = new WorkerPool(workerFilePath, 128, 192);
     let completedTasks = 0;
     const resultsAccumulator: any[] = [];
     let finishAll: (value?: unknown) => void;

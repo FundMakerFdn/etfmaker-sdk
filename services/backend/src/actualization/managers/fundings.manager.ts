@@ -1,12 +1,12 @@
 import { eq, desc } from "drizzle-orm";
 import moment from "moment";
 import { DataSource } from "../../db/DataSource";
-import { Funding } from "../../db/schema/schema";
 import { CoinSourceEnum } from "../../enums/CoinSource.enum";
 import { CoinStatusEnum } from "../../enums/CoinStatus.enum";
 import { FuturesType } from "../../enums/FuturesType.enum";
 import { CoinInterface } from "../../interfaces/Coin.interface";
 import { BinanceService } from "../../binance/binance.service";
+import { Funding } from "../../db/schema";
 
 const binanceService = new BinanceService();
 
