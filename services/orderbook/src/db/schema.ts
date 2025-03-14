@@ -4,7 +4,7 @@ import {
   serial,
   text,
   timestamp,
-  index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { enumToPgEnum } from "../helpers/EnumToPg";
 import { FuturesType } from "../enums/FuturesType.enum";
@@ -38,9 +38,9 @@ export const Coins = pgTable(
   (table) => {
     return {
       // Index on symbol for faster lookups
-      symbolIdx: index("symbol_idx").on(table.symbol),
+      symbolIdx: uniqueIndex("symbol_idx").on(table.symbol),
       // Index on assetId for faster lookups
-      assetIdIdx: index("asset_id_idx").on(table.assetId),
+      assetIdIdx: uniqueIndex("asset_id_idx").on(table.assetId),
     };
   }
 );
@@ -59,7 +59,7 @@ export const Rebalance = pgTable(
   (table) => {
     return {
       // Composite index on etfId and timestamp
-      etfIdTimestampIdx: index("rebalance_etf_id_timestamp_idx").on(
+      etfIdTimestampIdx: uniqueIndex("rebalance_etf_id_timestamp_idx").on(
         table.etfId,
         table.timestamp
       ),

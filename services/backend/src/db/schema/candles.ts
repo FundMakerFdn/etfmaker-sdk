@@ -1,8 +1,9 @@
 import { relations } from "drizzle-orm";
 import {
-  index,
+  uniqueIndex,
   integer,
   pgTable,
+  primaryKey,
   serial,
   text,
   timestamp,
@@ -12,11 +13,11 @@ import { Coins } from "./coins";
 export const Candles = pgTable(
   "candles",
   {
-    id: serial("id").primaryKey(),
+    id: serial("id").notNull(),
     coinId: integer("coin_id")
       .notNull()
       .references(() => Coins.id),
-    timestamp: timestamp("timestamp").notNull(),
+    timestamp: timestamp("timestamp", { withTimezone: true }).notNull(),
     open: text("open").notNull(),
     high: text("high").notNull(),
     low: text("low").notNull(),
@@ -26,12 +27,11 @@ export const Candles = pgTable(
   (table) => {
     return {
       // Composite index on coinId and timestamp for faster filtering and sorting
-      coinIdTimestampIdx: index("coin_id_timestamp_idx").on(
+      coinIdTimestampIdx: uniqueIndex("coin_id_timestamp_idx").on(
         table.coinId,
         table.timestamp
       ),
-      // Index on timestamp for sorting
-      timestampIdx: index("timestamp_idx").on(table.timestamp),
+      pk: primaryKey({ columns: [table.id, table.timestamp] }),
     };
   }
 );

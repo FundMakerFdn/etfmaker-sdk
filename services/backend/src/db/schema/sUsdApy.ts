@@ -1,7 +1,8 @@
 import {
   doublePrecision,
-  index,
+  uniqueIndex,
   pgTable,
+  primaryKey,
   serial,
   text,
   timestamp,
@@ -10,16 +11,15 @@ import {
 export const sUSDeApy = pgTable(
   "susd_apy",
   {
-    id: serial("id").primaryKey(),
+    id: serial("id").notNull(),
     etfId: text("etf_id").notNull(),
-    time: timestamp("timestamp").notNull(),
+    time: timestamp("timestamp", { withTimezone: true }).notNull(),
     value: doublePrecision("value").notNull(),
   },
   (table) => {
     return {
-      // Composite index on coinId and timestamp
-      coinIdTimeIdx: index("susd_apy_time_idx").on(table.time),
-      etfIdIdx: index("susd_apy_etf_id_idx").on(table.etfId),
+      etfIdIdx: uniqueIndex("susd_apy_etf_id_idx").on(table.etfId, table.time),
+      pk: primaryKey({ columns: [table.id, table.time] }),
     };
   }
 );

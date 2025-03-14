@@ -5,27 +5,29 @@ import {
   serial,
   timestamp,
   text,
-  index,
+  uniqueIndex,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { Coins } from "./coins";
 
 export const MarketCap = pgTable(
   "market_cap",
   {
-    id: serial("id").primaryKey(),
+    id: serial("id").notNull(),
     coinId: integer("coin_id")
       .notNull()
       .references(() => Coins.id),
-    timestamp: timestamp("timestamp").notNull(),
+    timestamp: timestamp("timestamp", { withTimezone: true }).notNull(),
     marketCap: text("market_cap").notNull(),
   },
   (table) => {
     return {
       // Composite index on coinId and timestamp
-      coinIdTimestampIdx: index("market_cap_coin_id_timestamp_idx").on(
+      coinIdTimestampIdx: uniqueIndex("market_cap_coin_id_timestamp_idx").on(
         table.coinId,
         table.timestamp
       ),
+      pk: primaryKey({ columns: [table.id, table.timestamp] }),
     };
   }
 );

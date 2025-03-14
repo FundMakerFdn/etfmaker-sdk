@@ -1,7 +1,8 @@
 import {
   doublePrecision,
-  index,
+  uniqueIndex,
   pgTable,
+  primaryKey,
   serial,
   text,
   timestamp,
@@ -10,18 +11,18 @@ import {
 export const FundingRewardApy = pgTable(
   "funding_reward_apy",
   {
-    id: serial("id").primaryKey(),
+    id: serial("id").notNull(),
     etfId: text("etf_id").notNull(),
-    time: timestamp("timestamp").notNull(),
+    time: timestamp("timestamp", { withTimezone: true }).notNull(),
     value: doublePrecision("value").notNull(),
   },
   (table) => {
     return {
-      // Composite index on coinId and timestamp
-      coinIdTimeIdx: index("funding_reward_apy_coin_id_time_idx").on(
+      etfIdIdx: uniqueIndex("funding_reward_apy_etf_id_idx").on(
+        table.etfId,
         table.time
       ),
-      etfIdIdx: index("funding_reward_apy_etf_id_idx").on(table.etfId),
+      pk: primaryKey({ columns: [table.id, table.time] }),
     };
   }
 );

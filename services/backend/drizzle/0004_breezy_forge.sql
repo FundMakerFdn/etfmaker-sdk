@@ -1,1 +1,0 @@
-ALTER TYPE "public"."futures_type_enum" ADD VALUE 'DELIVERING';

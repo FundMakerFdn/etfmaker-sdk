@@ -1,1 +1,0 @@
-ALTER TABLE "etf_price" ALTER COLUMN "etf_id" SET DATA TYPE text;

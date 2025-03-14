@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { index, pgTable, serial, text } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, primaryKey, index } from "drizzle-orm/pg-core";
 import { CoinSourceEnum } from "../../enums/CoinSource.enum";
 import { CoinStatusEnum } from "../../enums/CoinStatus.enum";
 import { FuturesType } from "../../enums/FuturesType.enum";
@@ -24,7 +24,7 @@ export const FuturesTypeEnum = enumToPgEnum("futures_type_enum", FuturesType);
 export const Coins = pgTable(
   "coins",
   {
-    id: serial("id").primaryKey(),
+    id: serial("id").notNull(),
     name: text("name").notNull(),
     symbol: text("symbol").notNull(),
     assetId: text("asset_id").notNull(),
@@ -39,6 +39,7 @@ export const Coins = pgTable(
       symbolIdx: index("symbol_idx").on(table.symbol),
       // Index on assetId for faster lookups
       assetIdIdx: index("asset_id_idx").on(table.assetId),
+      pk: primaryKey({ columns: [table.id] }),
     };
   }
 );
