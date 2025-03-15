@@ -6,6 +6,8 @@ import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
 import { validateEtfIndexConfig } from "../helpers/EtfIndexConfigValidator";
 import { ProcessingStatusService } from "../processing-status/processing-status.service";
 import { ProcessingKeysEnum } from "../enums/Processing.enum";
+import { OhclGroupByEnum } from "../enums/OhclGroupBy.enum";
+import { IsValidDate } from "../helpers/CheckIsValidDate";
 
 const dataProcessingService = new DataProcessingService();
 
@@ -97,11 +99,16 @@ export const getETFPrices = async (req: FastifyRequest, res: FastifyReply) => {
     to?: string;
   };
 
-  const groupBy = queryParams?.groupBy;
+  const groupBy = queryParams?.groupBy as OhclGroupByEnum | undefined;
   const from = queryParams?.from;
   const to = queryParams?.to;
 
   try {
+    if (groupBy && !(groupBy in OhclGroupByEnum)) {
+      res.send({ error: "Invalid groupBy" });
+      return;
+    }
+
     const data = await dataProcessingService.getETFPrices(groupBy, from, to);
     res.send({ data });
   } catch (error) {
@@ -111,16 +118,25 @@ export const getETFPrices = async (req: FastifyRequest, res: FastifyReply) => {
 };
 
 export const getCoinOHCL = async (req: FastifyRequest, res: FastifyReply) => {
-  const queryParams = req.query as { coinId: string };
+  const queryParams = req.query as {
+    coinId: string;
+    from?: string;
+    to?: string;
+  };
+
   const coinId = parseInt(queryParams.coinId);
+  const from = queryParams.from;
+  const to = queryParams.to;
+
   try {
-    if (!coinId || isNaN(coinId)) {
+    if (!coinId || isNaN(coinId) || !IsValidDate(from) || !IsValidDate(to)) {
       res.send({ error: "Invalid coinId" });
       return;
     }
-    const data = await dataProcessingService.getCoinOhclData(coinId);
+    const data = await dataProcessingService.getCoinOhclData(coinId, from, to);
     res.send({ data });
   } catch (error) {
+    console.error(error);
     res.send({ error: "Can't get OHCL data" });
   }
 };

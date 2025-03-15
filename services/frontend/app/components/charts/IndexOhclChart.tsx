@@ -5,21 +5,15 @@ import { OhclChartDataType } from "app/types/OhclChartDataType";
 import { CandlestickSeries, ColorType, createChart } from "lightweight-charts";
 import { useRef, useEffect, FC, useMemo, useCallback } from "react";
 import throttle from "lodash/throttle";
-import {
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectGroup,
-  SelectLabel,
-  SelectItem,
-  Select,
-} from "app/shadcn/components/ui/select";
+
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "app/shadcn/components/ui/card";
+import { GroupByOptions } from "../Filters";
+import { OhclGroupByEnum } from "app/enums/OhclGroupBy.enum";
 
 const fetchtOhclData = (coinId: number, category: string) => {
   let isLoading = false;
@@ -41,6 +35,18 @@ const fetchtOhclData = (coinId: number, category: string) => {
   };
 };
 
+const isDynamicDataFetching = (groupBy: string): boolean =>
+  groupBy === OhclGroupByEnum["1m"] ||
+  groupBy === OhclGroupByEnum["3m"] ||
+  groupBy === OhclGroupByEnum["5m"] ||
+  groupBy === OhclGroupByEnum["15m"] ||
+  groupBy === OhclGroupByEnum["30m"] ||
+  groupBy === OhclGroupByEnum["1h"] ||
+  groupBy === OhclGroupByEnum["2h"] ||
+  groupBy === OhclGroupByEnum["4h"] ||
+  groupBy === OhclGroupByEnum["8h"] ||
+  groupBy === OhclGroupByEnum["12h"];
+
 export const IndexOhclChart: FC<{
   coinId: number;
   category: string;
@@ -50,7 +56,7 @@ export const IndexOhclChart: FC<{
   const chartInstanceRef = useRef<any>(null);
   const candlestickSeriesRef = useRef<any>(null);
 
-  const groupByRef = useRef<string>("minute");
+  const groupByRef = useRef<string>(OhclGroupByEnum["1m"]);
   const currentRange = useRef<{ from: string; to: string }>(null!);
 
   const getOhclData = useMemo(
@@ -92,25 +98,30 @@ export const IndexOhclChart: FC<{
           newRange.from = 0;
         }
 
+        if (newRange.to < newRange.from) {
+          newRange.to = newRange.from + defaultRange;
+        }
+
         // Ensure the range doesn't shrink below the default range
         if (newRange.to - newRange.from < defaultRange) {
           newRange.from = +newRange.to - defaultRange;
         }
 
         let data;
-        if (groupByRef.current === "minute") {
+        if (isDynamicDataFetching(groupByRef.current)) {
           data = await getOhclData(
             groupByRef.current,
             newRange.from.toString(),
             newRange.to.toString()
           );
+
+          if (!data?.length) return;
+          currentRange.current = newRange;
         } else {
           data = await getOhclData(groupByRef.current);
+
+          if (!data?.length) return;
         }
-
-        if (!data?.length) return;
-
-        currentRange.current = newRange;
 
         candlestickSeriesRef.current.setData(
           data.map((item) => ({
@@ -127,7 +138,7 @@ export const IndexOhclChart: FC<{
 
   const updateChartData = useCallback(async () => {
     let from, to;
-    if (currentRange.current && groupByRef.current === "minute") {
+    if (currentRange.current && isDynamicDataFetching(groupByRef.current)) {
       from = currentRange.current.from;
       to = currentRange.current.to;
     }
@@ -243,23 +254,9 @@ export const IndexOhclChart: FC<{
         <div className="grid flex-1 gap-1 text-center sm:text-left">
           <CardTitle>Index OHLC Chart</CardTitle>
         </div>
-
-        <Select onValueChange={groupBySelectorHandler}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder={groupByRef.current ?? "minutes"} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectLabel>Group by: </SelectLabel>
-              <SelectItem value="minute">Minutes</SelectItem>
-              <SelectItem value="day">Days</SelectItem>
-              <SelectItem value="week">Weeks</SelectItem>
-              <SelectItem value="month">Months</SelectItem>
-              <SelectItem value="year">Years</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+        <GroupByOptions onSelect={groupBySelectorHandler} />
       </CardHeader>
+
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
         <div
           ref={ohclChartRef}

@@ -15,6 +15,13 @@
       "when": 1741967232704,
       "tag": "0001_timescale",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1742002276987,
+      "tag": "0002_curious_malice",
+      "breakpoints": true
     }
   ]
 }

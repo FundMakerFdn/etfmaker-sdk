@@ -1,10 +1,24 @@
 import {
+  SelectTrigger,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  Select,
+} from "app/shadcn/components/ui/select";
+import {
   getAvailableAssetsToFilter,
   getAvailableCategoriesToFilter,
   getAvailableUsdtPairsToFilter,
 } from "app/data/getFiltersData";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "app/shadcn/components/ui/accordion";
 import { CoinType } from "app/types/CoinType";
-import { FC, useEffect, useState } from "react";
+import { FC, useCallback, useEffect, useMemo, useState } from "react";
+import { OhclGroupByEnum } from "app/enums/OhclGroupBy.enum";
 
 export const FiltersByRebalanceAssets: FC<{
   value: number;
@@ -102,5 +116,99 @@ export const FiltersByCategory: FC<{
         ))}
       </select>
     </div>
+  );
+};
+
+export const GroupByOptions: FC<{ onSelect: (value: string) => void }> = ({
+  onSelect,
+}) => {
+  const [groupBy, setGroupBy] = useState<string>(OhclGroupByEnum["1m"]);
+
+  const groupBySelectorHandler = useCallback(
+    (value: string) => {
+      setGroupBy(value);
+      onSelect(value);
+    },
+    [onSelect]
+  );
+
+  const groupByTitles = useMemo(
+    () => ({
+      "1m": "1 minute",
+      "3m": "3 minute",
+      "5m": "5 minute",
+      "15m": "15 minute",
+      "30m": "30 minute",
+      "1h": "1 hour",
+      "2h": "2 hours",
+      "4h": "4 hours",
+      "8h": "8 hours",
+      "12h": "12 hours",
+      "1d": "1 day",
+      "3d": "3 days",
+      "1w": "1 week",
+      "1M": "1 month",
+    }),
+    []
+  );
+
+  return (
+    <Select defaultValue={groupBy} onValueChange={groupBySelectorHandler}>
+      <SelectTrigger className="w-[180px]">
+        <span className="w-full text-center">
+          {groupByTitles[groupBy ?? OhclGroupByEnum["1m"]]}
+        </span>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          <Accordion type="single" collapsible>
+            <AccordionItem value="item-1">
+              <AccordionTrigger>Minutes</AccordionTrigger>
+              {Object.values(OhclGroupByEnum)
+                .filter((value) => value.includes("m"))
+                .map((value) => (
+                  <AccordionContent key={value}>
+                    <SelectItem value={value}>
+                      <span className="w-full text-center">
+                        {groupByTitles[value]}
+                      </span>
+                    </SelectItem>
+                  </AccordionContent>
+                ))}
+            </AccordionItem>
+
+            <AccordionItem value="item-2">
+              <AccordionTrigger>Hours</AccordionTrigger>
+              {Object.values(OhclGroupByEnum)
+                .filter((value) => value.includes("h"))
+                .map((value) => (
+                  <AccordionContent key={value}>
+                    <SelectItem value={value}>
+                      <span className="w-full text-center">
+                        {groupByTitles[value]}
+                      </span>
+                    </SelectItem>
+                  </AccordionContent>
+                ))}
+            </AccordionItem>
+
+            <AccordionItem value="item-3">
+              <AccordionTrigger>Other</AccordionTrigger>
+              {Object.values(OhclGroupByEnum)
+                .filter((value) => !value.includes("h") && !value.includes("m"))
+                .map((value) => (
+                  <AccordionContent key={value}>
+                    <SelectItem value={value}>
+                      <span className="w-full text-center">
+                        {groupByTitles[value]}
+                      </span>
+                    </SelectItem>
+                  </AccordionContent>
+                ))}
+            </AccordionItem>
+          </Accordion>
+        </SelectGroup>
+      </SelectContent>
+    </Select>
   );
 };

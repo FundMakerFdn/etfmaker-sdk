@@ -12,15 +12,16 @@ import { CoinSourceEnum } from "../enums/CoinSource.enum";
 import { CoinStatusEnum } from "../enums/CoinStatus.enum";
 import { SUSDApyReturnDto } from "./dto/SUSDApy.dto";
 import { FilterInterface } from "../interfaces/FilterInterface";
-import { EtfPrice } from "../db/schema/etfPrice";
 import { Candles } from "../db/schema/candles";
 import { Coins } from "../db/schema/coins";
+import { OhclGroupByEnum } from "../enums/OhclGroupBy.enum";
 
 const binanceService = new BinanceService();
+const defaltEtfPriceManager = new ETFDataManager();
 
 export class DataProcessingService {
   async getETFPrices(
-    groupBy?: string,
+    groupBy?: OhclGroupByEnum,
     from?: string,
     to?: string
   ): Promise<
@@ -28,40 +29,12 @@ export class DataProcessingService {
   > {
     let data;
 
-    if (groupBy && groupBy !== "minute") {
-      data = (
-        await DataSource.execute(sql`
-          SELECT DISTINCT
-            DATE_TRUNC(${groupBy}, timestamp) AS date,
-            FIRST_VALUE(timestamp) OVER w AS timestamp,
-            FIRST_VALUE(open) OVER w AS open,
-            MAX(high) OVER w AS high,
-            MIN(low) OVER w AS low,
-            LAST_VALUE(close) OVER w AS close
-          FROM ${EtfPrice}
-          WINDOW w AS (
-            PARTITION BY DATE_TRUNC(${groupBy}, timestamp)
-            ORDER BY timestamp
-            RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
-          )
-          ORDER BY date
-        `)
-      ).rows;
-    }
-
-    if (from && to && (!data || data.length === 0)) {
-      const startDate = new Date(+from * 1000).getTime();
-      const endDate = new Date(+to * 1000).getTime();
-
-      data = await DataSource.selectDistinctOn([EtfPrice.timestamp])
-        .from(EtfPrice)
-        .where(
-          and(
-            gte(EtfPrice.timestamp, new Date(startDate)),
-            lte(EtfPrice.timestamp, new Date(endDate))
-          )
-        )
-        .orderBy(asc(EtfPrice.timestamp));
+    if (groupBy) {
+      data = await defaltEtfPriceManager.getEtfPriceDataGroupedRange(
+        groupBy,
+        from,
+        to
+      );
     }
 
     if (!data || data.length === 0) {
@@ -105,12 +78,29 @@ export class DataProcessingService {
   }
 
   async getCoinOhclData(
-    coinId: number
+    coinId: number,
+    from?: string,
+    to?: string
   ): Promise<
     { time: number; open: string; high: string; low: string; close: string }[]
   > {
-    return (
-      await DataSource.selectDistinctOn([Candles.timestamp])
+    let data;
+
+    if (from && to) {
+      data = await DataSource.select()
+        .from(Candles)
+        .where(
+          and(
+            eq(Candles.coinId, coinId),
+            gte(Candles.timestamp, new Date(+from * 1000)),
+            lte(Candles.timestamp, new Date(+to * 1000))
+          )
+        )
+        .orderBy(asc(Candles.timestamp));
+    }
+
+    if (!data || data.length === 0) {
+      data = await DataSource.selectDistinctOn([Candles.timestamp])
         .from(Candles)
         .where(
           and(
@@ -121,8 +111,10 @@ export class DataProcessingService {
             )
           )
         )
-        .orderBy(asc(Candles.timestamp))
-    ).map((candle) => ({
+        .orderBy(asc(Candles.timestamp));
+    }
+
+    return data.map((candle) => ({
       time: candle.timestamp.getTime() / 1000,
       open: candle.open,
       high: candle.high,

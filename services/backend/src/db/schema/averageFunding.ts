@@ -6,7 +6,7 @@ import {
   timestamp,
   doublePrecision,
   primaryKey,
-  uniqueIndex,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const AverageFundingChartData = pgTable(
@@ -20,11 +20,11 @@ export const AverageFundingChartData = pgTable(
   },
   (table) => {
     return {
-      coinIdIdx: uniqueIndex("average_funding_chart_data_coinId_idx").on(
+      coinIdIdx: index("average_funding_chart_data_coinId_idx").on(
         table.coinId,
         table.time
       ),
-      etfIdIdx: uniqueIndex("average_funding_chart_data_etfId_idx").on(
+      etfIdIdx: index("average_funding_chart_data_etfId_idx").on(
         table.etfId,
         table.time
       ),

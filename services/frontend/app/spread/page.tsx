@@ -1,13 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  FiltersByAllSpotUSDTPairsAssets,
-  FiltersByRebalanceAssets,
-} from "app/components/Filters";
+import { FiltersByAllSpotUSDTPairsAssets } from "app/components/Filters";
 import { useWebsocket } from "app/hooks/useWebsocket";
 import { ChartDataType } from "app/types/ChartDataType";
-import { CoinType } from "app/types/CoinType";
 import { SingleLineChart } from "app/components/charts/SindleLineChart";
 import { EtfSpreadWeight } from "app/components/ETFSpreadWeight";
 import GlobalConfig from "../app.config";

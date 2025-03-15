@@ -21,9 +21,7 @@ export const getOHCLDataInfo = async (
   try {
     const ohclData = await fetch(
       `${NEXT_PUBLIC_SERVER_URL}/${
-        coinId && category
-          ? `get-coin-ohcl${filter}`
-          : `get-etf-prices${filter}`
+        coinId ? `get-coin-ohcl${filter}` : `get-etf-prices${filter}`
       }`,
       {
         method: "GET",

@@ -1,5 +1,16 @@
 import Decimal from "decimal.js";
-import { eq, and, gte, desc, inArray, asc, lte, gt, lt } from "drizzle-orm";
+import {
+  eq,
+  and,
+  gte,
+  desc,
+  inArray,
+  asc,
+  lte,
+  gt,
+  lt,
+  sql,
+} from "drizzle-orm";
 import moment from "moment";
 import { DataSource } from "../../db/DataSource";
 import {
@@ -19,6 +30,24 @@ import {
   Funding,
   MarketCap,
 } from "../../db/schema";
+import { OhclGroupByEnum } from "../../enums/OhclGroupBy.enum";
+
+const groupIntervalMapping: Record<OhclGroupByEnum, string> = {
+  "1m": "1 minute",
+  "3m": "3 minutes",
+  "5m": "5 minutes",
+  "15m": "15 minutes",
+  "30m": "30 minutes",
+  "1h": "1 hour",
+  "2h": "2 hours",
+  "4h": "4 hours",
+  "8h": "8 hours",
+  "12h": "12 hours",
+  "1d": "1 day",
+  "3d": "3 days",
+  "1w": "1 week",
+  "1M": "1 month",
+};
 
 const IS_DEV = process.env.NODE_ENV === "development";
 
@@ -116,34 +145,28 @@ export class ETFDataManager {
       pool
         .runTask(taskData)
         .then((result) => {
-          // Only accumulate if the result is valid.
           if (result && !result.error && result.result) {
             resultsAccumulator.push(result.result);
           }
         })
         .catch((error) => {
-          // Optionally log or handle individual task errors.
           console.error("Task error:", error);
         })
         .finally(() => {
           completedTasks++;
 
-          // If the accumulator has reached the threshold, flush it.
           if (resultsAccumulator.length >= 50_000) {
-            // Note: You can trigger this without blocking the loop.
             this.bulkInsertAmountsPerContracts(resultsAccumulator).catch(
               (err) => console.error("Bulk insert error:", err)
             );
-            resultsAccumulator.length = 0; // Clear the accumulator.
+            resultsAccumulator.length = 0;
           }
 
-          // When all tasks are complete, resolve the promise.
           if (completedTasks === totalMinutes) {
             finishAll();
           }
         });
 
-      // Update times for the next iteration.
       startTime.add(1, "minute");
       endTime.add(1, "minute");
     }
@@ -437,30 +460,47 @@ export class ETFDataManager {
     return result;
   }
 
-  private async processMinuteData(
-    coinIds: number[],
-    startTime: moment.Moment,
-    endTime: moment.Moment,
-    price: number,
-    timestamp: Date
+  public async getEtfPriceDataGroupedRange(
+    groupBy: OhclGroupByEnum,
+    from?: string,
+    to?: string
   ) {
-    const coinsWithPrices = await this.getCoinsPriceStartEndRecords(
-      coinIds,
-      startTime.valueOf(),
-      endTime.valueOf()
-    );
+    let startDate = 0;
+    let endDate = new Date().getTime();
 
-    if (coinsWithPrices.length > 0) {
-      const assetsWithWeights = await this.setAssetWeights(coinsWithPrices);
-      const amountPerContracts = this.setAmountPerContracts(
-        assetsWithWeights,
-        price
-      );
-
-      return { amountPerContracts, timestamp };
+    if (from && to) {
+      startDate = new Date(+from * 1000).getTime();
+      endDate = new Date(+to * 1000).getTime();
     }
 
-    return { amountPerContracts: [], timestamp };
+    const interval = groupIntervalMapping[groupBy];
+
+    const conditions = [
+      // sql`${EtfPrice.etfId} = ${etfId}`,
+      startDate
+        ? sql`${EtfPrice.timestamp} >= ${new Date(startDate).toISOString()}`
+        : undefined,
+      endDate
+        ? sql`${EtfPrice.timestamp} <= ${new Date(endDate).toISOString()}`
+        : undefined,
+    ].filter(Boolean);
+
+    const query = sql`
+    SELECT 
+      time_bucket(${sql.raw("'" + interval + "'")}, ${
+      EtfPrice.timestamp
+    }) AS "timestamp",
+      first(${EtfPrice.open}, ${EtfPrice.timestamp}) AS open,
+      max(${EtfPrice.high}) AS high,
+      min(${EtfPrice.low}) AS low,
+      last(${EtfPrice.close}, ${EtfPrice.timestamp}) AS close
+    FROM ${EtfPrice}
+    WHERE ${sql.join(conditions, sql` AND `)}
+    GROUP BY 1
+    ORDER BY "timestamp" ASC
+  `;
+
+    return (await DataSource.execute(query))?.rows ?? [];
   }
 
   private async bulkInsertAmountsPerContracts(
