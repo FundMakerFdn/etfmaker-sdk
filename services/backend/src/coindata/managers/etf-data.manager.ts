@@ -469,8 +469,8 @@ export class ETFDataManager {
     let endDate = new Date().getTime();
 
     if (from && to) {
-      startDate = new Date(+from * 1000).getTime();
-      endDate = new Date(+to * 1000).getTime();
+      startDate = new Date(from).getTime();
+      endDate = new Date(to).getTime();
     }
 
     const interval = groupIntervalMapping[groupBy];
@@ -495,7 +495,11 @@ export class ETFDataManager {
       min(${EtfPrice.low}) AS low,
       last(${EtfPrice.close}, ${EtfPrice.timestamp}) AS close
     FROM ${EtfPrice}
-    WHERE ${sql.join(conditions, sql` AND `)}
+    ${
+      conditions.length > 0
+        ? sql`WHERE ${sql.join(conditions, sql` AND `)}`
+        : sql``
+    }
     GROUP BY 1
     ORDER BY "timestamp" ASC
   `;

@@ -5,14 +5,14 @@ const NEXT_PUBLIC_SERVER_URL = GlobalConfig.NEXT_PUBLIC_SERVER_URL;
 
 const dataCache = new Map<string, any>();
 
-export const getOHCLDataInfo = async (
-  groupBy: string,
-  from?: string,
-  to?: string,
-  coinId?: number,
-  category?: string
-) => {
-  const filter = createQueryParamsStr({ groupBy, coinId, category, from, to });
+export const getOHCLDataInfo = async (params: {
+  groupBy: string;
+  from?: string;
+  to?: string;
+  coinId?: number;
+  category?: string;
+}) => {
+  const filter = createQueryParamsStr(params);
 
   if (dataCache.has(filter)) {
     return dataCache.get(filter);
@@ -21,7 +21,7 @@ export const getOHCLDataInfo = async (
   try {
     const ohclData = await fetch(
       `${NEXT_PUBLIC_SERVER_URL}/${
-        coinId ? `get-coin-ohcl${filter}` : `get-etf-prices${filter}`
+        params?.coinId ? `get-coin-ohcl${filter}` : `get-etf-prices${filter}`
       }`,
       {
         method: "GET",

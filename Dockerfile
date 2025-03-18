@@ -13,6 +13,7 @@ COPY pg-config/pg_hba.conf /etc/postgresql/pg_hba.conf
 # Set the proper permissions
 RUN chmod 644 /etc/postgresql/postgresql.config
 RUN chmod 644 /etc/postgresql/pg_hba.conf
+RUN chmod 1777 /tmp
 
 COPY . .
 

@@ -25,7 +25,7 @@ export class DataProcessingService {
     from?: string,
     to?: string
   ): Promise<
-    { time: number; open: string; high: string; low: string; close: string }[]
+    { date: number; open: string; high: string; low: string; close: string }[]
   > {
     let data;
 
@@ -57,7 +57,7 @@ export class DataProcessingService {
     }
 
     return data.map((price) => ({
-      time: new Date(price.timestamp as string).getTime() / 1000,
+      date: new Date(price.timestamp as string).getTime(),
       open: price.open as string,
       high: price.high as string,
       low: price.low as string,

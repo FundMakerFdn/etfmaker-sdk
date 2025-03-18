@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { IndexOhclChart } from "./components/charts/IndexOhclChart";
 import { DownloadRebalanceDataCsv } from "./components/DownloadRebalanceCsv";
 import { CurrentAPY } from "./components/CurrentAPY";
 import {
@@ -16,6 +15,7 @@ import { SUSDeSpreadVsTreasury } from "./components/charts/SUSDeSpreadVsTreasury
 import { SUSDeAPYWeeklyDistribution } from "./components/charts/SUSDeWeeklyDistribution";
 import { ApyFundingReward } from "./components/charts/ApyFundingReward";
 import { AverageFundingChart } from "./components/charts/AverageFundingChart";
+import { TradingWidgetChart } from "./components/charts/TradingWidgetChart";
 
 const AMOUNT_OF_LOADING_ENTRIES = 8;
 
@@ -54,7 +54,7 @@ export default function Page() {
 
       {isLoading && <div>Loading...</div>}
 
-      <IndexOhclChart
+      <TradingWidgetChart
         coinId={coinId}
         category={categoryFilter}
         loaded={loadedDataCallback}
