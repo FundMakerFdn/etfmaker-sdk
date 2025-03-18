@@ -4,6 +4,7 @@ import {
   and,
   lte,
   gte,
+  asc,
   sql,
   notInArray,
   inArray,
@@ -22,7 +23,7 @@ import {
 import blacklistCoins from "../../config/blacklist.json";
 import Decimal from "decimal.js";
 import { CoinSourceEnum } from "../../enums/CoinSource.enum";
-import { Rebalance, Coins, MarketCap } from "../../db/schema";
+import { Rebalance, Coins, MarketCap, Candles } from "../../db/schema";
 
 export class RebalanceDataManager {
   public static async getRebalanceAssets(): Promise<CoinInterface[]> {
@@ -81,7 +82,7 @@ export class RebalanceDataManager {
   ): Promise<RebalanceDto[] | void> {
     const amountOfCoins = Number(RegExp(/\d+/).exec(config.etfId)?.[0] ?? 0);
 
-    const coins = await this.getTopUsdmCoinsByMarketCap(
+    const coins = await this.getTopSpotCoinsByMarketCap(
       amountOfCoins,
       config.startDate,
       new Date()
@@ -112,12 +113,37 @@ export class RebalanceDataManager {
         .limit(1);
     }
 
-    let startTime =
-      latestBalanceData.length > 0
-        ? moment(latestBalanceData[0]?.timestamp)
-            .add(rebalancePeriodMs)
-            .valueOf()
-        : moment(config.startDate).valueOf();
+    let startTime;
+    if (latestBalanceData.length) {
+      startTime = moment(latestBalanceData[0]?.timestamp)
+        .add(rebalancePeriodMs)
+        .valueOf();
+    } else {
+      startTime = moment(config.startDate);
+
+      const firstCandleDataStart =
+        (
+          await DataSource.select({
+            timestamp: Candles.timestamp,
+          })
+            .from(Candles)
+            .where(
+              inArray(
+                Candles.coinId,
+                coins.map((c) => c.id)
+              )
+            )
+            .orderBy(asc(Candles.timestamp))
+            .limit(1)
+        )?.[0]?.timestamp ?? moment();
+
+      const candleStart = moment(firstCandleDataStart);
+      if (startTime.isBefore(candleStart)) {
+        startTime = candleStart.valueOf();
+      } else {
+        startTime = startTime.valueOf();
+      }
+    }
     let endTime = moment(startTime).add(rebalancePeriodMs).valueOf();
 
     const today = moment().valueOf();
@@ -298,7 +324,7 @@ export class RebalanceDataManager {
       .where(eq(Rebalance.etfId, etfId));
   }
 
-  private static async getTopUsdmCoinsByMarketCap(
+  private static async getTopSpotCoinsByMarketCap(
     amount: number,
     startTimestamp: Date,
     endTimestamp: Date
@@ -320,27 +346,12 @@ export class RebalanceDataManager {
 
     const topCoinIds = topMarketCaps.map((entry) => entry.coinId);
 
-    const spotsAssetIds = await DataSource.select({
-      assetId: Coins.assetId,
-    })
+    return DataSource.select()
       .from(Coins)
       .where(
         and(
           inArray(Coins.id, topCoinIds),
           notInArray(Coins.symbol, blacklistCoins)
-        )
-      );
-
-    return DataSource.select()
-      .from(Coins)
-      .where(
-        and(
-          eq(Coins.source, CoinSourceEnum.USDMFUTURES),
-          inArray(
-            Coins.assetId,
-            spotsAssetIds.map((asset) => asset.assetId)
-          ),
-          sql`${Coins.pair} ~ '(USDT|USDC)$'`
         )
       ) as Promise<CoinInterface[]>;
   }

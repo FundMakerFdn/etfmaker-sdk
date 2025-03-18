@@ -372,7 +372,7 @@ export class ETFDataManager {
       marketCap: MarketCap.marketCap,
     })
       .from(MarketCap)
-      .where(inArray(MarketCap.id, coinIds));
+      .where(inArray(MarketCap.coinId, coinIds));
 
     const marketCapMap = new Map(
       marketCaps.map((mc) => [mc.coinId, new Decimal(mc.marketCap)])

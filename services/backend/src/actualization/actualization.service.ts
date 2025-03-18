@@ -39,9 +39,9 @@ export class ActualizationService {
 
       const coins = await this.updateCoinsTable(classifiedCoins);
 
+      await setCandlesData(coins);
       await setMarketCapData(coins);
       await setFundingsData(coins);
-      await setCandlesData(coins);
       await setOpenInterestData(coins);
       await ProcessingStatusService.setSuccess(ProcessingKeysEnum.actualizing);
     } catch (error) {
