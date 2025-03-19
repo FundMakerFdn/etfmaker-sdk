@@ -1,11 +1,7 @@
 import { parentPort } from "worker_threads";
 import { ETFDataManager } from "../../managers/etf-data.manager";
 
-let etfManager: {
-  getCoinsPriceStartEndRecords: (arg0: any, arg1: any, arg2: any) => any;
-  setAssetWeights: (arg0: any) => any;
-  setAmountPerContracts: (arg0: any, arg1: any) => any;
-} | null = null;
+let etfManager: ETFDataManager | null = null;
 
 if (!parentPort) {
   throw new Error("parentPort is not defined");
@@ -46,7 +42,9 @@ parentPort.on(
       let result;
       if (coinsWithPrices.length > 0) {
         const assetsWithWeights = await etfManager.setAssetWeights(
-          coinsWithPrices
+          coinsWithPrices,
+          startTime,
+          endTime
         );
         const amountPerContracts = etfManager.setAmountPerContracts(
           assetsWithWeights,

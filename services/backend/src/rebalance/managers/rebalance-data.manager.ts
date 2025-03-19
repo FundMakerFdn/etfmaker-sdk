@@ -162,11 +162,13 @@ export class RebalanceDataManager {
 
       if (coinsWithPrices.length > 0) {
         const assetsWithWeights = await etfDataManager.setAssetWeights(
-          coinsWithPrices
+          coinsWithPrices,
+          startTime,
+          endTime
         );
         const amountPerContracts = etfDataManager.setAmountPerContracts(
           assetsWithWeights,
-          config.initialPrice
+          price
         );
 
         const etfCandle = etfDataManager.getCloseETFPrice(

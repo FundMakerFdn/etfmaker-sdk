@@ -2,22 +2,13 @@
 
 import React, { useState } from "react";
 import { DownloadRebalanceDataCsv } from "./components/DownloadRebalanceCsv";
-import { CurrentAPY } from "./components/CurrentAPY";
 import {
   FiltersByRebalanceAssets,
   FiltersByCategory,
 } from "./components/Filters";
-import { SystemBacking } from "./components/charts/SystemBacking";
-import { SUSDeApy } from "./components/charts/SUSDsAPY";
-import { AvgPerpetualYieldByQuarter } from "./components/charts/AvgPerpetualYieldByQ";
-import { FundingDaysDistribution } from "./components/charts/FundingDaysDistribution";
-import { SUSDeSpreadVsTreasury } from "./components/charts/SUSDeSpreadVsTreasury";
-import { SUSDeAPYWeeklyDistribution } from "./components/charts/SUSDeWeeklyDistribution";
-import { ApyFundingReward } from "./components/charts/ApyFundingReward";
-import { AverageFundingChart } from "./components/charts/AverageFundingChart";
-import { TradingWidgetChart } from "./components/charts/TradingWidgetChart";
+import { IndexOhclChart } from "./components/charts/IndexOHCLChart";
 
-const AMOUNT_OF_LOADING_ENTRIES = 8;
+const AMOUNT_OF_LOADING_ENTRIES = 1;
 
 export default function Page() {
   const [coinId, setCoinId] = useState<number>();
@@ -54,13 +45,19 @@ export default function Page() {
 
       {isLoading && <div>Loading...</div>}
 
-      <TradingWidgetChart
+      <IndexOhclChart
         coinId={coinId}
         category={categoryFilter}
         loaded={loadedDataCallback}
       />
 
-      <div
+      {/* <TradingWidgetChart
+        coinId={coinId}
+        category={categoryFilter}
+        loaded={loadedDataCallback}
+      /> */}
+
+      {/* <div
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(800px, 1fr))",
@@ -122,7 +119,7 @@ export default function Page() {
           category={categoryFilter}
           loaded={loadedDataCallback}
         />
-      </div>
+      </div> */}
     </div>
   );
 }

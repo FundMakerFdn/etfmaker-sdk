@@ -29,8 +29,10 @@ import {
   EtfFundingReward,
   Funding,
   MarketCap,
+  Coins,
 } from "../../db/schema";
 import { OhclGroupByEnum } from "../../enums/OhclGroupBy.enum";
+import { CoinSourceEnum } from "../../enums/CoinSource.enum";
 
 const groupIntervalMapping: Record<OhclGroupByEnum, string> = {
   "1m": "1 minute",
@@ -48,8 +50,6 @@ const groupIntervalMapping: Record<OhclGroupByEnum, string> = {
   "1w": "1 week",
   "1M": "1 month",
 };
-
-const IS_DEV = process.env.NODE_ENV === "development";
 
 export class ETFDataManager {
   etf_price: number;
@@ -117,14 +117,11 @@ export class ETFDataManager {
 
     const totalMinutes = Math.abs(endTime.diff(lastCandleDataLimit, "minutes"));
 
-    const workerFilePath = IS_DEV
-      ? path.resolve(
-          __dirname,
-          "../workers/etf-price/etf-price.processing.bootstrap.mjs"
-        )
-      : path.resolve(__dirname, "../workers/etf-price/etf-price.processing.js");
-
-    const pool = new WorkerPool(workerFilePath, 128, 192);
+    const pool = new WorkerPool(
+      path.resolve(__dirname, "../workers/etf-price/etf-price.processing.js"),
+      128,
+      192
+    );
     let completedTasks = 0;
     const resultsAccumulator: any[] = [];
     let finishAll: (value?: unknown) => void;
@@ -213,11 +210,38 @@ export class ETFDataManager {
       let fundingReward = new Decimal(0);
 
       for (const asset of rebalance.data as AmountPerContracts[]) {
+        const assetId = (
+          await DataSource.select({ assetId: Coins.assetId })
+            .from(Coins)
+            .where(eq(Coins.id, asset.coinId))
+            .limit(1)
+        )?.[0]?.assetId;
+
+        if (!assetId) {
+          continue;
+        }
+
+        const usdmCoinId = (
+          await DataSource.select({ coinId: Coins.id })
+            .from(Coins)
+            .where(
+              and(
+                eq(Coins.assetId, assetId),
+                eq(Coins.source, CoinSourceEnum.USDMFUTURES)
+              )
+            )
+            .limit(1)
+        )?.[0]?.coinId;
+
+        if (!usdmCoinId) {
+          continue;
+        }
+
         const fundingRate = await DataSource.select()
           .from(Funding)
           .where(
             and(
-              eq(Funding.coinId, asset.coinId),
+              eq(Funding.coinId, usdmCoinId),
               gte(Funding.timestamp, rebalance.timestamp)
             )
           )
@@ -363,16 +387,31 @@ export class ETFDataManager {
   }
 
   public async setAssetWeights(
-    assetsList: PricesDto[]
+    assetsList: PricesDto[],
+    startTime: number,
+    endTime: number
   ): Promise<AssetWeights[]> {
     const coinIds = assetsList.map((asset) => asset.coinId);
 
-    const marketCaps = await DataSource.select({
-      coinId: MarketCap.id,
+    const marketCaps = await DataSource.selectDistinctOn([MarketCap.coinId], {
+      coinId: MarketCap.coinId,
       marketCap: MarketCap.marketCap,
+      timestamp: MarketCap.timestamp,
     })
       .from(MarketCap)
-      .where(inArray(MarketCap.coinId, coinIds));
+      .where(
+        and(
+          inArray(MarketCap.coinId, coinIds),
+          lte(MarketCap.timestamp, new Date(endTime))
+        )
+      )
+      .orderBy(
+        MarketCap.coinId,
+        sql`CASE WHEN ${MarketCap.timestamp} >= ${new Date(
+          startTime
+        )} THEN 1 ELSE 2 END`,
+        desc(MarketCap.timestamp)
+      );
 
     const marketCapMap = new Map(
       marketCaps.map((mc) => [mc.coinId, new Decimal(mc.marketCap)])

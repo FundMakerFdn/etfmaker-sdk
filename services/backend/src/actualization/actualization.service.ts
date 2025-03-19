@@ -65,7 +65,7 @@ export class ActualizationService {
       );
 
       if (!coin) {
-        await DataSource.insert(Coins).values(newCoin);
+        await DataSource.insert(Coins).values(newCoin).onConflictDoNothing();
       }
     }
 

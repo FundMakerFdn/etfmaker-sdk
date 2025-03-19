@@ -15,6 +15,7 @@ import { FilterInterface } from "../interfaces/FilterInterface";
 import { Candles } from "../db/schema/candles";
 import { Coins } from "../db/schema/coins";
 import { OhclGroupByEnum } from "../enums/OhclGroupBy.enum";
+import { OhclChartDataType } from "./dto/GetETFPrices.dto";
 
 const binanceService = new BinanceService();
 const defaltEtfPriceManager = new ETFDataManager();
@@ -24,9 +25,7 @@ export class DataProcessingService {
     groupBy?: OhclGroupByEnum,
     from?: string,
     to?: string
-  ): Promise<
-    { date: number; open: string; high: string; low: string; close: string }[]
-  > {
+  ): Promise<OhclChartDataType[]> {
     let data;
 
     if (groupBy) {
@@ -57,7 +56,7 @@ export class DataProcessingService {
     }
 
     return data.map((price) => ({
-      date: new Date(price.timestamp as string).getTime(),
+      time: new Date(price.timestamp as string).getTime() / 1000,
       open: price.open as string,
       high: price.high as string,
       low: price.low as string,
