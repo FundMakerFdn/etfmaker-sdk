@@ -22,6 +22,13 @@
       "when": 1742002276987,
       "tag": "0002_curious_malice",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1742422370215,
+      "tag": "0003_glorious_madripoor",
+      "breakpoints": true
     }
   ]
 }

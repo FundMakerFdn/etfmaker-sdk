@@ -16,6 +16,8 @@ interface CsvDataRaw {
   "amount per contracts": number;
 }
 
+const rebalanceDataManager = new RebalanceDataManager();
+
 export class RebalanceCsvManager {
   public static async getRebalanceDataCsv(): Promise<string> {
     const rebalanceData = await DataSource.select()
@@ -31,7 +33,7 @@ export class RebalanceCsvManager {
     config: RebalanceConfig
   ): Promise<string> {
     const simulatedRebalanceData =
-      await RebalanceDataManager.generateRebalanceData(config, true);
+      await rebalanceDataManager.generateRebalanceData(config, true);
 
     return this.generateCsvFromRebalanceData(simulatedRebalanceData!);
   }

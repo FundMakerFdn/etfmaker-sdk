@@ -3,8 +3,8 @@ import {
   serial,
   text,
   timestamp,
-  uniqueIndex,
   primaryKey,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const EtfFundingReward = pgTable(
@@ -18,9 +18,10 @@ export const EtfFundingReward = pgTable(
   (table) => {
     return {
       // Composite index on etfId and timestamp
-      etfIdTimestampIdx: uniqueIndex(
-        "etf_funding_reward_etf_id_timestamp_idx"
-      ).on(table.etfId, table.timestamp),
+      etfIdTimestampIdx: index("etf_funding_reward_etf_id_timestamp_idx").on(
+        table.etfId,
+        table.timestamp
+      ),
       pk: primaryKey({ columns: [table.id, table.timestamp] }),
     };
   }

@@ -31,27 +31,9 @@ import {
   MarketCap,
   Coins,
 } from "../../db/schema";
-import { OhclGroupByEnum } from "../../enums/OhclGroupBy.enum";
 import { CoinSourceEnum } from "../../enums/CoinSource.enum";
 
-const groupIntervalMapping: Record<OhclGroupByEnum, string> = {
-  "1m": "1 minute",
-  "3m": "3 minutes",
-  "5m": "5 minutes",
-  "15m": "15 minutes",
-  "30m": "30 minutes",
-  "1h": "1 hour",
-  "2h": "2 hours",
-  "4h": "4 hours",
-  "8h": "8 hours",
-  "12h": "12 hours",
-  "1d": "1 day",
-  "3d": "3 days",
-  "1w": "1 week",
-  "1M": "1 month",
-};
-
-export class ETFDataManager {
+export class IndexGenerateManager {
   etf_price: number;
   etfId: RebalanceConfig["etfId"] | null;
 
@@ -118,7 +100,7 @@ export class ETFDataManager {
     const totalMinutes = Math.abs(endTime.diff(lastCandleDataLimit, "minutes"));
 
     const pool = new WorkerPool(
-      path.resolve(__dirname, "../workers/etf-price/etf-price.processing.js"),
+      path.resolve(__dirname, "../workers/etf-price/historical.processing.js"),
       128,
       192
     );
@@ -195,7 +177,7 @@ export class ETFDataManager {
 
     const whereParams = [eq(Rebalance.etfId, etfId)];
     if (lastRewardDate) {
-      whereParams.push(gte(Rebalance.timestamp, lastRewardDate));
+      whereParams.push(gt(Rebalance.timestamp, lastRewardDate));
     }
 
     const rebalanceData = await DataSource.select()
@@ -203,7 +185,7 @@ export class ETFDataManager {
       .where(and(...whereParams));
 
     if (rebalanceData.length === 0) {
-      throw new Error("Rebalance data not found");
+      return;
     }
 
     for (const rebalance of rebalanceData) {
@@ -497,53 +479,6 @@ export class ETFDataManager {
     }
 
     return result;
-  }
-
-  public async getEtfPriceDataGroupedRange(
-    groupBy: OhclGroupByEnum,
-    from?: string,
-    to?: string
-  ) {
-    let startDate = 0;
-    let endDate = new Date().getTime();
-
-    if (from && to) {
-      startDate = new Date(from).getTime();
-      endDate = new Date(to).getTime();
-    }
-
-    const interval = groupIntervalMapping[groupBy];
-
-    const conditions = [
-      // sql`${EtfPrice.etfId} = ${etfId}`,
-      startDate
-        ? sql`${EtfPrice.timestamp} >= ${new Date(startDate).toISOString()}`
-        : undefined,
-      endDate
-        ? sql`${EtfPrice.timestamp} <= ${new Date(endDate).toISOString()}`
-        : undefined,
-    ].filter(Boolean);
-
-    const query = sql`
-    SELECT 
-      time_bucket(${sql.raw("'" + interval + "'")}, ${
-      EtfPrice.timestamp
-    }) AS "timestamp",
-      first(${EtfPrice.open}, ${EtfPrice.timestamp}) AS open,
-      max(${EtfPrice.high}) AS high,
-      min(${EtfPrice.low}) AS low,
-      last(${EtfPrice.close}, ${EtfPrice.timestamp}) AS close
-    FROM ${EtfPrice}
-    ${
-      conditions.length > 0
-        ? sql`WHERE ${sql.join(conditions, sql` AND `)}`
-        : sql``
-    }
-    GROUP BY 1
-    ORDER BY "timestamp" ASC
-  `;
-
-    return (await DataSource.execute(query))?.rows ?? [];
   }
 
   private async bulkInsertAmountsPerContracts(

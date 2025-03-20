@@ -9,8 +9,16 @@ import { RebalanceCsvManager } from "./managers/rebalance-csv.manager";
 import { isNotNull } from "drizzle-orm";
 
 export class RebalanceService {
-  public getRebalanceAssets(): Promise<CoinInterface[]> {
-    return RebalanceDataManager.getRebalanceAssets();
+  private readonly rebalanceDataManager: RebalanceDataManager;
+
+  constructor() {
+    this.rebalanceDataManager = new RebalanceDataManager();
+  }
+
+  public getRebalanceAssets(
+    etfId: RebalanceConfig["etfId"]
+  ): Promise<CoinInterface[]> {
+    return this.rebalanceDataManager.getAssets(etfId);
   }
 
   public async getRebalanceCategories(): Promise<string[]> {
@@ -30,7 +38,7 @@ export class RebalanceService {
   }
 
   public setRebalanceDataManualy() {
-    return RebalanceDataManager.setRebalanceDataManualy(
+    return this.rebalanceDataManager.setRebalanceDataManualy(
       1738928704000,
       [{ coinId: 3, weight: 0.07 }],
       {
@@ -56,7 +64,7 @@ export class RebalanceService {
       await ProcessingStatusService.setProcessing(
         ProcessingKeysEnum.processing
       );
-      await RebalanceDataManager.generateRebalanceData(config);
+      await this.rebalanceDataManager.generateRebalanceData(config);
 
       await ProcessingStatusService.setSuccess(ProcessingKeysEnum.processing);
     } catch (error) {

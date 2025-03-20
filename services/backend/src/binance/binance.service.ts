@@ -99,7 +99,7 @@ export class BinanceService {
     startTime: number,
     endTime: number
   ): Promise<CandleInterface[]> {
-    let url = `${this.visionApiUrl}/klines`;
+    let url = `${this.visionApiUrl}/uiKlines`;
 
     const params = {
       symbol,

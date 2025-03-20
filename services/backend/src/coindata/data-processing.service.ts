@@ -5,7 +5,6 @@ import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
 import { ApyDataManager } from "./managers/apy-data.manager";
 import { FundingDataManager } from "./managers/funding-data.manager";
 import { ChartDataManager } from "./managers/charts-data.manager";
-import { ETFDataManager } from "./managers/etf-data.manager";
 import { asc, eq, and, gte, sql, lte } from "drizzle-orm";
 import { CoinInterface } from "../interfaces/Coin.interface";
 import { CoinSourceEnum } from "../enums/CoinSource.enum";
@@ -14,56 +13,10 @@ import { SUSDApyReturnDto } from "./dto/SUSDApy.dto";
 import { FilterInterface } from "../interfaces/FilterInterface";
 import { Candles } from "../db/schema/candles";
 import { Coins } from "../db/schema/coins";
-import { OhclGroupByEnum } from "../enums/OhclGroupBy.enum";
-import { OhclChartDataType } from "./dto/GetETFPrices.dto";
 
 const binanceService = new BinanceService();
-const defaltEtfPriceManager = new ETFDataManager();
 
 export class DataProcessingService {
-  async getETFPrices(
-    groupBy?: OhclGroupByEnum,
-    from?: string,
-    to?: string
-  ): Promise<OhclChartDataType[]> {
-    let data;
-
-    if (groupBy) {
-      data = await defaltEtfPriceManager.getEtfPriceDataGroupedRange(
-        groupBy,
-        from,
-        to
-      );
-    }
-
-    if (!data || data.length === 0) {
-      data = (
-        await DataSource.execute(
-          sql`
-        SELECT * FROM (
-          SELECT * FROM etf_price 
-          ORDER BY timestamp DESC
-          LIMIT 1000
-        ) sub
-        ORDER BY timestamp ASC
-      `
-        )
-      ).rows;
-    }
-
-    if (!data) {
-      return [];
-    }
-
-    return data.map((price) => ({
-      time: new Date(price.timestamp as string).getTime() / 1000,
-      open: price.open as string,
-      high: price.high as string,
-      low: price.low as string,
-      close: price.close as string,
-    }));
-  }
-
   async getAllSpotUsdtPairs(): Promise<CoinInterface[]> {
     return DataSource.select()
       .from(Coins)
@@ -177,16 +130,6 @@ export class DataProcessingService {
       etfId,
       period
     );
-  }
-
-  generateETFPrice(etfId: RebalanceConfig["etfId"]): Promise<void> {
-    const etfDataManager = new ETFDataManager(etfId);
-    return etfDataManager.generateETFPrice(etfId);
-  }
-
-  setYieldETFFundingReward(etfId: RebalanceConfig["etfId"]): Promise<void> {
-    const etfDataManager = new ETFDataManager(etfId);
-    return etfDataManager.setYieldETFFundingReward(etfId);
   }
 
   getSUSDeSpreadVs3mTreasury(

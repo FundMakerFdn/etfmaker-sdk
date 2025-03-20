@@ -14,7 +14,6 @@ import moment from "moment";
 import { DataSource } from "../../db/DataSource";
 import { getRebalanceIntervalMs } from "../../helpers/GetRebalanceIntervalMs";
 import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
-import { ETFDataManager } from "../../coindata/managers/etf-data.manager";
 import { CoinInterface } from "../../interfaces/Coin.interface";
 import {
   AmountPerContracts,
@@ -22,13 +21,16 @@ import {
 } from "../../interfaces/Rebalance.interface";
 import blacklistCoins from "../../config/blacklist.json";
 import Decimal from "decimal.js";
-import { CoinSourceEnum } from "../../enums/CoinSource.enum";
 import { Rebalance, Coins, MarketCap, Candles } from "../../db/schema";
+import { IndexGenerateManager } from "../../index-price/managers/index-generate.manager";
 
 export class RebalanceDataManager {
-  public static async getRebalanceAssets(): Promise<CoinInterface[]> {
+  public async getAssets(
+    etfId: RebalanceConfig["etfId"]
+  ): Promise<CoinInterface[]> {
     const assets = await DataSource.select()
       .from(Rebalance)
+      .where(eq(Rebalance.etfId, etfId))
       .orderBy(desc(Rebalance.timestamp))
       .limit(1)
       .then((data) => {
@@ -46,7 +48,7 @@ export class RebalanceDataManager {
       ) as Promise<CoinInterface[]>;
   }
 
-  public static async getLatestRebalanceData(): Promise<RebalanceDto> {
+  public async getLatestRebalanceData(): Promise<RebalanceDto> {
     return (
       await DataSource.select()
         .from(Rebalance)
@@ -55,7 +57,7 @@ export class RebalanceDataManager {
     )?.[0] as RebalanceDto;
   }
 
-  public static async getAssetRebalanceWeight(coinId: number): Promise<number> {
+  public async getAssetRebalanceWeight(coinId: number): Promise<number> {
     const rebalanceData = (
       await DataSource.select()
         .from(Rebalance)
@@ -76,7 +78,7 @@ export class RebalanceDataManager {
     return asset.weight;
   }
 
-  public static async generateRebalanceData(
+  public async generateRebalanceData(
     config: RebalanceConfig,
     returnData = false
   ): Promise<RebalanceDto[] | void> {
@@ -151,27 +153,28 @@ export class RebalanceDataManager {
 
     let price = config.initialPrice;
 
-    const etfDataManager = new ETFDataManager();
+    const indexAggregateManager = new IndexGenerateManager();
 
     while (startTime < endTime) {
-      const coinsWithPrices = await etfDataManager.getCoinsPriceStartEndRecords(
-        coins.map((coin) => coin.id),
-        startTime,
-        endTime
-      );
+      const coinsWithPrices =
+        await indexAggregateManager.getCoinsPriceStartEndRecords(
+          coins.map((coin) => coin.id),
+          startTime,
+          endTime
+        );
 
       if (coinsWithPrices.length > 0) {
-        const assetsWithWeights = await etfDataManager.setAssetWeights(
+        const assetsWithWeights = await indexAggregateManager.setAssetWeights(
           coinsWithPrices,
           startTime,
           endTime
         );
-        const amountPerContracts = etfDataManager.setAmountPerContracts(
+        const amountPerContracts = indexAggregateManager.setAmountPerContracts(
           assetsWithWeights,
           price
         );
 
-        const etfCandle = etfDataManager.getCloseETFPrice(
+        const etfCandle = indexAggregateManager.getCloseETFPrice(
           price,
           amountPerContracts
         );
@@ -206,7 +209,7 @@ export class RebalanceDataManager {
     }
   }
 
-  public static async setRebalanceDataManualy(
+  public async setRebalanceDataManualy(
     timestamp: number,
     weights: { coinId: number; weight: number }[],
     config: RebalanceConfig
@@ -299,9 +302,9 @@ export class RebalanceDataManager {
         });
       }
 
-      const etfDataManager = new ETFDataManager();
+      const indexAggregateManager = new IndexGenerateManager();
 
-      const etfCandle = etfDataManager.getCloseETFPrice(price, result);
+      const etfCandle = indexAggregateManager.getCloseETFPrice(price, result);
 
       price = Number(etfCandle?.close ?? price);
 
@@ -317,7 +320,7 @@ export class RebalanceDataManager {
     >;
   }
 
-  public static async setRebalanceSpread(
+  public async setRebalanceSpread(
     etfId: RebalanceConfig["etfId"],
     spread: number
   ): Promise<void> {
@@ -326,7 +329,7 @@ export class RebalanceDataManager {
       .where(eq(Rebalance.etfId, etfId));
   }
 
-  private static async getTopSpotCoinsByMarketCap(
+  private async getTopSpotCoinsByMarketCap(
     amount: number,
     startTimestamp: Date,
     endTimestamp: Date
