@@ -5,14 +5,17 @@ import { DownloadRebalanceDataCsv } from "./components/DownloadRebalanceCsv";
 import {
   FiltersByRebalanceAssets,
   FiltersByCategory,
+  FiltersByIndex,
 } from "./components/Filters";
 import { IndexOhclChart } from "./components/charts/IndexOHCLChart";
+import { RebalanceDto } from "./types/RebalanceType";
 
 const AMOUNT_OF_LOADING_ENTRIES = 1;
 
 export default function Page() {
   const [coinId, setCoinId] = useState<number>();
   const [categoryFilter, setCategoryFilter] = useState<string>();
+  const [etfId, setEtfId] = useState<RebalanceDto["etfId"]>();
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const loadedDataCallback = (() => {
@@ -37,19 +40,32 @@ export default function Page() {
       <DownloadRebalanceDataCsv type="saved" />
       <DownloadRebalanceDataCsv type="simulation" />
 
-      <FiltersByRebalanceAssets value={coinId} setFilterToProcess={setCoinId} />
-      <FiltersByCategory
-        value={categoryFilter}
-        setFilterToProcess={setCategoryFilter}
-      />
+      <FiltersByIndex value={etfId} setFilterToProcess={setEtfId} />
+
+      {etfId && (
+        <>
+          <FiltersByRebalanceAssets
+            value={coinId}
+            setFilterToProcess={setCoinId}
+            etfId={etfId}
+          />
+          <FiltersByCategory
+            value={categoryFilter}
+            setFilterToProcess={setCategoryFilter}
+          />
+        </>
+      )}
 
       {isLoading && <div>Loading...</div>}
 
-      <IndexOhclChart
-        coinId={coinId}
-        category={categoryFilter}
-        loaded={loadedDataCallback}
-      />
+      {etfId && (
+        <IndexOhclChart
+          coinId={coinId}
+          category={categoryFilter}
+          loaded={loadedDataCallback}
+          etfId={etfId}
+        />
+      )}
 
       {/* <TradingWidgetChart
         coinId={coinId}

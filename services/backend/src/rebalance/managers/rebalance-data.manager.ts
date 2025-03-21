@@ -48,6 +48,18 @@ export class RebalanceDataManager {
       ) as Promise<CoinInterface[]>;
   }
 
+  public async getRebalanceLastPrice(
+    etfId: RebalanceConfig["etfId"]
+  ): Promise<number> {
+    const data = await DataSource.select({ price: Rebalance.price })
+      .from(Rebalance)
+      .where(eq(Rebalance.etfId, etfId))
+      .orderBy(desc(Rebalance.timestamp))
+      .limit(1);
+
+    return +data[0]?.price || 0;
+  }
+
   public async getLatestRebalanceData(): Promise<RebalanceDto> {
     return (
       await DataSource.select()

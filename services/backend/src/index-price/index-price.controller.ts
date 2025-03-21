@@ -31,16 +31,22 @@ export const streamIndexPriceUpdates = async (
     !etfIdTypeCheck(etfId) ||
     !(groupBy in OhclGroupByEnum)
   ) {
+    console.error("Invalid query params");
     socket.close();
     return;
   }
 
-  indexPriceService.setIndexPriceSockerClient({
-    socket,
-    startTimestamp,
-    etfId,
-    groupBy,
-  });
+  try {
+    indexPriceService.setIndexPriceSocketClient({
+      socket,
+      startTimestamp,
+      etfId,
+      groupBy,
+    });
+  } catch (error) {
+    console.error(error);
+    socket.close();
+  }
 };
 
 export const getETFPrices = async (req: FastifyRequest, res: FastifyReply) => {
@@ -145,4 +151,13 @@ export const generateEtfFundingRewardData = async (
     console.error(error);
     res.send({ error: "Can't generate ETF price data" });
   }
+};
+
+export const getAvailableteIndexEtfIds = async (
+  req: FastifyRequest,
+  res: FastifyReply
+) => {
+  const availableIndexEtfIds =
+    await indexPriceService.getAvailableIndexEtfIds();
+  res.send({ data: availableIndexEtfIds });
 };

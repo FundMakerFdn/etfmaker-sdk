@@ -260,8 +260,6 @@ export class IndexGenerateManager {
       if (
         !asset.startTime ||
         !asset.endTime ||
-        asset.startTime.id == null ||
-        asset.endTime.id == null ||
         asset.startTime.close == null ||
         asset.endTime.close == null
       ) {

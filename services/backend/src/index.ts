@@ -8,6 +8,7 @@ import fastifySchedulePlugin from "@fastify/schedule";
 import { CoinDataActualizationCronJob } from "./actualization/actualization.cron.service";
 import { ActualizationRoutes } from "./routes/actualization";
 import { RebalanceRoutes } from "./routes/rebalance";
+import { IndexPriceRoutes } from "./routes/index-price";
 
 const APP_HOST = process.env.APP_HOST ?? "0.0.0.0";
 const APP_PORT = process.env.APP_PORT ? Number(process.env.APP_PORT) : 3001;
@@ -51,13 +52,17 @@ const bootstrap = async () => {
   // Register the schedule plugin
   await fastify.register(fastifySchedulePlugin);
 
+  // Register the websocket plugin
+  await fastify.register(fastifyWebsocket);
+
   try {
     CoinGeckoRoutes.forEach((route) => fastify.route(route));
     CoinDataRoutes.forEach((route) => fastify.route(route));
     ActualizationRoutes.forEach((route) => fastify.route(route));
     RebalanceRoutes.forEach((route) => fastify.route(route));
+    IndexPriceRoutes.forEach((route) => fastify.route(route));
 
-    fastify.get("/health", async (request, reply) => {
+    fastify.get("/health", (_request, reply) => {
       const healthcheck = {
         uptime: process.uptime(),
         message: "OK",

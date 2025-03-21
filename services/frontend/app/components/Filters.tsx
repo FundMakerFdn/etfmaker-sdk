@@ -8,6 +8,7 @@ import {
 import {
   getAvailableAssetsToFilter,
   getAvailableCategoriesToFilter,
+  getAvailableEtfIdsToFilter,
   getAvailableUsdtPairsToFilter,
 } from "app/data/getFiltersData";
 import {
@@ -19,20 +20,55 @@ import {
 import { CoinType } from "app/types/CoinType";
 import { FC, useCallback, useEffect, useMemo, useState } from "react";
 import { OhclGroupByEnum } from "app/enums/OhclGroupBy.enum";
+import { RebalanceDto } from "app/types/RebalanceType";
+
+export const FiltersByIndex: FC<{
+  value: RebalanceDto["etfId"];
+  setFilterToProcess: (filter: RebalanceDto["etfId"]) => void;
+}> = ({ setFilterToProcess, value }) => {
+  const [availableIndexEtfIds, setAvailableIndexEtfIds] = useState<
+    RebalanceDto["etfId"][]
+  >([]);
+
+  useEffect(() => {
+    const getAvailableIndexEtfIds = async () => {
+      const assets = await getAvailableEtfIdsToFilter();
+      setAvailableIndexEtfIds(assets);
+      setFilterToProcess(assets[0]);
+    };
+    getAvailableIndexEtfIds();
+  }, []);
+
+  return (
+    <div>
+      <select
+        onChange={(e) => setFilterToProcess(e.target.value)}
+        value={value}
+      >
+        {availableIndexEtfIds.map((etfId, id) => (
+          <option key={etfId + id} value={etfId}>
+            {etfId}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+};
 
 export const FiltersByRebalanceAssets: FC<{
   value: number;
   setFilterToProcess: (filter: number) => void;
-}> = ({ setFilterToProcess, value }) => {
+  etfId: RebalanceDto["etfId"];
+}> = ({ setFilterToProcess, value, etfId }) => {
   const [availableAssets, setAvailableAssets] = useState<CoinType[]>([]);
 
   useEffect(() => {
     const getAvailableAssets = async () => {
-      const assets = await getAvailableAssetsToFilter();
+      const assets = await getAvailableAssetsToFilter(etfId);
       setAvailableAssets([{ id: undefined, name: "All" }, ...assets]);
     };
     getAvailableAssets();
-  }, []);
+  }, [etfId]);
 
   return (
     <div>

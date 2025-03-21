@@ -1,11 +1,33 @@
 import appConfig from "app/app.config";
+import { RebalanceDto } from "app/types/RebalanceType";
 
 const NEXT_PUBLIC_SERVER_URL = appConfig.NEXT_PUBLIC_SERVER_URL;
 
-export const getAvailableAssetsToFilter = async () => {
+export const getAvailableEtfIdsToFilter = async () => {
   try {
     const availableAssetsToFilter = await fetch(
-      `${NEXT_PUBLIC_SERVER_URL}/get-rebalance-assets`,
+      `${NEXT_PUBLIC_SERVER_URL}/get-index-ids`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    ).then((res) => res.json());
+
+    return availableAssetsToFilter?.data ?? [];
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+};
+
+export const getAvailableAssetsToFilter = async (
+  etfId: RebalanceDto["etfId"]
+) => {
+  try {
+    const availableAssetsToFilter = await fetch(
+      `${NEXT_PUBLIC_SERVER_URL}/get-rebalance-assets?etfId=${etfId}`,
       {
         method: "GET",
         headers: {

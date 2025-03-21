@@ -1,13 +1,10 @@
 import {
-  generateEtfFundingRewardData,
-  generateETFPriceData,
   getAllSpotUsdtPairs,
   getAPYFundingRate,
   getAverageFundingChartData,
   getAverageYieldQuartalFundingData,
   getBackingSystem,
   getCoinOHCL,
-  getETFPrices,
   getFundingDaysDistribution,
   getSUSDeApy,
   getSUSDeSpreadVs3mTreasury,
@@ -15,21 +12,6 @@ import {
 import { RoutesType } from "../interfaces/RoutesType";
 
 export const CoinDataRoutes = [
-  {
-    method: "POST",
-    url: "/generate-etf-price-data",
-    handler: generateETFPriceData,
-  },
-  {
-    method: "POST",
-    url: "/generate-etf-funding-reward-data",
-    handler: generateEtfFundingRewardData,
-  },
-  {
-    method: "GET",
-    url: "/get-etf-prices",
-    handler: getETFPrices,
-  },
   {
     method: "GET",
     url: "/get-coin-ohcl",

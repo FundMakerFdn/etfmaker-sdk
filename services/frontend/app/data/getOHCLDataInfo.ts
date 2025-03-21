@@ -1,5 +1,6 @@
 import { createQueryParamsStr } from "app/helpers/createQueryParamsStr";
 import GlobalConfig from "../app.config";
+import { RebalanceDto } from "app/types/RebalanceType";
 
 const NEXT_PUBLIC_SERVER_URL = GlobalConfig.NEXT_PUBLIC_SERVER_URL;
 
@@ -11,6 +12,7 @@ export const getOHCLDataInfo = async (params: {
   to?: string;
   coinId?: number;
   category?: string;
+  etfId?: RebalanceDto["etfId"];
 }) => {
   const filter = createQueryParamsStr(params);
 

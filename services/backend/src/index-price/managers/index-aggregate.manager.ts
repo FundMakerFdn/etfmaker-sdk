@@ -1,8 +1,11 @@
-import { sql } from "drizzle-orm";
+import { sql, eq, desc } from "drizzle-orm";
 import { DataSource } from "../../db/DataSource";
-import { EtfPrice } from "../../db/schema";
+import { Candles, EtfPrice } from "../../db/schema";
 import { OhclGroupByEnum } from "../../enums/OhclGroupBy.enum";
-import { GetOhclChartDataInput } from "../dto/GetETFPrices.dto";
+import {
+  GetOhclChartDataInput,
+  OhclChartDataType,
+} from "../dto/GetETFPrices.dto";
 
 const groupIntervalMapping: Record<OhclGroupByEnum, string> = {
   "1m": "1 minute",
@@ -63,5 +66,45 @@ export class IndexAggregateManager {
       `;
 
     return (await DataSource.execute(query))?.rows ?? [];
+  }
+
+  public async getEtfIndexLastOHCL(etfId: string): Promise<OhclChartDataType> {
+    const data = await DataSource.select({
+      open: EtfPrice.open,
+      high: EtfPrice.high,
+      low: EtfPrice.low,
+      close: EtfPrice.close,
+      time: EtfPrice.timestamp,
+    })
+      .from(EtfPrice)
+      .where(eq(EtfPrice.etfId, etfId))
+      .orderBy(desc(EtfPrice.timestamp))
+      .limit(1)
+      .execute();
+
+    return {
+      ...data?.[0],
+      time: data?.[0]?.time?.getTime() / 1000,
+    };
+  }
+
+  public async getCoinLastOHCL(coinId: number): Promise<OhclChartDataType> {
+    const data = await DataSource.select({
+      open: Candles.open,
+      high: Candles.high,
+      low: Candles.low,
+      close: Candles.close,
+      time: Candles.timestamp,
+    })
+      .from(Candles)
+      .where(eq(Candles.id, coinId))
+      .orderBy(desc(Candles.timestamp))
+      .limit(1)
+      .execute();
+
+    return {
+      ...data?.[0],
+      time: data?.[0]?.time?.getTime() / 1000,
+    };
   }
 }

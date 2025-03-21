@@ -7,8 +7,11 @@ import { CoinGeckoService } from "../coingecko/coingecko.service";
 import { DataProcessingService } from "../coindata/data-processing.service";
 import { ActualizationService } from "../actualization/actualization.service";
 import { validateEtfIndexConfig } from "../helpers/EtfIndexConfigValidator";
+import { etfIdTypeCheck } from "../helpers/typecheck/etfIdTypeCheck";
+import { IndexGenerateManager } from "../index-price/managers/index-generate.manager";
 
 const dataProcessingService = new DataProcessingService();
+const indexGenerateManager = new IndexGenerateManager();
 const coingeckoService = new CoinGeckoService();
 const rebalanceService = new RebalanceService();
 const actualizationService = new ActualizationService();
@@ -17,8 +20,22 @@ export const getRebalanceAssets = async (
   req: FastifyRequest,
   res: FastifyReply
 ) => {
-  const data = await rebalanceService.getRebalanceAssets();
-  res.send({ data });
+  const queryParams = req.query as {
+    etfId: RebalanceConfig["etfId"];
+  };
+  const etfId = queryParams?.etfId;
+
+  try {
+    if (!etfIdTypeCheck(etfId)) {
+      res.send({ error: "Invalid etfId" });
+      return;
+    }
+    const data = await rebalanceService.getRebalanceAssets(etfId);
+    res.send({ data });
+  } catch (error) {
+    console.error(error);
+    res.send({ error: "Can't get rebalance assets" });
+  }
 };
 
 export const generateRebalanceData = async (
@@ -94,8 +111,8 @@ export const precalculateRebalanceData = async (
 
     await actualizationService.actualizeData(config);
     await rebalanceService.generateRebalanceData(config);
-    await dataProcessingService.generateETFPrice(config.etfId);
-    await dataProcessingService.setYieldETFFundingReward(config.etfId);
+    await indexGenerateManager.generateETFPrice(config.etfId);
+    await indexGenerateManager.setYieldETFFundingReward(config.etfId);
   }
 
   res.send({ message: "Rebalance data precalculated" });

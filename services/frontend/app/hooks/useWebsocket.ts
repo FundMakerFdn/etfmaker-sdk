@@ -1,17 +1,19 @@
 import { useState, useEffect } from "react";
-import GlobalConfig from "../app.config";
 
-const NEXT_PUBLIC_SERVER_WEBSOCKET_URL =
-  GlobalConfig.NEXT_PUBLIC_SERVER_WEBSOCKET_URL;
+export const useWebsocket = <T = any>({
+  url,
+  dataChange,
+  params,
+  defaultValue,
+}: {
+  url: string;
+  dataChange?: "unshift" | "replace";
+  params?: Record<string, any>;
+  defaultValue?: T;
+}): T | T[] => {
+  const [data, setData] = useState<T | T[]>(defaultValue);
 
-export const useWebsocket = (
-  endpoint: string,
-  dataChange: "unshift" | "replace" = "unshift",
-  params?: Record<string, any>
-) => {
-  const [data, setData] = useState<any>([]);
-
-  let url = NEXT_PUBLIC_SERVER_WEBSOCKET_URL + endpoint;
+  !dataChange && (dataChange = "unshift");
 
   if (params) url += "?" + new URLSearchParams({ ...params }).toString();
 
@@ -28,7 +30,7 @@ export const useWebsocket = (
     ws.onmessage = (event) => {
       console.log("event");
       if (dataChange === "unshift")
-        setData((data) => [...data, JSON.parse(event.data)]);
+        setData((data) => [...(data as T[]), JSON.parse(event.data)] as T[]);
       else setData(JSON.parse(event.data));
     };
 

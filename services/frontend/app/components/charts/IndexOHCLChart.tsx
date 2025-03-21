@@ -3,7 +3,7 @@
 import { getOHCLDataInfo } from "app/data/getOHCLDataInfo";
 import { OhclChartDataType } from "app/types/OhclChartDataType";
 import { CandlestickSeries, ColorType, createChart } from "lightweight-charts";
-import { useRef, useEffect, FC, useMemo, useCallback } from "react";
+import { useRef, useEffect, FC, useMemo, useCallback, useState } from "react";
 import throttle from "lodash/throttle";
 
 import {
@@ -14,8 +14,14 @@ import {
 } from "app/shadcn/components/ui/card";
 import { GroupByOptions } from "../Filters";
 import { OhclGroupByEnum } from "app/enums/OhclGroupBy.enum";
+import { RebalanceDto } from "app/types/RebalanceType";
+import { useWebsocket } from "app/hooks/useWebsocket";
 
-const fetchtOhclData = (coinId: number, category: string) => {
+const fetchtOhclData = (
+  coinId: number,
+  category: string,
+  etfId: RebalanceDto["etfId"]
+) => {
   let isLoading = false;
   return async (
     groupBy: string,
@@ -31,6 +37,7 @@ const fetchtOhclData = (coinId: number, category: string) => {
         to,
         coinId,
         category,
+        etfId,
       });
       isLoading = false;
       return data;
@@ -56,18 +63,63 @@ const isDynamicDataFetching = (groupBy: string): boolean =>
 export const IndexOhclChart: FC<{
   coinId: number;
   category: string;
-  loaded?: () => void;
-}> = ({ coinId, category, loaded }) => {
+  loaded: () => void;
+  etfId: RebalanceDto["etfId"];
+}> = ({ coinId, category, loaded, etfId }) => {
   const ohclChartRef = useRef(null);
   const chartInstanceRef = useRef<any>(null);
   const candlestickSeriesRef = useRef<any>(null);
 
-  const groupByRef = useRef<string>(OhclGroupByEnum["1m"]);
+  const [groupBy, setGroupBy] = useState(OhclGroupByEnum["1m"]);
+
+  console.log("refresh");
+
+  const liveData = useWebsocket<OhclChartDataType>({
+    url: "ws://localhost:3001/etf-price-stream",
+    dataChange: "replace",
+    params: {
+      etfId,
+      startTimestamp: 1683695820000,
+      groupBy,
+    },
+  });
+
+  const groupByRef = useRef<OhclGroupByEnum>(OhclGroupByEnum["1m"]);
   const currentRange = useRef<{ from: string; to: string }>(null!);
 
+  useEffect(() => {
+    if (
+      !ohclChartRef?.current ||
+      !candlestickSeriesRef?.current ||
+      !liveData ||
+      (Array.isArray(liveData) && liveData?.length === 0)
+    )
+      return;
+
+    if (Array.isArray(liveData)) {
+      for (const item of liveData) {
+        candlestickSeriesRef.current.update({
+          time: +item.time * 1000,
+          open: +item.open,
+          high: +item.high,
+          low: +item.low,
+          close: +item.close,
+        });
+      }
+    } else {
+      candlestickSeriesRef.current.update({
+        open: +liveData.open,
+        high: +liveData.high,
+        close: +liveData.close,
+        low: +liveData.low,
+        time: liveData.time,
+      });
+    }
+  }, [liveData]);
+
   const getOhclData = useMemo(
-    () => fetchtOhclData(coinId, category),
-    [coinId, category]
+    () => fetchtOhclData(coinId, category, etfId),
+    [coinId, category, etfId]
   );
 
   const chartTimeRangeScrollHandler = useMemo(
@@ -129,15 +181,15 @@ export const IndexOhclChart: FC<{
           if (!data?.length) return;
         }
 
-        candlestickSeriesRef.current.setData(
-          data.map((item) => ({
+        for (const item of data) {
+          candlestickSeriesRef.current.setData({
             time: item.time,
             open: +item.open,
             high: +item.high,
             low: +item.low,
             close: +item.close,
-          }))
-        );
+          });
+        }
       }, 1000),
     [groupByRef, getOhclData]
   );
@@ -223,16 +275,16 @@ export const IndexOhclChart: FC<{
         };
       }
 
-      scrollHandler = (newRange) =>
-        chartTimeRangeScrollHandler(
-          newRange,
-          currentRange.current.from,
-          currentRange.current.to
-        );
+      // scrollHandler = (newRange) =>
+      //   chartTimeRangeScrollHandler(
+      //     newRange,
+      //     currentRange.current.from,
+      //     currentRange.current.to
+      //   );
 
-      chartInstanceRef.current
-        ?.timeScale()
-        .subscribeVisibleTimeRangeChange(scrollHandler);
+      // chartInstanceRef.current
+      //   ?.timeScale()
+      //   .subscribeVisibleTimeRangeChange(scrollHandler);
 
       loaded && loaded();
     };
@@ -249,8 +301,9 @@ export const IndexOhclChart: FC<{
   }, [coinId, category, loaded]);
 
   const groupBySelectorHandler = useCallback(
-    (value: string) => {
+    (value: OhclGroupByEnum) => {
       groupByRef.current = value;
+      setGroupBy(value);
       updateChartData();
     },
     [updateChartData, groupByRef]
