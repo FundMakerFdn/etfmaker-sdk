@@ -7,6 +7,7 @@ import { PricesDto } from "../../interfaces/Rebalance.interface";
 import { CandleInterface } from "../../interfaces/Candle.interface";
 import { IndexGenerateManager } from "./index-generate.manager";
 import { IndexAggregateManager } from "./index-aggregate.manager";
+import { binanceStreamService } from "../../binance/binance.stream.service";
 
 export class IndexWebsocketManager {
   private readonly etfId: RebalanceConfig["etfId"];
@@ -92,9 +93,13 @@ export class IndexWebsocketManager {
       }
     };
 
-    assets.forEach((asset) =>
-      this.connectWSS(asset.symbol, asset.id, onMessage)
-    );
+    assets.forEach((asset) => {
+      binanceStreamService.addAsset(asset.symbol);
+      binanceStreamService.subscribeToAssetCandles(
+        asset.symbol,
+        (data: CandleInterface) => onMessage(data)
+      );
+    });
   }
 
   private connectWSS(

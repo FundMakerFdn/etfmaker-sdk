@@ -1,5 +1,5 @@
 import { DataSource } from "../db/DataSource";
-import { sql, desc } from "drizzle-orm";
+import { desc } from "drizzle-orm";
 import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
 import { IndexGenerateManager } from "./managers/index-generate.manager";
 import { IndexAggregateManager } from "./managers/index-aggregate.manager";
@@ -20,37 +20,20 @@ export class IndexPriceService {
     IndexWebsocketManager
   > = new Map();
 
+  private readonly streamingIndexes: Set<RebalanceConfig["etfId"]> = new Set();
+
   async getETFPrices({
     etfId,
     groupBy,
     from,
     to,
   }: GetOhclChartDataInput): Promise<OhclChartDataType[]> {
-    let data;
-
-    if (groupBy && from && to) {
-      data = await indexAggregateManager.getEtfPriceDataGroupedRange({
-        etfId,
-        groupBy,
-        from,
-        to,
-      });
-    }
-
-    if (!data || data.length === 0) {
-      data = (
-        await DataSource.execute(
-          sql`
-        SELECT * FROM (
-          SELECT * FROM etf_price 
-          ORDER BY timestamp DESC
-          LIMIT 1000
-        ) sub
-        ORDER BY timestamp ASC
-      `
-        )
-      ).rows;
-    }
+    const data = await indexAggregateManager.getEtfPriceDataGroupedRange({
+      etfId,
+      groupBy,
+      from,
+      to,
+    });
 
     if (!data) {
       return [];
@@ -106,6 +89,26 @@ export class IndexPriceService {
 
     indexWebsocketManager.subscripeToIndexPrice(socket);
     await indexWebsocketManager.broadcastIndexPrice();
+  }
+
+  public async runAllIndexAssetPricesStream() {
+    const etfIds = await this.getAvailableIndexEtfIds();
+    for (const etfId of etfIds) {
+      if (this.streamingIndexes.has(etfId)) continue;
+
+      this.streamingIndexes.add(etfId);
+
+      const lastEtfOHCL = await indexAggregateManager.getEtfIndexLastOHCL(
+        etfId
+      );
+
+      const indexWebsocketManager = new IndexWebsocketManager(
+        etfId,
+        OhclGroupByEnum["1m"],
+        lastEtfOHCL
+      );
+      await indexWebsocketManager.broadcastIndexPrice();
+    }
   }
 
   public generateETFPrice(etfId: RebalanceConfig["etfId"]): Promise<void> {

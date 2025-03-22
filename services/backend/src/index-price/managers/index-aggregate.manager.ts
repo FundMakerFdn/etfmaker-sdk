@@ -31,19 +31,14 @@ export class IndexAggregateManager {
     from,
     to,
   }: GetOhclChartDataInput) {
-    const startDate = new Date(from).getTime();
-    const endDate = new Date(to).getTime();
-
     const interval = groupIntervalMapping[groupBy];
 
     const conditions = [
       sql`${EtfPrice.etfId} = ${etfId}`,
-      startDate
-        ? sql`${EtfPrice.timestamp} >= ${new Date(startDate).toISOString()}`
+      from
+        ? sql`${EtfPrice.timestamp} >= ${new Date(+from * 1000)}`
         : undefined,
-      endDate
-        ? sql`${EtfPrice.timestamp} <= ${new Date(endDate).toISOString()}`
-        : undefined,
+      to ? sql`${EtfPrice.timestamp} <= ${new Date(+to * 1000)}` : undefined,
     ].filter(Boolean);
 
     const query = sql`
@@ -63,6 +58,7 @@ export class IndexAggregateManager {
         }
         GROUP BY 1
         ORDER BY "timestamp" ASC
+        LIMIT 1000
       `;
 
     return (await DataSource.execute(query))?.rows ?? [];

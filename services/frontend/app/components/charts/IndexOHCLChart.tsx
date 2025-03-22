@@ -16,7 +16,12 @@ import { GroupByOptions } from "../Filters";
 import { OhclGroupByEnum } from "app/enums/OhclGroupBy.enum";
 import { RebalanceDto } from "app/types/RebalanceType";
 import { useWebsocket } from "app/hooks/useWebsocket";
+import GlobalConfig from "../../app.config";
 
+const NEXT_PUBLIC_BACKEND_SERVER_WEBSOCKET_URL =
+  GlobalConfig.NEXT_PUBLIC_BACKEND_SERVER_WEBSOCKET_URL;
+
+// This helper returns a function that will fetch OHLC data for a given time range.
 const fetchtOhclData = (
   coinId: number,
   category: string,
@@ -48,17 +53,9 @@ const fetchtOhclData = (
   };
 };
 
-const isDynamicDataFetching = (groupBy: string): boolean =>
-  groupBy === OhclGroupByEnum["1m"] ||
-  groupBy === OhclGroupByEnum["3m"] ||
-  groupBy === OhclGroupByEnum["5m"] ||
-  groupBy === OhclGroupByEnum["15m"] ||
-  groupBy === OhclGroupByEnum["30m"] ||
-  groupBy === OhclGroupByEnum["1h"] ||
-  groupBy === OhclGroupByEnum["2h"] ||
-  groupBy === OhclGroupByEnum["4h"] ||
-  groupBy === OhclGroupByEnum["8h"] ||
-  groupBy === OhclGroupByEnum["12h"];
+// Define the chunk duration (in seconds). Here we assume one week of data for "1m" candles.
+// Adjust this constant (or make it depend on groupBy) as needed.
+const CHUNK_DURATION = 60 * 60 * 24 * 7; // one week in miliseconds
 
 export const IndexOhclChart: FC<{
   coinId: number;
@@ -66,247 +63,263 @@ export const IndexOhclChart: FC<{
   loaded: () => void;
   etfId: RebalanceDto["etfId"];
 }> = ({ coinId, category, loaded, etfId }) => {
-  const ohclChartRef = useRef(null);
+  const ohclChartRef = useRef<HTMLDivElement>(null);
   const chartInstanceRef = useRef<any>(null);
   const candlestickSeriesRef = useRef<any>(null);
 
+  // Keep track of the historical data loaded so far.
+  const historicalDataRef = useRef<OhclChartDataType[]>([]);
+  // Store the overall time range of the loaded historical data.
+  const loadedRangeRef = useRef<{ from: number; to: number }>({
+    from: 0,
+    to: 0,
+  });
+  // Flag to prevent duplicate concurrent fetches.
+  const isFetchingOlderRef = useRef<boolean>(false);
+
   const [groupBy, setGroupBy] = useState(OhclGroupByEnum["1m"]);
+  const groupByRef = useRef<OhclGroupByEnum>(groupBy);
 
-  console.log("refresh");
+  // Live stream start timestamp (if needed by your websocket)
+  const [liveStreamStartTimestamp, setLiveStreamStartTimestamp] = useState<
+    number | undefined
+  >();
+  const liveStreamStartTimestampRef = useRef<number | undefined>(
+    liveStreamStartTimestamp
+  );
 
+  // Live data from websocket – note that we will only update the chart with live data
+  // if the user is scrolled to the right edge.
   const liveData = useWebsocket<OhclChartDataType>({
-    url: "ws://localhost:3001/etf-price-stream",
+    url: NEXT_PUBLIC_BACKEND_SERVER_WEBSOCKET_URL + "/etf-price-stream",
     dataChange: "replace",
     params: {
       etfId,
-      startTimestamp: 1683695820000,
+      startTimestamp: liveStreamStartTimestamp,
       groupBy,
     },
+    disabled: !liveStreamStartTimestamp,
   });
 
-  const groupByRef = useRef<OhclGroupByEnum>(OhclGroupByEnum["1m"]);
-  const currentRange = useRef<{ from: string; to: string }>(null!);
-
-  useEffect(() => {
-    if (
-      !ohclChartRef?.current ||
-      !candlestickSeriesRef?.current ||
-      !liveData ||
-      (Array.isArray(liveData) && liveData?.length === 0)
-    )
-      return;
-
-    if (Array.isArray(liveData)) {
-      for (const item of liveData) {
-        candlestickSeriesRef.current.update({
-          time: +item.time * 1000,
-          open: +item.open,
-          high: +item.high,
-          low: +item.low,
-          close: +item.close,
-        });
-      }
-    } else {
-      candlestickSeriesRef.current.update({
-        open: +liveData.open,
-        high: +liveData.high,
-        close: +liveData.close,
-        low: +liveData.low,
-        time: liveData.time,
-      });
-    }
-  }, [liveData]);
-
+  // Create the OHLC data fetcher function.
   const getOhclData = useMemo(
     () => fetchtOhclData(coinId, category, etfId),
     [coinId, category, etfId]
   );
 
-  const chartTimeRangeScrollHandler = useMemo(
-    () =>
-      throttle(async (newVisibleRange, prevFrom, prevTo) => {
-        if (!newVisibleRange) return;
+  // Load the initial chunk – we load from (now - CHUNK_DURATION) to now.
+  const loadInitialData = useCallback(async () => {
+    const data = await getOhclData(groupByRef.current);
+    if (data && data.length > 0) {
+      historicalDataRef.current = data;
+      loadedRangeRef.current = {
+        from: +data[0].time,
+        to: +data[data.length - 1].time,
+      };
+      // Convert string numbers to numbers if needed
+      candlestickSeriesRef.current.setData(
+        data.map((item) => ({
+          time: item.time,
+          open: +item.open,
+          high: +item.high,
+          low: +item.low,
+          close: +item.close,
+        }))
+      );
+    }
+  }, [getOhclData]);
 
-        let defaultRange = prevTo - prevFrom;
+  // Function to fetch an older data chunk if the user scrolls left.
+  const fetchOlderData = useCallback(async () => {
+    if (isFetchingOlderRef.current) return;
+    isFetchingOlderRef.current = true;
 
-        if (currentRange.current) {
-          prevFrom = currentRange.current.from;
-          prevTo = currentRange.current.to;
-        }
+    const currentFrom = loadedRangeRef.current.from;
+    const newTo = currentFrom - 1; // Fetch older data immediately preceding the current start.
+    const newFrom = currentFrom - CHUNK_DURATION;
+    const olderData = await getOhclData(
+      groupByRef.current,
+      newFrom.toString(),
+      newTo.toString()
+    );
+    if (olderData && olderData.length > 0) {
+      // Prepend the older data to our historical data.
+      historicalDataRef.current = olderData.concat(historicalDataRef.current);
+      // Update the loaded range.
+      loadedRangeRef.current.from = +olderData[0].time;
+      // Update the chart's data.
+      candlestickSeriesRef.current.setData(
+        historicalDataRef.current.map((item) => ({
+          time: item.time,
+          open: +item.open,
+          high: +item.high,
+          low: +item.low,
+          close: +item.close,
+        }))
+      );
+    }
+    isFetchingOlderRef.current = false;
+  }, [getOhclData]);
 
-        const newRange = { from: prevFrom, to: prevTo };
+  // Throttle the visible range change handler to avoid too many calls.
+  const handleVisibleRangeChange = useCallback(
+    throttle(async (range) => {
+      if (!chartInstanceRef.current) return;
+      if (!range) return;
 
-        // If the user scrolls to the left (earlier time)
-        if (+newVisibleRange.to < prevTo) {
-          const scrollPercent =
-            (prevTo - newVisibleRange.to) / defaultRange + 0.5;
-          newRange.from =
-            +newVisibleRange.from - Math.round(defaultRange * scrollPercent);
-        }
+      // If the left edge of the visible range is close to the earliest loaded time,
+      // load an older chunk (here we use 10% of CHUNK_DURATION as threshold).
+      if (range.from <= loadedRangeRef.current.from + CHUNK_DURATION * 0.1) {
+        fetchOlderData();
+      }
 
-        // If the user scrolls to the right (later time)
-        if (+newVisibleRange.from > prevFrom) {
-          const scrollPercent =
-            (newVisibleRange.from - prevFrom) / defaultRange + 0.5;
-          newRange.to =
-            +newVisibleRange.to + Math.round(defaultRange * scrollPercent);
-        }
+      const threshold = 60;
+      if (
+        range &&
+        range.to >= loadedRangeRef.current.to - threshold &&
+        !liveStreamStartTimestampRef?.current
+      ) {
+        setLiveStreamStartTimestamp(loadedRangeRef.current.to + 1);
+        liveStreamStartTimestampRef.current = loadedRangeRef.current.to + 1;
+      } else if (
+        range &&
+        range.to < loadedRangeRef.current.to &&
+        liveStreamStartTimestampRef.current
+      ) {
+        setLiveStreamStartTimestamp(undefined);
+        liveStreamStartTimestampRef.current = undefined;
+      }
+    }, 500),
+    [fetchOlderData]
+  );
 
-        if (newRange.from < 0) {
-          newRange.from = 0;
-        }
+  // Initialize chart on mount.
+  useEffect(() => {
+    if (!ohclChartRef.current) return;
 
-        if (newRange.to < newRange.from) {
-          newRange.to = newRange.from + defaultRange;
-        }
+    const initChart = async () => {
+      // Create the chart instance.
+      const chart = createChart(ohclChartRef.current, {
+        width: ohclChartRef.current.clientWidth,
+        height: 400,
+        layout: {
+          background: { type: ColorType.Solid, color: "#fff" },
+          textColor: "#333",
+        },
+        grid: {
+          vertLines: { color: "#eee" },
+          horzLines: { color: "#eee" },
+        },
+        rightPriceScale: {
+          borderColor: "#ccc",
+        },
+        timeScale: {
+          borderColor: "#ccc",
+          timeVisible: true,
+          secondsVisible: false,
+          tickMarkFormatter: (time: number) => {
+            const date = new Date(time * 1000);
+            return date.toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            });
+          },
+        },
+      });
+      chartInstanceRef.current = chart;
 
-        // Ensure the range doesn't shrink below the default range
-        if (newRange.to - newRange.from < defaultRange) {
-          newRange.from = +newRange.to - defaultRange;
-        }
+      const series = chart.addSeries(CandlestickSeries, {
+        upColor: "#26a69a",
+        downColor: "#ef5350",
+        borderVisible: false,
+        wickUpColor: "#26a69a",
+        wickDownColor: "#ef5350",
+      });
+      candlestickSeriesRef.current = series;
 
-        let data;
-        if (isDynamicDataFetching(groupByRef.current)) {
-          data = await getOhclData(
-            groupByRef.current,
-            newRange.from.toString(),
-            newRange.to.toString()
-          );
+      // Load the latest historical data chunk.
+      await loadInitialData();
+      const scrollHandler = (newRange) => {
+        handleVisibleRangeChange(newRange);
+      };
 
-          if (!data?.length) return;
-          currentRange.current = newRange;
-        } else {
-          data = await getOhclData(groupByRef.current);
+      chartInstanceRef.current
+        ?.timeScale()
+        .subscribeVisibleTimeRangeChange(scrollHandler);
 
-          if (!data?.length) return;
-        }
+      // Signal that the chart is loaded.
+      loaded && loaded();
+    };
 
-        for (const item of data) {
-          candlestickSeriesRef.current.setData({
-            time: item.time,
+    !candlestickSeriesRef?.current && initChart();
+
+    return () => {
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current
+          .timeScale()
+          .unsubscribeVisibleTimeRangeChange(handleVisibleRangeChange);
+      }
+    };
+  }, [coinId, category, loaded, loadInitialData, handleVisibleRangeChange]);
+
+  // Update live data only if the user is scrolled to the right edge.
+  useEffect(() => {
+    if (!chartInstanceRef.current || !candlestickSeriesRef.current || !liveData)
+      return;
+
+    const range = chartInstanceRef.current.timeScale().getVisibleRange();
+    // Define a threshold (in seconds) for being "at the right edge".
+    const threshold = 60; // adjust as needed
+
+    if (range && range.to >= loadedRangeRef.current.to - threshold) {
+      // Live data may be an array or a single object.
+      if (Array.isArray(liveData)) {
+        liveData.forEach((item) => {
+          candlestickSeriesRef.current.update({
+            time: +item.time,
             open: +item.open,
             high: +item.high,
             low: +item.low,
             close: +item.close,
           });
-        }
-      }, 1000),
-    [groupByRef, getOhclData]
-  );
-
-  const updateChartData = useCallback(async () => {
-    let from, to;
-    if (currentRange.current && isDynamicDataFetching(groupByRef.current)) {
-      from = currentRange.current.from;
-      to = currentRange.current.to;
-    }
-    const data = await getOhclData(groupByRef.current, from, to);
-
-    if (!data) return;
-
-    candlestickSeriesRef.current.setData(
-      data.map((item) => ({
-        time: item.time,
-        open: +item.open,
-        high: +item.high,
-        low: +item.low,
-        close: +item.close,
-      }))
-    );
-
-    return data;
-  }, []);
-
-  useEffect(() => {
-    if (!ohclChartRef.current) return;
-
-    let scrollHandler: any;
-
-    const initChart = async () => {
-      if (!candlestickSeriesRef.current) {
-        const ohclChart = createChart(ohclChartRef.current, {
-          width: ohclChartRef.current.clientWidth,
-          height: 400,
-          layout: {
-            background: { type: ColorType.Solid, color: "#fff" },
-            textColor: "#333",
-          },
-          grid: {
-            vertLines: { color: "#eee" },
-            horzLines: { color: "#eee" },
-          },
-          rightPriceScale: {
-            borderColor: "#ccc",
-          },
-          timeScale: {
-            borderColor: "#ccc",
-            timeVisible: true,
-            secondsVisible: false,
-            tickMarkFormatter: (time: number) => {
-              const date = new Date(time * 1000);
-              return date.toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              });
-            },
-          },
+          // Also update the last candle in our stored data.
+          const lastIndex = historicalDataRef.current.length - 1;
+          historicalDataRef.current[lastIndex] = {
+            ...historicalDataRef.current[lastIndex],
+            ...item,
+          };
+          loadedRangeRef.current.to = item.time;
         });
-
-        chartInstanceRef.current = ohclChart;
-
-        const candlestickSeries = ohclChart.addSeries(CandlestickSeries, {
-          upColor: "#26a69a",
-          downColor: "#ef5350",
-          borderVisible: false,
-          wickUpColor: "#26a69a",
-          wickDownColor: "#ef5350",
+      } else {
+        candlestickSeriesRef.current.update({
+          time: liveData.time,
+          open: +liveData.open,
+          high: +liveData.high,
+          low: +liveData.low,
+          close: +liveData.close,
         });
-
-        candlestickSeriesRef.current = candlestickSeries;
-        ohclChart.timeScale().fitContent();
-      }
-
-      const data = await updateChartData();
-
-      if (data) {
-        currentRange.current = {
-          from: data[0].time,
-          to: data[data.length - 1].time,
+        const lastIndex = historicalDataRef.current.length - 1;
+        historicalDataRef.current[lastIndex] = {
+          ...historicalDataRef.current[lastIndex],
+          ...liveData,
         };
+        loadedRangeRef.current.to = +liveData.time;
       }
+    }
+  }, [liveData]);
 
-      // scrollHandler = (newRange) =>
-      //   chartTimeRangeScrollHandler(
-      //     newRange,
-      //     currentRange.current.from,
-      //     currentRange.current.to
-      //   );
-
-      // chartInstanceRef.current
-      //   ?.timeScale()
-      //   .subscribeVisibleTimeRangeChange(scrollHandler);
-
-      loaded && loaded();
-    };
-
-    initChart();
-
-    return () => {
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current
-          ?.timeScale()
-          .unsubscribeVisibleTimeRangeChange(scrollHandler);
-      }
-    };
-  }, [coinId, category, loaded]);
-
+  // When the user changes the groupBy (via the selector), reset the data and reload.
   const groupBySelectorHandler = useCallback(
     (value: OhclGroupByEnum) => {
       groupByRef.current = value;
       setGroupBy(value);
-      updateChartData();
+      // Reset our stored data and range.
+      historicalDataRef.current = [];
+      loadedRangeRef.current = { from: 0, to: 0 };
+      // Reload initial data with the new groupBy.
+      loadInitialData();
     },
-    [updateChartData, groupByRef]
+    [loadInitialData]
   );
 
   return (

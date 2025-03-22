@@ -8,8 +8,8 @@ import { SingleLineChart } from "app/components/charts/SindleLineChart";
 import { EtfSpreadWeight } from "app/components/ETFSpreadWeight";
 import GlobalConfig from "../app.config";
 
-const NEXT_PUBLIC_SERVER_WEBSOCKET_URL =
-  GlobalConfig.NEXT_PUBLIC_SERVER_WEBSOCKET_URL;
+const NEXT_PUBLIC_ORDERBOOK_SERVER_WEBSOCKET_URL =
+  GlobalConfig.NEXT_PUBLIC_ORDERBOOK_SERVER_WEBSOCKET_URL;
 
 const groupByTime = (data: any): any => {
   const groupedData = Object.groupBy(data, ({ time }) => time);
@@ -43,8 +43,16 @@ export default function Page() {
   const [bidDepthData, setBidDepthData] = useState<ChartDataType[]>([]);
   const [askDepthData, setAskDepthData] = useState<ChartDataType[]>([]);
 
-  const data = useWebsocket({
-    url: NEXT_PUBLIC_SERVER_WEBSOCKET_URL + "/order-book",
+  const data = useWebsocket<
+    {
+      time: string;
+      spread: string;
+      bidDepth: string;
+      askDepth: string;
+      spreadDepthPercentage: string;
+    }[]
+  >({
+    url: NEXT_PUBLIC_ORDERBOOK_SERVER_WEBSOCKET_URL + "/order-book",
     dataChange: "unshift",
     params: { coinId: filter },
   });

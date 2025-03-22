@@ -5,39 +5,36 @@ export const useWebsocket = <T = any>({
   dataChange,
   params,
   defaultValue,
+  disabled,
 }: {
   url: string;
   dataChange?: "unshift" | "replace";
   params?: Record<string, any>;
   defaultValue?: T;
-}): T | T[] => {
-  const [data, setData] = useState<T | T[]>(defaultValue);
+  disabled?: boolean;
+}): T => {
+  const [data, setData] = useState<T>(defaultValue);
 
   !dataChange && (dataChange = "unshift");
 
   if (params) url += "?" + new URLSearchParams({ ...params }).toString();
 
   useEffect(() => {
-    setData([]);
     if (params && !Object.values(params).some(Boolean)) return;
+    if (disabled) return;
 
-    console.log(`Connecting to WebSocket at ${url}`);
     const ws = new WebSocket(url);
 
-    ws.onopen = () => {
-      console.log(`Connected to WebSocket at ${url}`);
-    };
     ws.onmessage = (event) => {
-      console.log("event");
       if (dataChange === "unshift")
-        setData((data) => [...(data as T[]), JSON.parse(event.data)] as T[]);
+        setData((data) => [...(data as any), JSON.parse(event.data)] as T);
       else setData(JSON.parse(event.data));
     };
 
     return () => {
       ws.close();
     };
-  }, [url]);
+  }, [url, disabled]);
 
   return data;
 };

@@ -2,8 +2,10 @@
 const nextConfig = {
   env: {
     NEXT_PUBLIC_SERVER_URL: process.env.NEXT_PUBLIC_SERVER_URL,
-    NEXT_PUBLIC_SERVER_WEBSOCKET_URL:
-      process.env.NEXT_PUBLIC_SERVER_WEBSOCKET_URL,
+    NEXT_PUBLIC_ORDERBOOK_SERVER_WEBSOCKET_URL:
+      process.env.NEXT_PUBLIC_ORDERBOOK_SERVER_WEBSOCKET_URL,
+    NEXT_PUBLIC_BACKEND_SERVER_WEBSOCKET_URL:
+      process.env.NEXT_PUBLIC_BACKEND_SERVER_WEBSOCKET_URL,
   },
   reactStrictMode: false,
   onDemandEntries: {
@@ -14,6 +16,10 @@ const nextConfig = {
   },
   experimental: {
     reactCompiler: true,
+    turbo: {
+      poll: 1000,
+      aggregateTimeout: 300,
+    },
   },
 };
 
