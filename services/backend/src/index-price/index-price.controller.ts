@@ -1,5 +1,5 @@
 import WebSocket from "ws";
-import { IndexPriceService } from "./index-price.service";
+import { indexPriceService } from "./index-price.service";
 import { FastifyReply, FastifyRequest } from "fastify";
 import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
 import { etfIdTypeCheck } from "../helpers/typecheck/etfIdTypeCheck";
@@ -8,8 +8,6 @@ import { ProcessingKeysEnum } from "../enums/Processing.enum";
 import { validateEtfIndexConfig } from "../helpers/EtfIndexConfigValidator";
 import { indexDefaultConfig } from "../index.config";
 import { ProcessingStatusService } from "../processing-status/processing-status.service";
-
-const indexPriceService = new IndexPriceService();
 
 export const streamIndexPriceUpdates = async (
   socket: WebSocket,
@@ -37,7 +35,7 @@ export const streamIndexPriceUpdates = async (
   }
 
   try {
-    indexPriceService.setIndexPriceSocketClient({
+    await indexPriceService.setIndexPriceSocketClient({
       socket,
       startTimestamp,
       etfId,

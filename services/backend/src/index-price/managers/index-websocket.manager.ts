@@ -3,11 +3,12 @@ import { OhclChartDataType } from "../dto/GetETFPrices.dto";
 import { RebalanceDataManager } from "../../rebalance/managers/rebalance-data.manager";
 import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
 import { OhclGroupByEnum } from "../../enums/OhclGroupBy.enum";
-import { PricesDto } from "../../interfaces/Rebalance.interface";
 import { CandleInterface } from "../../interfaces/Candle.interface";
 import { IndexGenerateManager } from "./index-generate.manager";
 import { IndexAggregateManager } from "./index-aggregate.manager";
 import { binanceStreamService } from "../../binance/binance.stream.service";
+import { DataSource } from "../../db/DataSource";
+import { EtfPrice } from "../../db/schema";
 
 export class IndexWebsocketManager {
   private readonly etfId: RebalanceConfig["etfId"];
@@ -25,6 +26,8 @@ export class IndexWebsocketManager {
   private readonly rebalanceDataManager: RebalanceDataManager;
   private readonly indexGenerateManager: IndexGenerateManager;
   private readonly indexAggregateManager: IndexAggregateManager;
+
+  public status: "running" | "idle" | "error" = "idle";
 
   constructor(
     etfId: RebalanceConfig["etfId"],
@@ -55,13 +58,6 @@ export class IndexWebsocketManager {
 
     const assets = await this.rebalanceDataManager.getAssets(this.etfId);
 
-    for (const asset of assets) {
-      const lastCoinCandle = await this.indexAggregateManager.getCoinLastOHCL(
-        asset.id
-      );
-      this.lastAssetsCandles.set(asset.id, lastCoinCandle);
-    }
-
     const rebalancePrice =
       await this.rebalanceDataManager.getRebalanceLastPrice(this.etfId);
 
@@ -69,26 +65,62 @@ export class IndexWebsocketManager {
 
     const assetAmount = assets.length;
 
-    const onMessage = async (data: CandleInterface) => {
-      const assetsData = indexDataByTime.get(data.timestamp) ?? [];
+    let timer: NodeJS.Timeout;
 
-      if (assetsData.some((p) => p.coinId === data.coinId)) {
+    const onMessage = async (data: CandleInterface) => {
+      data.timestamp = new Date(
+        Math.floor(data.timestamp.getTime() / 60000) * 60000
+      );
+      let assetsData = indexDataByTime.get(data.timestamp);
+
+      if (!assetsData || assetsData?.length === 0) {
+        assetsData = [];
+        indexDataByTime.set(data.timestamp, assetsData);
+      } else if (assetsData.some((p) => p.coinId === data.coinId)) {
         return;
       }
 
-      indexDataByTime.set(data.timestamp, [...assetsData, data]);
+      assetsData.push(data);
 
       for (const [time, assetOhcl] of indexDataByTime.entries()) {
         if (assetOhcl.length === assetAmount) {
-          const indexOhcl = await this.calculateOhclPriceInLive(
-            assetOhcl,
-            rebalancePrice
-          );
-          this.lastIndexEtfPrice = indexOhcl;
-          for (const client of this.clients) {
-            client.send(JSON.stringify(indexOhcl));
-          }
           indexDataByTime.delete(time);
+          this.status = "running";
+          clearTimeout(timer);
+          timer = setTimeout(() => {
+            this.status = "idle";
+          }, 1000 * 60 * 2);
+
+          try {
+            const indexOhcl = await this.calculateOhclPriceInLive(
+              assetOhcl,
+              rebalancePrice
+            );
+
+            if (!indexOhcl) {
+              continue;
+            }
+
+            this.lastIndexEtfPrice = indexOhcl;
+            for (const client of this.clients) {
+              client.send(JSON.stringify(indexOhcl));
+            }
+
+            await DataSource.insert(EtfPrice)
+              .values({
+                etfId: this.etfId as string,
+                timestamp: new Date(indexOhcl.time * 1000),
+                open: indexOhcl.open,
+                high: indexOhcl.high,
+                low: indexOhcl.low,
+                close: indexOhcl.close,
+              })
+              .onConflictDoNothing()
+              .execute();
+          } catch (error) {
+            console.error(error);
+            this.status = "error";
+          }
         }
       }
     };
@@ -142,6 +174,7 @@ export class IndexWebsocketManager {
 
     ws.on("close", () => {
       this.connections.delete(symbol);
+      this.status = "error";
       reconnection < 3 &&
         setTimeout(
           () => this.connectWSS(symbol, coinId, onMessage, 1 + reconnection),
@@ -160,8 +193,10 @@ export class IndexWebsocketManager {
   private async calculateOhclPriceInLive(
     data: Array<CandleInterface>,
     initialRebalancePrice: number
-  ): Promise<OhclChartDataType> {
-    const prices = data.map<PricesDto>((price) => {
+  ): Promise<OhclChartDataType | undefined> {
+    const prices = [];
+
+    for (const price of data) {
       const lastPrice = this.lastAssetsCandles.get(price.coinId);
 
       this.lastAssetsCandles.set(price.coinId, {
@@ -172,18 +207,18 @@ export class IndexWebsocketManager {
         time: price.timestamp.getTime() / 1000,
       });
 
-      return {
+      if (!lastPrice) continue;
+
+      prices.push({
         coinId: price.coinId,
         startTime: {
           coinId: price.coinId,
-          open: lastPrice?.open ?? price.close,
-          high: lastPrice?.high ?? price.high,
-          low: lastPrice?.low ?? price.low,
-          close: lastPrice?.close ?? price.close,
+          open: lastPrice?.open,
+          high: lastPrice?.high,
+          low: lastPrice?.low,
+          close: lastPrice?.close,
           volume: price.volume,
-          timestamp: lastPrice?.time
-            ? new Date(lastPrice.time * 1000)
-            : price.timestamp,
+          timestamp: new Date(lastPrice.time * 1000),
         },
         endTime: {
           coinId: price.coinId,
@@ -194,12 +229,16 @@ export class IndexWebsocketManager {
           volume: price.volume,
           timestamp: price.timestamp,
         },
-      };
-    });
+      });
+    }
 
     const previousPrice = this.lastIndexEtfPrice?.close
       ? +this.lastIndexEtfPrice.close
       : initialRebalancePrice;
+
+    if (prices.length === 0) {
+      return;
+    }
 
     const timestamp = prices[0].startTime.timestamp.getTime();
 
@@ -229,5 +268,11 @@ export class IndexWebsocketManager {
     };
 
     return kandle;
+  }
+
+  public closeConnection(): void {
+    for (const ws of this.connections.values()) {
+      ws.close();
+    }
   }
 }

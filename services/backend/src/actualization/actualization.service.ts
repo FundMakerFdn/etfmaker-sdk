@@ -29,15 +29,15 @@ export class ActualizationService {
         ProcessingKeysEnum.actualizing
       );
 
-      // const topCoinList = await coingeckoService.getCoinList(config.category);
-      // const binanceCoinSymbols = await binanceService.getBinanceCoinsData();
+      const topCoinList = await coingeckoService.getCoinList(config.category);
+      const binanceCoinSymbols = await binanceService.getBinanceCoinsData();
 
-      // const classifiedCoins = this.classifyCoins(
-      //   topCoinList,
-      //   binanceCoinSymbols
-      // );
+      const classifiedCoins = this.classifyCoins(
+        topCoinList,
+        binanceCoinSymbols
+      );
 
-      const coins = (await DataSource.select().from(Coins)) as CoinInterface[];
+      const coins = await this.updateCoinsTable(classifiedCoins);
 
       await setCandlesData(coins);
       await setMarketCapData(coins);

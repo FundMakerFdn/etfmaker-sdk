@@ -60,6 +60,20 @@ export class RebalanceDataManager {
     return +data[0]?.price || 0;
   }
 
+  public async getAvailableRebalanceEtfIds(): Promise<
+    RebalanceConfig["etfId"][]
+  > {
+    return (
+      await DataSource.selectDistinctOn([Rebalance.etfId], {
+        etfId: Rebalance.etfId,
+        timestamp: Rebalance.timestamp,
+      })
+        .from(Rebalance)
+        .orderBy(desc(Rebalance.etfId), desc(Rebalance.timestamp))
+        .execute()
+    ).map((data) => data.etfId) as RebalanceConfig["etfId"][];
+  }
+
   public async getLatestRebalanceData(): Promise<RebalanceDto> {
     return (
       await DataSource.select()

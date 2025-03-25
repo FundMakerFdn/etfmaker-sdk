@@ -11,10 +11,12 @@ import {
 import { IndexWebsocketManager } from "./managers/index-websocket.manager";
 import { EtfPrice } from "../db/schema";
 import { OhclGroupByEnum } from "../enums/OhclGroupBy.enum";
+import { RebalanceDataManager } from "../rebalance/managers/rebalance-data.manager";
 
 const indexAggregateManager = new IndexAggregateManager();
+const rebalanceDataManager = new RebalanceDataManager();
 
-export class IndexPriceService {
+class IndexPriceService {
   private readonly streamManagers: Map<
     `${RebalanceConfig["etfId"]}${OhclGroupByEnum}`,
     IndexWebsocketManager
@@ -54,7 +56,6 @@ export class IndexPriceService {
     etfId,
     groupBy,
   }: EtfPriceSetClientInput) {
-    console.log({ startTimestamp });
     const historical = await indexAggregateManager.getEtfPriceDataGroupedRange({
       etfId,
       groupBy,
@@ -91,10 +92,10 @@ export class IndexPriceService {
     await indexWebsocketManager.broadcastIndexPrice();
   }
 
-  public async runAllIndexAssetPricesStream() {
-    const etfIds = await this.getAvailableIndexEtfIds();
+  public async runIndexPricesStream() {
+    const etfIds = await rebalanceDataManager.getAvailableRebalanceEtfIds();
     for (const etfId of etfIds) {
-      if (this.streamingIndexes.has(etfId)) continue;
+      if (this.streamManagers.has(`${etfId}${OhclGroupByEnum["1m"]}`)) continue;
 
       this.streamingIndexes.add(etfId);
 
@@ -108,6 +109,10 @@ export class IndexPriceService {
         lastEtfOHCL
       );
       await indexWebsocketManager.broadcastIndexPrice();
+      this.streamManagers.set(
+        `${etfId}${OhclGroupByEnum["1m"]}`,
+        indexWebsocketManager
+      );
     }
   }
 
@@ -135,3 +140,5 @@ export class IndexPriceService {
     ).map((data) => data.etfId) as RebalanceConfig["etfId"][];
   }
 }
+
+export const indexPriceService = new IndexPriceService();

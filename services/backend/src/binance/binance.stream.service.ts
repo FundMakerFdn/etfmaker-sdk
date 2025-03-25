@@ -1,14 +1,20 @@
 import WebSocket from "ws";
 import { CandleInterface } from "../interfaces/Candle.interface";
+import { DataSource } from "../db/DataSource";
+import { Coins } from "../db/schema";
+import { CoinSourceEnum } from "../enums/CoinSource.enum";
+import { eq, and } from "drizzle-orm";
 
 class AssetCandlesStream {
   private readonly symbol: string;
+  private readonly coinId: number;
   private readonly connections: Set<WebSocket> = new Set();
 
   public closeConnection?: () => void;
 
-  constructor(symbol: string) {
+  constructor(symbol: string, coinId: number) {
     this.symbol = symbol;
+    this.coinId = coinId;
   }
 
   public subscribe(
@@ -31,7 +37,15 @@ class AssetCandlesStream {
         Buffer.from(data as ArrayBuffer).toString("utf-8")
       );
 
-      onMessage(indexPrice);
+      onMessage({
+        coinId: this.coinId,
+        timestamp: new Date(indexPrice.k.t),
+        open: indexPrice.k.o,
+        high: indexPrice.k.h,
+        low: indexPrice.k.l,
+        close: indexPrice.k.c,
+        volume: indexPrice.k.v,
+      });
     });
 
     ws.on("ping", () => {
@@ -85,11 +99,25 @@ class BinanceStreamService {
     this.runCandlesStream();
   }
 
-  public runCandlesStream(): void {
+  public async runCandlesStream(): Promise<void> {
     for (const symbol of this.assets) {
       if (this.connections.has(symbol)) continue;
 
-      const assetStream = new AssetCandlesStream(symbol);
+      const coinId = (
+        await DataSource.select({ coinId: Coins.id })
+          .from(Coins)
+          .where(
+            and(eq(Coins.symbol, symbol), eq(Coins.source, CoinSourceEnum.SPOT))
+          )
+          .limit(1)
+      )?.[0]?.coinId;
+
+      if (!coinId) {
+        console.error(`CoinId not found for ${symbol}`);
+        continue;
+      }
+
+      const assetStream = new AssetCandlesStream(symbol, coinId);
       this.connections.set(symbol, assetStream);
 
       assetStream.subscribe(

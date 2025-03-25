@@ -93,7 +93,7 @@ export class IndexAggregateManager {
       time: Candles.timestamp,
     })
       .from(Candles)
-      .where(eq(Candles.id, coinId))
+      .where(eq(Candles.coinId, coinId))
       .orderBy(desc(Candles.timestamp))
       .limit(1)
       .execute();

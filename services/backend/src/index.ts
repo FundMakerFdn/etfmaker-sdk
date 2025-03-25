@@ -9,6 +9,7 @@ import { CoinDataActualizationCronJob } from "./actualization/actualization.cron
 import { ActualizationRoutes } from "./routes/actualization";
 import { RebalanceRoutes } from "./routes/rebalance";
 import { IndexPriceRoutes } from "./routes/index-price";
+import { indexPriceService } from "./index-price/index-price.service";
 
 const APP_HOST = process.env.APP_HOST ?? "0.0.0.0";
 const APP_PORT = process.env.APP_PORT ? Number(process.env.APP_PORT) : 3001;
@@ -88,6 +89,8 @@ const bootstrap = async () => {
     fastify.ready(() => {
       fastify.scheduler.addCronJob(CoinDataActualizationCronJob);
     });
+
+    await indexPriceService.runIndexPricesStream();
   } catch (err) {
     fastify.log.error("Error starting Fastify server:", err);
     process.exit(1);

@@ -67,17 +67,6 @@ export class IndexGenerateManager {
           .limit(1)
       )?.[0]?.timestamp ?? moment();
 
-    const lastETFPriceTimestamp = (
-      await DataSource.select({
-        timestamp: EtfPrice.timestamp,
-        close: EtfPrice.close,
-      })
-        .from(EtfPrice)
-        .where(eq(EtfPrice.etfId, etfId))
-        .orderBy(desc(EtfPrice.timestamp))
-        .limit(1)
-    )?.[0];
-
     const firstCandleDataStart =
       (
         await DataSource.select({
@@ -89,9 +78,7 @@ export class IndexGenerateManager {
           .limit(1)
       )?.[0]?.timestamp ?? moment();
 
-    const startTime = lastETFPriceTimestamp?.timestamp
-      ? moment(lastETFPriceTimestamp.timestamp).add(1, "minute")
-      : moment(firstCandleDataStart).add(1, "minute");
+    const startTime = moment(firstCandleDataStart);
 
     const endTime = moment(startTime).add(1, "minute");
 
@@ -513,7 +500,7 @@ export class IndexGenerateManager {
       }
 
       if (i >= 10_000 || i >= amountPerContractsData.length - 1) {
-        await DataSource.insert(EtfPrice).values(data);
+        await DataSource.insert(EtfPrice).values(data).onConflictDoNothing();
         data.length = 0;
       }
     }
