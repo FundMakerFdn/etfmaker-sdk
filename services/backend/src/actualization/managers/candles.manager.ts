@@ -10,11 +10,22 @@ const binanceService = new BinanceService();
 
 export const setCandlesData = async (coins: CoinInterface[]): Promise<void> => {
   const dataPeriod = 60; //months
-  console.log("Fetching candles data...");
+
+  const globalProgress = new Map<number, number>();
+  const coinsLength = coins.length;
+
+  const updateGlobalProgress = (coinId: number, progress: number) => {
+    globalProgress.set(coinId, progress);
+    const totalProgress = Array.from(globalProgress.values()).reduce(
+      (acc, curr) => acc + curr,
+      0
+    );
+    const overallProgress = totalProgress / coinsLength;
+    console.log(`Overall progress: ${overallProgress.toFixed(5)}%`);
+  };
 
   const tasks = [];
 
-  const coinsLength = coins.length;
   for (let i = 0; i < coinsLength; i++) {
     const { symbol, id: coinId, source, status } = coins[i];
     if (!symbol || !coinId || status === CoinStatusEnum.DELISTED) continue;
@@ -44,11 +55,9 @@ export const setCandlesData = async (coins: CoinInterface[]): Promise<void> => {
             source,
             symbol,
             coinId,
-            startTime
+            startTime,
+            updateGlobalProgress
           );
-
-          const percent = (i / coinsLength) * 100;
-          console.log("Fetching candles data..." + percent.toFixed(2) + "%");
         } catch (error) {
           console.error(`Error processing symbol ${symbol}:`, error);
         }

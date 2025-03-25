@@ -137,12 +137,14 @@ export class BinanceService {
           startTime,
           endTime,
           limit: 1500, // Max candles per request
-          headers: {
-            "X-MBX-APIKEY": this.apiKey,
-          },
         };
         const response = await HistoricalCandlesLimiter.schedule(() =>
-          axios.get(url, { params })
+          axios.get(url, {
+            params,
+            headers: {
+              "X-MBX-APIKEY": this.apiKey,
+            },
+          })
         );
 
         return response.data.map((candle: string[]) => ({
@@ -165,17 +167,22 @@ export class BinanceService {
     source: CoinSourceEnum,
     symbol: string,
     coinId: number,
-    startTime: number
+    startTime: number,
+    onProgress: (coinId: number, progress: number) => void
   ): Promise<void> {
     const diapason = 1000 * 60 * 60 * 24 * 200; // 200 days
-
+    const finalTime = Date.now();
+    const totalDuration = finalTime - startTime;
     let currentStartTime = startTime;
+    let requestCount = 0;
 
-    while (currentStartTime < Date.now()) {
+    while (currentStartTime < finalTime) {
       let endTime = currentStartTime + diapason;
-      if (moment(endTime).isAfter(moment())) {
-        endTime = Date.now();
+      if (endTime > finalTime) {
+        endTime = finalTime;
       }
+      requestCount++;
+
       const candles = await this.getHistoricalCandles(
         source,
         symbol,
@@ -189,9 +196,19 @@ export class BinanceService {
         continue;
       }
 
-      await DataSource.insert(Candles).values(candles);
+      await DataSource.transaction(async (tx) => {
+        await tx.insert(Candles).values(candles);
+      });
+
       const lastTimeStamp = candles[candles.length - 1].timestamp;
-      currentStartTime = Number(lastTimeStamp) + 1; // Next chunk
+      currentStartTime = Number(lastTimeStamp) + 1;
+
+      const progress = Math.min(
+        100,
+        ((currentStartTime - startTime) / totalDuration) * 100
+      );
+
+      onProgress(coinId, progress);
     }
   }
 
