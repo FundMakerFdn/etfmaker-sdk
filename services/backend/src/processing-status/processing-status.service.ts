@@ -7,7 +7,7 @@ import {
 } from "../enums/Processing.enum";
 import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
 import { IndexStatusEnum } from "../enums/IndexStatus.enum";
-import { IndexProcessingStatus } from "../db/schema";
+import { IndexProcessingStatus } from "../db/schema/indexProcessingStatus";
 
 export class ProcessingStatusService {
   private static async getProcessingStatus(
@@ -193,14 +193,29 @@ export class ProcessingStatusService {
   public static async failAllIndexProcessingStatuses() {
     const allEtfIds = await DataSource.select({
       etfId: IndexProcessingStatus.etfId,
-    }).from(IndexProcessingStatus);
+    })
+      .from(IndexProcessingStatus)
+      .execute();
 
-    const statusUpdates = allEtfIds.map(({ etfId }) => ({
-      etfId,
-      status: IndexStatusEnum.ERROR_UNKNOWN,
-    }));
+    if (!allEtfIds || allEtfIds.length === 0) {
+      console.error("No data found in IndexProcessingStatus table.");
+      return;
+    }
 
-    if (!statusUpdates || statusUpdates.length === 0) return;
+    const statusUpdates = allEtfIds
+      .map((d) => {
+        const etfId = d?.etfId;
+
+        return etfId
+          ? {
+              etfId,
+              status: IndexStatusEnum.ERROR_UNKNOWN,
+            }
+          : null;
+      })
+      .filter((d) => d !== null);
+
+    if (statusUpdates.length === 0) return;
 
     await DataSource.insert(IndexProcessingStatus)
       .values(statusUpdates)

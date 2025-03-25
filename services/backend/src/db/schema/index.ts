@@ -11,4 +11,4 @@ export * from "./processingStatus";
 export * from "./rebalance";
 export * from "./sUsdApy";
 export * from "./sUSDeSpreadVs3mTreasury";
-export * from "./IndexProcessingStatus";
+export * from "./indexProcessingStatus";
