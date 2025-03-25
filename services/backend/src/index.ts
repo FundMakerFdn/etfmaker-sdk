@@ -83,6 +83,8 @@ const bootstrap = async () => {
     // Fail all processing statuses on server start
     await ProcessingStatusService.failAll();
 
+    await ProcessingStatusService.failAllIndexProcessingStatuses();
+
     await fastify.listen({ port: APP_PORT, host: APP_HOST });
     fastify.log.info(`Server is running at http://${APP_HOST}:${APP_PORT}`);
 
@@ -92,6 +94,7 @@ const bootstrap = async () => {
 
     await indexPriceService.runIndexPricesStream();
   } catch (err) {
+    console.log("Error starting Fastify server:", err);
     fastify.log.error("Error starting Fastify server:", err);
     process.exit(1);
   }

@@ -32,6 +32,7 @@ import {
   Coins,
 } from "../../db/schema";
 import { CoinSourceEnum } from "../../enums/CoinSource.enum";
+import { ProcessingStatusService } from "../../processing-status/processing-status.service";
 
 export class IndexGenerateManager {
   etf_price: number;
@@ -51,9 +52,14 @@ export class IndexGenerateManager {
       .orderBy(desc(Rebalance.timestamp))
       .limit(1);
 
-    if (rebalanceData.length === 0) {
+    if (
+      !(await ProcessingStatusService.isRebalanceIndexSuccess(etfId)) &&
+      rebalanceData.length === 0
+    ) {
+      await ProcessingStatusService.setIndexNoRebalanceDataError(etfId);
       throw new Error("Rebalance data not found");
     }
+    await ProcessingStatusService.setRebalanceIndexProcessing(etfId);
 
     const rebalanceAssets = rebalanceData[0].data as AmountPerContracts[];
     const coinIds = rebalanceAssets.map((asset) => asset.coinId);
@@ -145,6 +151,8 @@ export class IndexGenerateManager {
       await this.bulkInsertAmountsPerContracts(resultsAccumulator);
     }
 
+    await ProcessingStatusService.setIndexEtfPriceSuccess(etfId);
+
     // Clean up the worker pool.
     await pool.destroy();
   }
@@ -152,6 +160,8 @@ export class IndexGenerateManager {
   public async setYieldETFFundingReward(
     etfId: RebalanceConfig["etfId"]
   ): Promise<void> {
+    await ProcessingStatusService.setEtfFundingRewardIndexProcessing(etfId);
+
     const lastRewardDate = (
       await DataSource.select({
         timestamp: EtfFundingReward.timestamp,
@@ -172,6 +182,7 @@ export class IndexGenerateManager {
       .where(and(...whereParams));
 
     if (rebalanceData.length === 0) {
+      await ProcessingStatusService.setIndexNoRebalanceDataError(etfId);
       return;
     }
 
@@ -233,6 +244,8 @@ export class IndexGenerateManager {
         reward: fundingReward.toString(),
       });
     }
+
+    await ProcessingStatusService.setIndexEtfFundingRewardSuccess(etfId);
   }
 
   public getCloseETFPrice(

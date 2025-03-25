@@ -13,7 +13,6 @@ import {
 } from "./limiters";
 import { BinanceFundingDto } from "./dto/BinanceFunding.dto";
 import { FuturesType } from "../enums/FuturesType.enum";
-import moment from "moment";
 import { DataSource } from "../db/DataSource";
 import { Candles, Funding, OpenInterest } from "../db/schema";
 
@@ -272,7 +271,10 @@ export class BinanceService {
         fundingRate: f.fundingRate.toString(),
       }));
 
-      await DataSource.insert(Funding).values(insertData);
+      await DataSource.insert(Funding)
+        .values(insertData)
+        .onConflictDoNothing()
+        .execute();
 
       currentStartTime = +ratesData[ratesData.length - 1].timestamp + 1; // Next chunk
     }
@@ -343,7 +345,10 @@ export class BinanceService {
         sumOpenInterestValue: oi.sumOpenInterestValue.toString(),
       }));
 
-      await DataSource.insert(OpenInterest).values(insertData);
+      await DataSource.insert(OpenInterest)
+        .values(insertData)
+        .onConflictDoNothing()
+        .execute();
 
       currentStartTime =
         +openInterest[openInterest.length - 1].timestamp + 1000 * 60 * 60 * 24; // Next day

@@ -4,13 +4,12 @@ import { RebalanceService } from "./rebalance.service";
 import moment from "moment";
 import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
 import { CoinGeckoService } from "../coingecko/coingecko.service";
-import { DataProcessingService } from "../coindata/data-processing.service";
 import { ActualizationService } from "../actualization/actualization.service";
 import { validateEtfIndexConfig } from "../helpers/EtfIndexConfigValidator";
 import { etfIdTypeCheck } from "../helpers/typecheck/etfIdTypeCheck";
 import { IndexGenerateManager } from "../index-price/managers/index-generate.manager";
+import { ProcessingStatusService } from "../processing-status/processing-status.service";
 
-const dataProcessingService = new DataProcessingService();
 const indexGenerateManager = new IndexGenerateManager();
 const coingeckoService = new CoinGeckoService();
 const rebalanceService = new RebalanceService();
@@ -58,8 +57,19 @@ export const generateRebalanceData = async (
     return;
   }
 
+  if (
+    await ProcessingStatusService.isRebalanceIndexProcessing(indexConfig.etfId)
+  ) {
+    res.send({ error: "Rebalance data generation is already in progress" });
+    return;
+  }
+  await ProcessingStatusService.setRebalanceIndexProcessing(indexConfig.etfId);
+
   try {
     await rebalanceService.generateRebalanceData(indexDefaultConfig);
+    await ProcessingStatusService.setIndexRebalanceProcessingSuccess(
+      indexConfig.etfId
+    );
     res.send({ message: "Rebalance data generated" });
   } catch (error) {
     console.error(error);

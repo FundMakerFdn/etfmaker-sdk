@@ -106,7 +106,10 @@ export class CoinGeckoService {
         })
       );
 
-      await DataSource.insert(MarketCap).values(marketCapData);
+      await DataSource.insert(MarketCap)
+        .values(marketCapData)
+        .onConflictDoNothing()
+        .execute();
 
       startTime = marketCapData[marketCapData.length - 1].timestamp + 1;
     }

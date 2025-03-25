@@ -14,19 +14,14 @@ import { Rebalance } from "./rebalance";
 import { sUSDeApy } from "./sUsdApy";
 import { sUSDeSpreadVs3mTreasury } from "./sUSDeSpreadVs3mTreasury";
 
-export const IndexProcessingStatus = pgTable(
-  "index_processing_status",
-  {
-    id: serial("id").notNull(),
-    etfId: text("etf_id").notNull(),
-    timestamp: timestamp("timestamp", { withTimezone: true }).notNull(),
-    status: text("status").notNull(),
-  },
-  (table) => ({
-    etfIdIdx: index("etf_status_etf_id_idx").on(table.etfId),
-    pk: primaryKey({ columns: [table.id] }),
-  })
-);
+export const IndexProcessingStatus = pgTable("index_processing_status", {
+  id: serial("id").notNull(),
+  etfId: text("etf_id").notNull(),
+  timestamp: timestamp("timestamp", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  status: text("status").notNull(),
+});
 
 export const IndexProcessingStatusRelations = relations(
   IndexProcessingStatus,

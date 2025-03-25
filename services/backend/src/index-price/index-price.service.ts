@@ -12,6 +12,7 @@ import { IndexWebsocketManager } from "./managers/index-websocket.manager";
 import { EtfPrice } from "../db/schema";
 import { OhclGroupByEnum } from "../enums/OhclGroupBy.enum";
 import { RebalanceDataManager } from "../rebalance/managers/rebalance-data.manager";
+import { ProcessingStatusService } from "../processing-status/processing-status.service";
 
 const indexAggregateManager = new IndexAggregateManager();
 const rebalanceDataManager = new RebalanceDataManager();
@@ -95,6 +96,10 @@ class IndexPriceService {
   public async runIndexPricesStream() {
     const etfIds = await rebalanceDataManager.getAvailableRebalanceEtfIds();
     for (const etfId of etfIds) {
+      if (!(await ProcessingStatusService.isEtfPriceIndexSuccess(etfId))) {
+        continue;
+      }
+
       if (this.streamManagers.has(`${etfId}${OhclGroupByEnum["1m"]}`)) continue;
 
       this.streamingIndexes.add(etfId);
