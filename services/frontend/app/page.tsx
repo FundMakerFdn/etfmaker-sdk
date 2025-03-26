@@ -9,6 +9,7 @@ import {
 } from "./components/Filters";
 import { IndexOhclChart } from "./components/charts/IndexOHCLChart";
 import { RebalanceDto } from "./types/RebalanceType";
+import { IndexListTable } from "./components/tables/IndexListTable";
 
 const AMOUNT_OF_LOADING_ENTRIES = 1;
 
@@ -57,6 +58,8 @@ export default function Page() {
       )}
 
       {isLoading && <div>Loading...</div>}
+
+      <IndexListTable />
 
       {etfId && (
         <IndexOhclChart

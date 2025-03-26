@@ -5,6 +5,7 @@ import {
   getETFPrices,
   getAvailableteIndexEtfIds,
   streamIndexPriceUpdates,
+  getIndexTableList,
 } from "../index-price/index-price.controller";
 import { RoutesType } from "../interfaces/RoutesType";
 import { WebSocket } from "ws";
@@ -29,6 +30,11 @@ export const IndexPriceRoutes = [
     method: "GET",
     url: "/get-index-ids",
     handler: getAvailableteIndexEtfIds,
+  },
+  {
+    method: "GET",
+    url: "/get-index-table-list",
+    handler: getIndexTableList,
   },
   {
     method: "GET",

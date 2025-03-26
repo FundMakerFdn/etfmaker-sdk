@@ -74,6 +74,30 @@ export class RebalanceDataManager {
     ).map((data) => data.etfId) as RebalanceConfig["etfId"][];
   }
 
+  public async getRebalanceInceptDate(etfId: RebalanceConfig["etfId"]) {
+    const firstRebalanceDate = await DataSource.select({
+      timestamp: Rebalance.timestamp,
+    })
+      .from(Rebalance)
+      .where(eq(Rebalance.etfId, etfId))
+      .orderBy(asc(Rebalance.timestamp))
+      .limit(1);
+
+    return firstRebalanceDate[0]?.timestamp;
+  }
+
+  public async getRebalanceLastDate(etfId: RebalanceConfig["etfId"]) {
+    const lastRebalanceDate = await DataSource.select({
+      timestamp: Rebalance.timestamp,
+    })
+      .from(Rebalance)
+      .where(eq(Rebalance.etfId, etfId))
+      .orderBy(desc(Rebalance.timestamp))
+      .limit(1);
+
+    return lastRebalanceDate[0]?.timestamp;
+  }
+
   public async getLatestRebalanceData(): Promise<RebalanceDto> {
     return (
       await DataSource.select()

@@ -159,3 +159,11 @@ export const getAvailableteIndexEtfIds = async (
     await indexPriceService.getAvailableIndexEtfIds();
   res.send({ data: availableIndexEtfIds });
 };
+
+export const getIndexTableList = async (
+  req: FastifyRequest,
+  res: FastifyReply
+) => {
+  const indexTableList = await indexPriceService.getIndexTableListData();
+  res.send({ data: indexTableList });
+};

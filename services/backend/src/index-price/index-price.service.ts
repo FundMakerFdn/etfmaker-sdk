@@ -144,6 +144,36 @@ class IndexPriceService {
         .execute()
     ).map((data) => data.etfId) as RebalanceConfig["etfId"][];
   }
+
+  public async getIndexTableListData() {
+    const allEtfIds = await rebalanceDataManager.getAvailableRebalanceEtfIds();
+
+    if (!allEtfIds || allEtfIds.length === 0) {
+      return [];
+    }
+
+    const result = [];
+
+    for (const etfId of allEtfIds) {
+      const lastEtfPrice = await indexAggregateManager.getEtfIndexLastOHCL(
+        etfId
+      );
+      const rebalanceInceptDate =
+        await rebalanceDataManager.getRebalanceInceptDate(etfId);
+      const rebalanceLastDate = await rebalanceDataManager.getRebalanceLastDate(
+        etfId
+      );
+
+      result.push({
+        etfId,
+        inceptDate: rebalanceInceptDate,
+        lastRebalanceDate: rebalanceLastDate,
+        lastEtfPriceDate: new Date(+lastEtfPrice?.time * 1000),
+      });
+    }
+
+    return result;
+  }
 }
 
 export const indexPriceService = new IndexPriceService();
