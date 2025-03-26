@@ -58,7 +58,6 @@ export class IndexAggregateManager {
         }
         GROUP BY 1
         ORDER BY "timestamp" ASC
-        LIMIT 1000
       `;
 
     return (await DataSource.execute(query))?.rows ?? [];

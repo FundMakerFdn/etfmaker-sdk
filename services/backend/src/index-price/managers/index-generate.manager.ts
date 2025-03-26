@@ -52,10 +52,7 @@ export class IndexGenerateManager {
       .orderBy(desc(Rebalance.timestamp))
       .limit(1);
 
-    if (
-      !(await ProcessingStatusService.isRebalanceIndexSuccess(etfId)) &&
-      rebalanceData.length === 0
-    ) {
+    if (rebalanceData.length === 0) {
       await ProcessingStatusService.setIndexNoRebalanceDataError(etfId);
       throw new Error("Rebalance data not found");
     }
@@ -94,8 +91,8 @@ export class IndexGenerateManager {
 
     const pool = new WorkerPool(
       path.resolve(__dirname, "../workers/etf-price/historical.processing.js"),
-      128,
-      192
+      32,
+      128
     );
     let completedTasks = 0;
     const resultsAccumulator: any[] = [];
@@ -327,11 +324,11 @@ export class IndexGenerateManager {
         .where(
           and(
             eq(Candles.coinId, coinId),
-            lte(Candles.timestamp, new Date(startTime)),
-            gt(
-              Candles.timestamp,
-              new Date(new Date(startTime).getTime() - 2 * 60 * 1000)
-            )
+            lte(Candles.timestamp, new Date(startTime))
+            // gt(
+            //   Candles.timestamp,
+            //   new Date(new Date(startTime).getTime() - 2 * 60 * 1000)
+            // )
           )
         )
         .orderBy(desc(Candles.timestamp))
@@ -344,11 +341,11 @@ export class IndexGenerateManager {
         .where(
           and(
             eq(Candles.coinId, coinId),
-            gte(Candles.timestamp, new Date(endTime)),
-            lt(
-              Candles.timestamp,
-              new Date(new Date(endTime).getTime() + 2 * 60 * 1000)
-            )
+            gte(Candles.timestamp, new Date(endTime))
+            // lt(
+            //   Candles.timestamp,
+            //   new Date(new Date(endTime).getTime() + 2 * 60 * 1000)
+            // )
           )
         )
         .orderBy(asc(Candles.timestamp))
