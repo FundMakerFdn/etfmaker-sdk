@@ -6,7 +6,9 @@ import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
 import { ProcessingStatusService } from "../processing-status/processing-status.service";
 import { CoinInterface } from "../interfaces/Coin.interface";
 import { RebalanceCsvManager } from "./managers/rebalance-csv.manager";
-import { isNotNull } from "drizzle-orm";
+import { inArray, isNotNull, and, eq, gte } from "drizzle-orm";
+import { AmountPerContracts } from "../interfaces/Rebalance.interface";
+import { Coins } from "../db/schema";
 
 export class RebalanceService {
   private readonly rebalanceDataManager: RebalanceDataManager;
@@ -71,5 +73,38 @@ export class RebalanceService {
       await ProcessingStatusService.setError(ProcessingKeysEnum.processing);
       throw error;
     }
+  }
+
+  public async getRebalanceAssetsListByDate(
+    date: Date,
+    etfId: RebalanceConfig["etfId"]
+  ): Promise<Array<AmountPerContracts & { symbol: string }>> {
+    const assets = (
+      await DataSource.select({ assets: Rebalance.data })
+        .from(Rebalance)
+        .where(and(eq(Rebalance.etfId, etfId), gte(Rebalance.timestamp, date)))
+        .limit(1)
+    )?.[0].assets as Array<AmountPerContracts>;
+
+    if (!assets) return [];
+
+    const symbols = await DataSource.select({
+      symbol: Coins.symbol,
+      coinId: Coins.id,
+    })
+      .from(Coins)
+      .where(
+        inArray(
+          Coins.id,
+          assets.map((asset) => asset.coinId)
+        )
+      );
+
+    if (symbols.length === 0) return [];
+
+    return assets.map((asset) => {
+      const symbolData = symbols.find((s) => s.coinId === asset.coinId);
+      return { ...asset, symbol: symbolData?.symbol ?? "" };
+    });
   }
 }

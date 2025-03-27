@@ -33,13 +33,11 @@ export interface OHLCData {
 
 interface ChartProps {
   coinId: number;
-  category: string;
   loaded?: () => void;
 }
 
 export const TradingWidgetChart: React.FC<ChartProps> = ({
   coinId,
-  category,
   loaded,
 }) => {
   const [data, setData] = useState<OHLCData[]>([]);
@@ -64,14 +62,13 @@ export const TradingWidgetChart: React.FC<ChartProps> = ({
         from: from.toString(),
         to: to.toString(),
         coinId,
-        category,
         groupBy,
       });
       setData(fetchedData.map((d) => ({ ...d, date: new Date(d.date) })));
       loaded && loaded();
     };
     fetchData();
-  }, [coinId, category, groupBy]);
+  }, [coinId, groupBy]);
 
   if (!data.length) {
     return <>Loading ...</>;
@@ -89,7 +86,6 @@ export const TradingWidgetChart: React.FC<ChartProps> = ({
         from: from.toString(),
         to: to.toString(),
         coinId,
-        category,
         groupBy,
       });
 

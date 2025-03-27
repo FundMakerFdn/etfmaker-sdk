@@ -135,3 +135,18 @@ export const getRebalanceCategoriesList = async (
   const data = await rebalanceService.getRebalanceCategories();
   res.send({ data });
 };
+
+export const getRebalanceDataAssetsList = async (
+  req: FastifyRequest,
+  res: FastifyReply
+) => {
+  const query = req.query as {
+    etfId: RebalanceConfig["etfId"];
+    date: string;
+  };
+  const etfId = query?.etfId;
+  const date = new Date(query?.date);
+
+  const data = await rebalanceService.getRebalanceAssetsListByDate(date, etfId);
+  res.send({ data });
+};
