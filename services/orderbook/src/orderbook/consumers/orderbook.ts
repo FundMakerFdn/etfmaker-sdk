@@ -2,7 +2,6 @@ import WebSocket from "ws";
 import kafkaService from "../../kafka/kafka.service";
 import { OrderBookInterface } from "../../interfaces/OrderBook.interface";
 import moment from "moment";
-import { RebalanceDataManager } from "../../rebalance/rebalance-data.manager";
 
 class OrderBookConsumerService {
   private readonly orderBookByCoinClients: Set<{
@@ -32,8 +31,6 @@ class OrderBookConsumerService {
     for (const coinId of newCoinIds) this.coinsInprocessing.add(coinId);
 
     for (const coinId of newCoinIds) {
-      const weight = await RebalanceDataManager.getAssetRebalanceWeight(coinId);
-
       const onMessage = (orderBookUpdate: any) => {
         if (!orderBookUpdate.b.length || !orderBookUpdate.a.length) return;
 
@@ -58,13 +55,6 @@ class OrderBookConsumerService {
           spread: spread.toFixed(4),
           bidDepth: bidDepth.toFixed(4),
           askDepth: askDepth.toFixed(4),
-          spreadDepthPercentage: this.calculateSpreadDepthPercentage(
-            {
-              asks: orderBookUpdate.a,
-              bids: orderBookUpdate.b,
-            },
-            weight
-          ),
         } satisfies OrderBookInterface;
 
         for (const { socket, coinId: clientCoinId } of this
@@ -80,31 +70,6 @@ class OrderBookConsumerService {
         onMessage
       );
     }
-  }
-
-  public calculateSpreadDepthPercentage(
-    orderBook: { asks: [number, number][]; bids: [number, number][] },
-    amount: number
-  ): number {
-    const { asks, bids } = orderBook;
-
-    let accumulatedAmount = 0;
-    let weightedPriceSum = 0;
-
-    for (const [price, volume] of asks) {
-      const availableVolume = Math.min(volume, amount - accumulatedAmount);
-      accumulatedAmount += availableVolume;
-      weightedPriceSum += availableVolume * price;
-
-      if (accumulatedAmount >= amount) break;
-    }
-
-    const averagePurchasePrice = weightedPriceSum / accumulatedAmount;
-    const bestBid = bids[0][0];
-    const spreadDepthPercentage =
-      ((averagePurchasePrice - bestBid) / bestBid) * 100;
-
-    return spreadDepthPercentage;
   }
 }
 

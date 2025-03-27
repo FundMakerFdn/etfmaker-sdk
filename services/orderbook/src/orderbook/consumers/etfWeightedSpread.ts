@@ -1,12 +1,18 @@
 import WebSocket from "ws";
 import { RebalanceDataManager } from "../../rebalance/rebalance-data.manager";
 import kafkaService from "../../kafka/kafka.service";
-import orderBookConsumerService from "./orderbook";
+import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
 
-class EtfWeightedSpreadConsumer {
+export class EtfWeightedSpreadConsumer {
   private readonly etfWeightedCoinClients: Set<WebSocket> = new Set();
 
   private readonly etfClientsInprocessing: Set<WebSocket> = new Set();
+
+  private readonly etfId: RebalanceConfig["etfId"];
+
+  constructor(etfId: RebalanceConfig["etfId"]) {
+    this.etfId = etfId;
+  }
 
   async setEtfWeightedClient(socket: WebSocket) {
     this.etfWeightedCoinClients.add(socket);
@@ -29,7 +35,9 @@ class EtfWeightedSpreadConsumer {
     for (const socket of newClientSockets)
       this.etfClientsInprocessing.add(socket);
 
-    const rebalanceAssets = await RebalanceDataManager.getLatestRebalanceData();
+    const rebalanceAssets = await RebalanceDataManager.getLatestRebalanceData(
+      this.etfId
+    );
     const rebalanceAssetsIds = rebalanceAssets.data.map(
       (asset) => asset.coinId
     );
@@ -90,14 +98,13 @@ class EtfWeightedSpreadConsumer {
 
       const amountToInvest = totalAmount * weight;
 
-      const spreadDepthPercentage =
-        orderBookConsumerService.calculateSpreadDepthPercentage(
-          {
-            asks: orderBook.a,
-            bids: orderBook.b,
-          },
-          weight
-        );
+      const spreadDepthPercentage = this.calculateSpreadDepthPercentage(
+        {
+          asks: orderBook.a,
+          bids: orderBook.b,
+        },
+        weight
+      );
 
       const bestAsk = orderBook.a[0][0];
       const investmentValue = amountToInvest * bestAsk;
@@ -125,7 +132,29 @@ class EtfWeightedSpreadConsumer {
       }
     });
   }
-}
 
-const etfWeightedSpreadConsumer = new EtfWeightedSpreadConsumer();
-export default etfWeightedSpreadConsumer;
+  private calculateSpreadDepthPercentage(
+    orderBook: { asks: [number, number][]; bids: [number, number][] },
+    amount: number
+  ): number {
+    const { asks, bids } = orderBook;
+
+    let accumulatedAmount = 0;
+    let weightedPriceSum = 0;
+
+    for (const [price, volume] of asks) {
+      const availableVolume = Math.min(volume, amount - accumulatedAmount);
+      accumulatedAmount += availableVolume;
+      weightedPriceSum += availableVolume * price;
+
+      if (accumulatedAmount >= amount) break;
+    }
+
+    const averagePurchasePrice = weightedPriceSum / accumulatedAmount;
+    const bestBid = bids[0][0];
+    const spreadDepthPercentage =
+      ((averagePurchasePrice - bestBid) / bestBid) * 100;
+
+    return spreadDepthPercentage;
+  }
+}

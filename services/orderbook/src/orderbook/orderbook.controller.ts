@@ -1,7 +1,8 @@
 import { FastifyRequest } from "fastify";
 import WebSocket from "ws";
 import orderBookConsumerService from "./consumers/orderbook";
-import etfWeightedSpreadConsumer from "./consumers/etfWeightedSpread";
+import { EtfWeightedSpreadConsumer } from "./consumers/etfWeightedSpread";
+import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
 
 export const streamOrderBook = async (
   socket: WebSocket,
@@ -18,6 +19,10 @@ export const streamOrderBook = async (
   orderBookConsumerService.setOrderBookByCoinClient(socket, coinId);
 };
 
-export const streamEtfWeightedSpread = async (socket: WebSocket) => {
+export const streamEtfWeightedSpread = async (
+  socket: WebSocket,
+  etfId: RebalanceConfig["etfId"]
+) => {
+  const etfWeightedSpreadConsumer = new EtfWeightedSpreadConsumer(etfId);
   etfWeightedSpreadConsumer.setEtfWeightedClient(socket);
 };

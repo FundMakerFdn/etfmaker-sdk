@@ -1,0 +1,1 @@
+CREATE INDEX "coin_id_idx" ON "candles" USING btree ("coin_id");

@@ -36,6 +36,13 @@
       "when": 1742933764826,
       "tag": "0004_uneven_vermin",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1743027682238,
+      "tag": "0005_acoustic_vertigo",
+      "breakpoints": true
     }
   ]
 }

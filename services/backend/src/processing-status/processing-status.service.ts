@@ -191,7 +191,7 @@ export class ProcessingStatusService {
   }
 
   public static async failAllIndexProcessingStatuses() {
-    const allEtfIds = await DataSource.select({
+    const allEtfIds = await DataSource.selectDistinct({
       etfId: IndexProcessingStatus.etfId,
     })
       .from(IndexProcessingStatus)

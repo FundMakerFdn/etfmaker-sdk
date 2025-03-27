@@ -91,8 +91,8 @@ export class IndexGenerateManager {
 
     const pool = new WorkerPool(
       path.resolve(__dirname, "../workers/etf-price/historical.processing.js"),
-      32,
-      128
+      8,
+      32
     );
     let completedTasks = 0;
     const resultsAccumulator: any[] = [];
@@ -315,52 +315,58 @@ export class IndexGenerateManager {
     startTime: number,
     endTime: number
   ): Promise<PricesDto[]> {
-    const result = [] as PricesDto[];
-
-    for (const coinId of coinIds) {
-      // Fetch the closest record to starttime
-      let startRecord = await DataSource.select()
-        .from(Candles)
-        .where(
-          and(
-            eq(Candles.coinId, coinId),
-            lte(Candles.timestamp, new Date(startTime))
-            // gt(
-            //   Candles.timestamp,
-            //   new Date(new Date(startTime).getTime() - 2 * 60 * 1000)
-            // )
+    const startRecords = await DataSource.selectDistinctOn([Candles.coinId])
+      .from(Candles)
+      .where(
+        and(
+          inArray(Candles.coinId, coinIds),
+          lte(Candles.timestamp, new Date(startTime)),
+          gt(
+            Candles.timestamp,
+            new Date(new Date(startTime).getTime() - 2 * 60 * 1000)
           )
         )
-        .orderBy(desc(Candles.timestamp))
-        .limit(1);
+      )
+      .orderBy(Candles.coinId, desc(Candles.timestamp));
 
-      if (startRecord.length === 0) continue;
-
-      let endRecord = await DataSource.select()
-        .from(Candles)
-        .where(
-          and(
-            eq(Candles.coinId, coinId),
-            gte(Candles.timestamp, new Date(endTime))
-            // lt(
-            //   Candles.timestamp,
-            //   new Date(new Date(endTime).getTime() + 2 * 60 * 1000)
-            // )
+    const endRecords = await DataSource.selectDistinctOn([Candles.coinId])
+      .from(Candles)
+      .where(
+        and(
+          inArray(Candles.coinId, coinIds),
+          gte(Candles.timestamp, new Date(endTime)),
+          lt(
+            Candles.timestamp,
+            new Date(new Date(endTime).getTime() + 2 * 60 * 1000)
           )
         )
-        .orderBy(asc(Candles.timestamp))
-        .limit(1);
+      )
+      .orderBy(Candles.coinId, asc(Candles.timestamp));
 
-      if (endRecord.length === 0) continue;
-
-      result.push({
-        coinId,
-        startTime: startRecord[0],
-        endTime: endRecord[0],
-      });
+    const startRecordMap = new Map<number, any>();
+    for (const record of startRecords) {
+      startRecordMap.set(record.coinId, record);
     }
 
-    return result;
+    const endRecordMap = new Map<number, any>();
+    for (const record of endRecords) {
+      endRecordMap.set(record.coinId, record);
+    }
+
+    const results: PricesDto[] = [];
+    for (const coinId of coinIds) {
+      const startRecord = startRecordMap.get(coinId);
+      const endRecord = endRecordMap.get(coinId);
+      if (startRecord && endRecord) {
+        results.push({
+          coinId,
+          startTime: startRecord,
+          endTime: endRecord,
+        });
+      }
+    }
+
+    return results;
   }
 
   public async setAssetWeights(
@@ -510,7 +516,17 @@ export class IndexGenerateManager {
       }
 
       if (i >= 10_000 || i >= amountPerContractsData.length - 1) {
-        await DataSource.insert(EtfPrice).values(data).onConflictDoNothing();
+        await DataSource.insert(EtfPrice)
+          .values(data)
+          .onConflictDoUpdate({
+            target: [EtfPrice.etfId, EtfPrice.timestamp],
+            set: {
+              open: sql`EXCLUDED.open`,
+              high: sql`EXCLUDED.high`,
+              low: sql`EXCLUDED.low`,
+              close: sql`EXCLUDED.close`,
+            },
+          });
         data.length = 0;
       }
     }

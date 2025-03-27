@@ -5,36 +5,11 @@ import { FiltersByAllSpotUSDTPairsAssets } from "app/components/Filters";
 import { useWebsocket } from "app/hooks/useWebsocket";
 import { ChartDataType } from "app/types/ChartDataType";
 import { SingleLineChart } from "app/components/charts/SindleLineChart";
-import { EtfSpreadWeight } from "app/components/ETFSpreadWeight";
 import GlobalConfig from "../app.config";
+import { groupByTime } from "app/helpers/groupByTime";
 
 const NEXT_PUBLIC_ORDERBOOK_SERVER_WEBSOCKET_URL =
   GlobalConfig.NEXT_PUBLIC_ORDERBOOK_SERVER_WEBSOCKET_URL;
-
-const groupByTime = (data: any): any => {
-  const groupedData = Object.groupBy(data, ({ time }) => time);
-
-  const result = [];
-
-  for (const [time, dataArray] of Object.entries(groupedData)) {
-    if (dataArray.length > 1) {
-      const spreadValue =
-        (dataArray.reduce(
-          (acc: number, { value }: { value: string }) => acc + +value,
-          0
-        ) as number) / dataArray.length;
-      result.push({ time: Number(time), value: spreadValue });
-    } else {
-      const item = dataArray[0] as { time: string; value: string };
-      result.push({
-        time: Number(item.time),
-        value: item.value,
-      });
-    }
-  }
-
-  return result;
-};
 
 export default function Page() {
   const [filter, setFilter] = useState<number>();
@@ -58,6 +33,8 @@ export default function Page() {
   });
 
   useEffect(() => {
+    if (!data) return;
+
     const spread = data.map((d) => ({
       value: d.spread,
       time: d.time,
@@ -75,7 +52,7 @@ export default function Page() {
     setSpreadData(groupByTime(spread));
     setBidDepthData(groupByTime(bidDepth));
     setAskDepthData(groupByTime(askDepth));
-  }, [data.length]);
+  }, [data?.length]);
 
   return (
     <div>
@@ -88,8 +65,6 @@ export default function Page() {
         Spread depth percentage:{" "}
         {!isNaN(spreadDepthPercentage) && spreadDepthPercentage}%
       </h3>
-
-      <EtfSpreadWeight />
 
       <h2>Spread</h2>
       <SingleLineChart data={spreadData} />

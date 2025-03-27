@@ -11,7 +11,6 @@ export const getOHCLDataInfo = async (params: {
   from?: string;
   to?: string;
   coinId?: number;
-  category?: string;
   etfId?: RebalanceDto["etfId"];
 }) => {
   const filter = createQueryParamsStr(params);

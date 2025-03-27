@@ -5,5 +5,4 @@ export interface OrderBookInterface {
   spread: string;
   bidDepth: string;
   askDepth: string;
-  spreadDepthPercentage: number;
 }

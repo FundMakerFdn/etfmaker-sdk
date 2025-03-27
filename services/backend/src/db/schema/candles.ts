@@ -1,5 +1,6 @@
 import { relations } from "drizzle-orm";
 import {
+  index,
   uniqueIndex,
   integer,
   pgTable,
@@ -31,6 +32,7 @@ export const Candles = pgTable(
         table.coinId,
         table.timestamp
       ),
+      coinIdIdx: index("coin_id_idx").on(table.coinId),
       pk: primaryKey({ columns: [table.id, table.timestamp] }),
     };
   }

@@ -22,11 +22,7 @@ const NEXT_PUBLIC_BACKEND_SERVER_WEBSOCKET_URL =
   GlobalConfig.NEXT_PUBLIC_BACKEND_SERVER_WEBSOCKET_URL;
 
 // This helper returns a function that will fetch OHLC data for a given time range.
-const fetchtOhclData = (
-  coinId: number,
-  category: string,
-  etfId: RebalanceDto["etfId"]
-) => {
+const fetchtOhclData = (coinId: number, etfId: RebalanceDto["etfId"]) => {
   let isLoading = false;
   return async (
     groupBy: string,
@@ -41,7 +37,6 @@ const fetchtOhclData = (
         from,
         to,
         coinId,
-        category,
         etfId,
       });
       isLoading = false;
@@ -59,10 +54,9 @@ const CHUNK_DURATION = 60 * 60 * 24 * 7; // one week in miliseconds
 
 export const IndexOhclChart: FC<{
   coinId: number;
-  category: string;
   loaded: () => void;
   etfId: RebalanceDto["etfId"];
-}> = ({ coinId, category, loaded, etfId }) => {
+}> = ({ coinId, loaded, etfId }) => {
   const ohclChartRef = useRef<HTMLDivElement>(null);
   const chartInstanceRef = useRef<any>(null);
   const candlestickSeriesRef = useRef<any>(null);
@@ -103,8 +97,8 @@ export const IndexOhclChart: FC<{
 
   // Create the OHLC data fetcher function.
   const getOhclData = useMemo(
-    () => fetchtOhclData(coinId, category, etfId),
-    [coinId, category, etfId]
+    () => fetchtOhclData(coinId, etfId),
+    [coinId, etfId]
   );
 
   // Load the initial chunk – we load from (now - CHUNK_DURATION) to now.
@@ -260,7 +254,7 @@ export const IndexOhclChart: FC<{
           .unsubscribeVisibleTimeRangeChange(handleVisibleRangeChange);
       }
     };
-  }, [coinId, category, loaded, loadInitialData, handleVisibleRangeChange]);
+  }, [coinId, loaded, loadInitialData, handleVisibleRangeChange]);
 
   // Update live data only if the user is scrolled to the right edge.
   useEffect(() => {

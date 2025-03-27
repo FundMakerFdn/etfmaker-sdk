@@ -1,4 +1,4 @@
-import { desc, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { DataSource } from "../db/DataSource";
 import { Coins, Rebalance } from "../db/schema";
 import { CoinInterface } from "../interfaces/Coin.interface";
@@ -6,6 +6,7 @@ import {
   AmountPerContracts,
   RebalanceDto,
 } from "../interfaces/Rebalance.interface";
+import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
 
 export class RebalanceDataManager {
   public static async getRebalanceAssets(): Promise<CoinInterface[]> {
@@ -28,10 +29,13 @@ export class RebalanceDataManager {
       ) as Promise<CoinInterface[]>;
   }
 
-  public static async getLatestRebalanceData(): Promise<RebalanceDto> {
+  public static async getLatestRebalanceData(
+    etfId: RebalanceConfig["etfId"]
+  ): Promise<RebalanceDto> {
     return (
       await DataSource.select()
         .from(Rebalance)
+        .where(eq(Rebalance.etfId, etfId))
         .orderBy(desc(Rebalance.timestamp))
         .limit(1)
     )?.[0] as RebalanceDto;
