@@ -6,6 +6,8 @@ import {
   getAvailableteIndexEtfIds,
   streamIndexPriceUpdates,
   getIndexTableList,
+  getIndexAssetsCsv,
+  getEtfIndexAssetsCategoriesDistribution,
 } from "../index-price/index-price.controller";
 import { RoutesType } from "../interfaces/RoutesType";
 import { WebSocket } from "ws";
@@ -35,6 +37,16 @@ export const IndexPriceRoutes = [
     method: "GET",
     url: "/get-index-table-list",
     handler: getIndexTableList,
+  },
+  {
+    method: "GET",
+    url: "/index-assets-csv",
+    handler: getIndexAssetsCsv,
+  },
+  {
+    method: "GET",
+    url: "/index-assets-categories-distribution",
+    handler: getEtfIndexAssetsCategoriesDistribution,
   },
   {
     method: "GET",

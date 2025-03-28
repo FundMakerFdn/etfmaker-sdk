@@ -6,6 +6,8 @@ import {
   GetOhclChartDataInput,
   OhclChartDataType,
 } from "../dto/GetETFPrices.dto";
+import { RebalanceConfig } from "../../interfaces/RebalanceConfig.interface";
+import { RebalanceService } from "../../rebalance/rebalance.service";
 
 const groupIntervalMapping: Record<OhclGroupByEnum, string> = {
   "1m": "1 minute",
@@ -25,6 +27,12 @@ const groupIntervalMapping: Record<OhclGroupByEnum, string> = {
 };
 
 export class IndexAggregateManager {
+  private readonly rebalanceService: RebalanceService;
+
+  constructor() {
+    this.rebalanceService = new RebalanceService();
+  }
+
   public async getEtfPriceDataGroupedRange({
     etfId,
     groupBy,
@@ -102,5 +110,44 @@ export class IndexAggregateManager {
       ...data?.[0],
       time: data?.[0]?.time?.getTime() / 1000,
     };
+  }
+
+  public async getIndexAssetsCategoriesDistribution(
+    etfId: RebalanceConfig["etfId"]
+  ) {
+    const indexRebalanceAssets = await this.rebalanceService.getRebalanceAssets(
+      etfId
+    );
+
+    // Prepare a map to accumulate weight per main category
+    const categoryWeightMap: Record<string, number> = {};
+
+    for (const asset of indexRebalanceAssets) {
+      const mainCategory =
+        (asset.categories as string[])?.[0] ?? "Uncategorized";
+      const weight = asset?.weight ? Number(asset.weight) : 0;
+
+      if (!categoryWeightMap[mainCategory]) {
+        categoryWeightMap[mainCategory] = 0;
+      }
+
+      categoryWeightMap[mainCategory] += weight;
+    }
+
+    const totalWeight = Object.values(categoryWeightMap).reduce(
+      (sum, weight) => sum + weight,
+      0
+    );
+
+    // Format result with percentage
+    const distribution = Object.entries(categoryWeightMap).map(
+      ([category, weight]) => ({
+        category,
+        weight,
+        percentage: (weight / totalWeight) * 100,
+      })
+    );
+
+    return distribution;
   }
 }

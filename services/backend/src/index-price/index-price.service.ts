@@ -13,9 +13,11 @@ import { EtfPrice } from "../db/schema";
 import { OhclGroupByEnum } from "../enums/OhclGroupBy.enum";
 import { RebalanceDataManager } from "../rebalance/managers/rebalance-data.manager";
 import { ProcessingStatusService } from "../processing-status/processing-status.service";
+import { IndexCsvManager } from "./managers/index-csv.manager";
 
 const indexAggregateManager = new IndexAggregateManager();
 const rebalanceDataManager = new RebalanceDataManager();
+const indexCsvManager = new IndexCsvManager();
 
 class IndexPriceService {
   private readonly streamManagers: Map<
@@ -124,6 +126,18 @@ class IndexPriceService {
   public generateETFPrice(etfId: RebalanceConfig["etfId"]): Promise<void> {
     const indexGenerateManager = new IndexGenerateManager(etfId);
     return indexGenerateManager.generateETFPrice(etfId);
+  }
+
+  public generateIndexAssetsCsv(
+    etfId: RebalanceConfig["etfId"]
+  ): Promise<string> {
+    return indexCsvManager.generateIndexAssetsCsv(etfId);
+  }
+
+  public async getEtfIndexAssetsCategoriesDistribution(
+    etfId: RebalanceConfig["etfId"]
+  ) {
+    return indexAggregateManager.getIndexAssetsCategoriesDistribution(etfId);
   }
 
   public setYieldETFFundingReward(

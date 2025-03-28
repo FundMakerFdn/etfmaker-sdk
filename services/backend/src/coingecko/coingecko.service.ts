@@ -1,11 +1,12 @@
 import axios from "axios";
 import moment from "moment";
-import { GetMarketCapLimiter } from "./limiters";
+import { GetCoinDataLimiter, GetMarketCapLimiter } from "./limiters";
 import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
 import { CoinCategory } from "../interfaces/CoinCategory.interface";
 import { DataSource } from "../db/DataSource";
 import { MarketCap } from "../db/schema/marketCap";
 import categoryWhiteList from "../config/category-whitelist.json";
+import { CoinInterface } from "../interfaces/Coin.interface";
 
 export class CoinGeckoService {
   private readonly apiKey: string;
@@ -117,5 +118,20 @@ export class CoinGeckoService {
 
   getCoinCategories(): CoinCategory[] {
     return categoryWhiteList as CoinCategory[];
+  }
+
+  public async getAllCoinData(
+    asset_id: CoinInterface["assetId"]
+  ): Promise<Record<string, any>> {
+    const response = await GetCoinDataLimiter.schedule(() =>
+      axios.get(`${this.apiUrl}/coins/${asset_id}`, {
+        headers: {
+          accept: "application/json",
+          "x-cg-pro-api-key": this.apiKey,
+        },
+      })
+    );
+
+    return response.data;
   }
 }

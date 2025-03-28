@@ -4,7 +4,6 @@ import { Rebalance } from "../db/schema/rebalance";
 import { ProcessingKeysEnum } from "../enums/Processing.enum";
 import { RebalanceConfig } from "../interfaces/RebalanceConfig.interface";
 import { ProcessingStatusService } from "../processing-status/processing-status.service";
-import { CoinInterface } from "../interfaces/Coin.interface";
 import { RebalanceCsvManager } from "./managers/rebalance-csv.manager";
 import { inArray, isNotNull, and, eq, gte } from "drizzle-orm";
 import { AmountPerContracts } from "../interfaces/Rebalance.interface";
@@ -12,14 +11,14 @@ import { Coins } from "../db/schema";
 
 export class RebalanceService {
   private readonly rebalanceDataManager: RebalanceDataManager;
+  private readonly rebalanceCsvManager: RebalanceCsvManager;
 
   constructor() {
     this.rebalanceDataManager = new RebalanceDataManager();
+    this.rebalanceCsvManager = new RebalanceCsvManager();
   }
 
-  public getRebalanceAssets(
-    etfId: RebalanceConfig["etfId"]
-  ): Promise<CoinInterface[]> {
+  public getRebalanceAssets(etfId: RebalanceConfig["etfId"]) {
     return this.rebalanceDataManager.getAssets(etfId);
   }
 
@@ -36,7 +35,7 @@ export class RebalanceService {
   }
 
   public getRebalanceDataCsv(): Promise<string> {
-    return RebalanceCsvManager.getRebalanceDataCsv();
+    return this.rebalanceCsvManager.getRebalanceDataCsv();
   }
 
   public setRebalanceDataManualy() {
@@ -52,7 +51,7 @@ export class RebalanceService {
   }
 
   public simulateRebalanceDataCSV(config: RebalanceConfig): Promise<string> {
-    return RebalanceCsvManager.simulateRebalanceDataCSV(config);
+    return this.rebalanceCsvManager.simulateRebalanceDataCSV(config);
   }
 
   public async generateRebalanceData(config: RebalanceConfig): Promise<void> {

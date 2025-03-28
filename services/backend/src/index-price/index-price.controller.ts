@@ -167,3 +167,46 @@ export const getIndexTableList = async (
   const indexTableList = await indexPriceService.getIndexTableListData();
   res.send({ data: indexTableList });
 };
+
+export const getIndexAssetsCsv = async (
+  req: FastifyRequest,
+  res: FastifyReply
+) => {
+  const query = req.query as { etfId: RebalanceConfig["etfId"] };
+  const etfId = query.etfId;
+
+  if (!etfIdTypeCheck(etfId)) {
+    res.send({ error: "Invalid etfId" });
+    return;
+  }
+
+  try {
+    const csv = await indexPriceService.generateIndexAssetsCsv(etfId);
+    res.send(csv);
+  } catch (error) {
+    console.error(error);
+    res.send({ error: "Can't generate index assets csv" });
+  }
+};
+
+export const getEtfIndexAssetsCategoriesDistribution = async (
+  req: FastifyRequest,
+  res: FastifyReply
+) => {
+  const query = req.query as { etfId: RebalanceConfig["etfId"] };
+  const etfId = query.etfId;
+  console.log("etfId", etfId);
+  if (!etfIdTypeCheck(etfId)) {
+    res.send({ error: "Invalid etfId" });
+    return;
+  }
+
+  try {
+    const data =
+      await indexPriceService.getEtfIndexAssetsCategoriesDistribution(etfId);
+    res.send({ data });
+  } catch (error) {
+    console.error(error);
+    res.send({ error: "Can't get etf index assets categories distribution" });
+  }
+};

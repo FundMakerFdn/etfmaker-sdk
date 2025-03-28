@@ -2,12 +2,10 @@
 
 import React, { useState, use } from "react";
 import { DownloadRebalanceDataCsv } from "../../components/DownloadRebalanceCsv";
-import {
-  FiltersByRebalanceAssets,
-  FiltersByCategory,
-} from "../../components/Filters";
+import { FiltersByRebalanceAssets } from "../../components/Filters";
 import { IndexOhclChart } from "../../components/charts/IndexOHCLChart";
 import { EtfSpreadWeight } from "app/components/ETFSpreadWeight";
+import { IndexCategoriesDistribution } from "app/components/tables/IndexCategoriesDistribution";
 
 const AMOUNT_OF_LOADING_ENTRIES = 1;
 
@@ -42,7 +40,6 @@ export default function Page({
       }}
     >
       <DownloadRebalanceDataCsv type="saved" />
-      <DownloadRebalanceDataCsv type="simulation" />
 
       {etfId && (
         <FiltersByRebalanceAssets
@@ -62,6 +59,7 @@ export default function Page({
             etfId={etfId}
           />
           <EtfSpreadWeight etfId={etfId} />
+          <IndexCategoriesDistribution etfId={etfId} />
         </>
       )}
 

@@ -1,5 +1,12 @@
 import { relations } from "drizzle-orm";
-import { pgTable, serial, text, primaryKey, index } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  serial,
+  text,
+  primaryKey,
+  index,
+  jsonb,
+} from "drizzle-orm/pg-core";
 import { CoinSourceEnum } from "../../enums/CoinSource.enum";
 import { CoinStatusEnum } from "../../enums/CoinStatus.enum";
 import { FuturesType } from "../../enums/FuturesType.enum";
@@ -32,6 +39,7 @@ export const Coins = pgTable(
     pair: text("pair"),
     status: CoinStatusTableEnum("status").notNull(),
     futuresType: FuturesTypeEnum("futures_type"),
+    categories: jsonb("categories").default([]),
   },
   (table) => {
     return {

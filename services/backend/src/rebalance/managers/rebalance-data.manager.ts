@@ -25,9 +25,7 @@ import { Rebalance, Coins, MarketCap, Candles } from "../../db/schema";
 import { IndexGenerateManager } from "../../index-price/managers/index-generate.manager";
 
 export class RebalanceDataManager {
-  public async getAssets(
-    etfId: RebalanceConfig["etfId"]
-  ): Promise<CoinInterface[]> {
+  public async getAssets(etfId: RebalanceConfig["etfId"]) {
     const assets = await DataSource.select()
       .from(Rebalance)
       .where(eq(Rebalance.etfId, etfId))
@@ -38,14 +36,26 @@ export class RebalanceDataManager {
         return data[0].data as AmountPerContracts[];
       });
 
-    return DataSource.select()
-      .from(Coins)
-      .where(
-        inArray(
-          Coins.id,
-          assets.map((asset) => asset.coinId)
+    return (
+      await DataSource.select()
+        .from(Coins)
+        .where(
+          inArray(
+            Coins.id,
+            assets.map((asset) => asset.coinId)
+          )
         )
-      ) as Promise<CoinInterface[]>;
+    ).map((coin) => {
+      const data = assets.find((asset) => asset.coinId === coin.id);
+      const weight = data?.weight;
+      const amount = data?.amountPerContracts;
+      return {
+        ...coin,
+        etfId: etfId,
+        weight,
+        amount,
+      };
+    });
   }
 
   public async getRebalanceLastPrice(

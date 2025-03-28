@@ -14,6 +14,7 @@ import { setFundingsData } from "./managers/fundings.manager";
 import { setMarketCapData } from "./managers/market-cap.manager";
 import { setOpenInterestData } from "./managers/open-interest.manager";
 import { Coins } from "../db/schema/coins";
+import { setCoinsCategories } from "./managers/coindata.manager";
 
 const coingeckoService = new CoinGeckoService();
 const binanceService = new BinanceService();
@@ -39,10 +40,11 @@ export class ActualizationService {
 
       const coins = await this.updateCoinsTable(classifiedCoins);
 
-      await setCandlesData(coins);
-      await setMarketCapData(coins);
-      await setFundingsData(coins);
-      await setOpenInterestData(coins);
+      await setCoinsCategories(coins);
+      // await setCandlesData(coins);
+      // await setMarketCapData(coins);
+      // await Promise.all([setFundingsData(coins), setCoinsCategories(coins)]);
+      // await setOpenInterestData(coins);
       await ProcessingStatusService.setSuccess(ProcessingKeysEnum.actualizing);
     } catch (error) {
       await ProcessingStatusService.setError(ProcessingKeysEnum.actualizing);

@@ -16,10 +16,14 @@ interface CsvDataRaw {
   "amount per contracts": number;
 }
 
-const rebalanceDataManager = new RebalanceDataManager();
-
 export class RebalanceCsvManager {
-  public static async getRebalanceDataCsv(): Promise<string> {
+  private readonly rebalanceDataManager: RebalanceDataManager;
+
+  constructor() {
+    this.rebalanceDataManager = new RebalanceDataManager();
+  }
+
+  public async getRebalanceDataCsv(): Promise<string> {
     const rebalanceData = await DataSource.select()
       .from(Rebalance)
       .orderBy(desc(Rebalance.timestamp));
@@ -29,16 +33,16 @@ export class RebalanceCsvManager {
     return this.generateCsvFromRebalanceData(rebalanceData as RebalanceDto[]);
   }
 
-  public static async simulateRebalanceDataCSV(
+  public async simulateRebalanceDataCSV(
     config: RebalanceConfig
   ): Promise<string> {
     const simulatedRebalanceData =
-      await rebalanceDataManager.generateRebalanceData(config, true);
+      await this.rebalanceDataManager.generateRebalanceData(config, true);
 
     return this.generateCsvFromRebalanceData(simulatedRebalanceData!);
   }
 
-  private static async generateCsvFromRebalanceData(
+  private async generateCsvFromRebalanceData(
     rebalanceData: Omit<RebalanceDto, "id">[]
   ): Promise<string> {
     const header = [
@@ -56,7 +60,10 @@ export class RebalanceCsvManager {
     const coinIds = rebalanceData
       .map((data) => data.data.map((d) => d.coinId))
       .flat();
-    const coins = await DataSource.select({ id: Coins.id, name: Coins.name })
+    const coins = await DataSource.select({
+      id: Coins.id,
+      name: Coins.name,
+    })
       .from(Coins)
       .where(inArray(Coins.id, coinIds));
 
@@ -79,15 +86,17 @@ export class RebalanceCsvManager {
     });
   }
 
-  private static transformDataset(
+  private transformDataset(
     data: Omit<RebalanceDto, "id">,
-    coins: { id: number; name: string }[]
+    coins: Record<string, any>[]
   ): CsvDataRaw[] {
     const transformedData = [] as CsvDataRaw[];
     let id = 1;
 
     for (const asset of data.data) {
-      const coinName = coins.find((c) => c.id === asset.coinId)?.name ?? "";
+      const coinData = coins.find((c) => c.id === asset.coinId);
+      const coinName = coinData?.name;
+
       transformedData.push({
         id: id++,
         etfId: data.etfId,

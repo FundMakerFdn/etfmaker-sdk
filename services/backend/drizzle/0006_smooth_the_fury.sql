@@ -1,0 +1,1 @@
+ALTER TABLE "coins" ADD COLUMN "categories" jsonb DEFAULT '[]'::jsonb;

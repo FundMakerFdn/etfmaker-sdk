@@ -43,6 +43,13 @@
       "when": 1743027682238,
       "tag": "0005_acoustic_vertigo",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1743132839125,
+      "tag": "0006_smooth_the_fury",
+      "breakpoints": true
     }
   ]
 }

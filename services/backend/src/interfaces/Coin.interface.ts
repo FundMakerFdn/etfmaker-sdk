@@ -11,4 +11,5 @@ export interface CoinInterface {
   status: CoinStatusEnum;
   pair?: string;
   futuresType?: FuturesType;
+  categories?: string[];
 }
